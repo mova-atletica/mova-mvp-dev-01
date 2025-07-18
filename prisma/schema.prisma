@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Exercise {
+  id                    String   @id @default(cuid())
+  title                 String
+  description           String
+  image                 String
+  referenceVideoUrl     String?
+  referenceKeypointsUrl String
+  tags                  String
+  equipment             String
+  level                 String
+  muscleGroups          String
+  jointsOfInterest      String
+  createdBy             String
+  dateAdded             DateTime @default(now())
+  instructions          String
+  authorName            String
+  authorProfileUrl      String?
+  relatedExercises      String
+}
+
+model CuratedSection {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  exercises   String   // JSON string: [{"id": "exerciseId", "order": 0}, ...]
+}
+
+model FeaturedContent {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  heroImage   String   // URL to custom hero image
+  exerciseId  String?  // Optional link to specific exercise
+  ctaText     String   @default("Try Now")
+  ctaUrl      String?  // Optional custom URL (if not linking to exercise)
+  badgeText   String   @default("Featured Exercise")
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

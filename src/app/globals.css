@@ -1,8 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Hide scrollbar for carousel */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ===== CORE COLORS ===== */
+  --background: #181a1a; /* Main page background */
+  --foreground: #F3F3F4; /* Primary text color */
+  --surface: #181a1a; /* Card/section backgrounds */
+  --surface-hover: #f4eedd; /* Hover states for surfaces */
+  --muted: #7d765f; /* Secondary/subtle text */
+  
+  /* ===== ACCENT COLORS ===== */
+  --accent: #3b82f6; /* Primary accent (blue) */
+  --accent-hover: #2563eb; /* Accent hover state */
+  --info: #3b82f6; /* Info/level badges */
+  
+  /* ===== BORDERS & SHADOWS ===== */
+  --border: #c0c9cc; /* General borders */
+  
+  /* ===== HEADER & NAVIGATION ===== */
+  --header-bg: rgba(0, 0, 0, 0.9); /* Header background with opacity */
+  --header-text: #17150f; /* Header text color */
+  --header-border: #17150f; /* Header border */
+  --logo-color: #17150f; /* Logo color */
+  
+  /* ===== BUTTONS & INTERACTIVE ===== */
+  --button-bg: #f6f1e3; /* Button background */
+  --button-text: #17150f; /* Button text */
+  --button-hover-bg: #f4eedd; /* Button hover background */
+  --button-hover-text: #17150f; /* Button hover text */
+  --button-border: #ccc19e; /* Button border */
+  
+  /* ===== STATUS COLORS ===== */
+  --success: #64FF58; /* Success states */
+  --warning: #ff8044; /* Warning states */
+  --error: #FC7C7C; /* Error states */
+  
+  /* ===== FEATURED SECTION ===== */
+  --featured-overlay: rgba(0, 0, 0, 0.8); /* Dark overlay for featured content */
+  --featured-overlay-light: rgba(0, 0, 0, 0.4); /* Lighter overlay */
+  --featured-overlay-transparent: transparent; /* Transparent overlay */
+  --featured-badge-text: #ffffff; /* Badge text (white) */
+  --featured-badge-dot: #ffffff; /* Badge dot (white) */
+  --featured-title: #ffffff; /* Featured title (white) */
+  --featured-description: #ffffff; /* Featured description (white) */
+  --featured-tag-bg: rgba(255, 255, 255, 0.2); /* Tag background */
+  --featured-tag-text: #ffffff; /* Tag text (white) */
+  --featured-secondary-button-bg: rgba(255, 255, 255, 0.2); /* Secondary button background */
+  --featured-secondary-button-text: #ffffff; /* Secondary button text (white) */
+  --featured-secondary-button-border: rgba(255, 255, 255, 0.3); /* Secondary button border */
+  --featured-secondary-button-hover-bg: rgba(255, 255, 255, 0.3); /* Secondary button hover */
+  
+  /* ===== EXERCISE CARDS ===== */
+  --card-bg: #f6f1e3; /* Card background */
+  --card-overlay: rgba(0, 0, 0, 0.8); /* Card text overlay */
+  --card-title: #ffffff; /* Card title (white) */
+  --card-description: #ffffff; /* Card description (white) */
+  --play-icon-bg: rgba(0, 0, 0, 0.5); /* Play button background */
+  --play-icon-text: #ffffff; /* Play button icon (white) */
+  
+  /* ===== CAROUSEL ===== */
+  --carousel-arrow-bg: rgba(53, 56, 57, 0.9); /* Carousel arrow background */
+  --carousel-arrow-hover-bg: #353839; /* Carousel arrow hover */
+  --carousel-arrow-text: #ffffff; /* Carousel arrow icon (white) */
+  --carousel-fade: rgba(0, 0, 0, 0.42); /* Carousel fade edges */
+  
+  /* ===== SECTION HEADERS ===== */
+  --section-title: #17150f; /* Section titles */
+  --section-subtitle: #7d765f; /* Section subtitles */
+  --section-accent: #3b82f6; /* Section accent line */
 }
 
 @theme inline {
@@ -14,8 +92,52 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Core colors */
+    --background: #181a1a; /* onyx-100 */
+    --foreground: #c0c9cc; /* onyx-40 */
+    --surface: #353839; /* onyx-90 */
+    --surface-hover: #555950; /* onyx-80 */
+    --accent: #3b82f6; /* blue-50 */
+    --accent-hover: #60a5fa; /* blue-40 */
+    --border: #777d7f; /* onyx-70 */
+    --muted: #9b9a5a; /* onyx-60 */
+    
+    /* Header & Navigation */
+    --header-bg: rgba(0, 0, 0, 0.9); /* onyx-100 with opacity */
+    --header-text: #eef0f1; /* onyx-40 */
+    --header-border: #c0c9cc; /* onyx-70 */
+    --logo-color: #eef0f1; /* onyx-40 */
+    
+    /* Buttons & Interactive */
+    --button-bg: #353839; /* onyx-90 */
+    --button-text: #eef0f1; /* onyx-40 */
+    --button-hover-bg: #555950; /* onyx-80 */
+    --button-hover-text: #eef0f1; /* onyx-40 */
+    --button-disabled-bg: #777d7f; /* onyx-70 */
+    --button-disabled-text: #9b9a5a; /* onyx-60 */
+    --button-border: #777d7f; /* onyx-70 */
+    
+    /* Status Colors */
+    --success: #64FF58; /* green-40 */
+    --warning: #ff8044; /* intermediate badge color */
+    --error: #FC7C7C; /* red-60 */
+    --info: #60a5fa; /* blue-40 */
+    
+    /* Cards & Components */
+    --card-bg: #353839; /* onyx-90 */
+    --card-border: #777d7f; /* onyx-70 */
+    --card-shadow: rgba(0, 0, 0, 0.3);
+    --input-bg: #181a1a; /* onyx-100 */
+    --input-border: #777d7f; /* onyx-70 */
+    --input-text: #eef0f1; /* onyx-40 */
+    
+    /* Progress & Scores */
+    --progress-bg: #777d7f; /* onyx-70 */
+    --progress-fill: #3b82f6; /* blue-50 */
+    --score-excellent: #64FF58; /* green-40 */
+    --score-good: #3b82f6; /* blue-50 */
+    --score-fair: #ff8044; /* warning color */
+    --score-poor: #FC7C7C; /* red-60 */
   }
 }
 
@@ -23,4 +145,50 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Video Player Slider Styles */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Video Player Aspect Ratio Utilities */
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}
+
+.aspect-\[9\/16\] {
+  aspect-ratio: 9 / 16;
 }
