@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Modal fade-in */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Modal scale-in */
+.animate-modal-in {
+  animation: modalIn 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Accordion open/close */
+.data-[state=open].animate-accordion-down {
+  animation: accordionDown 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+.data-[state=closed].animate-accordion-up {
+  animation: accordionUp 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes accordionDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes accordionUp {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+
+/* Chip animation */
+.animate-chip-in {
+  animation: chipIn 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes chipIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Popover animation */
+.animate-popover-in {
+  animation: popoverIn 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes popoverIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Added label animation */
+.animate-added-label {
+  animation: addedLabel 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes addedLabel {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+} 

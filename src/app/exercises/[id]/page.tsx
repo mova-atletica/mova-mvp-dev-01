@@ -340,7 +340,7 @@ export default function ExerciseDetail({ params }: Props) {
                   }}
                 >
                   <div className="flex items-center gap-3 m-0 p-0">
-                    <h3 className="text-xs font-semibold m-0 p-0" style={{ color: 'var(--accordion-text)' }}>Instructions</h3>
+                    <h3 className="text-xs font-semibold m-0 p-0" style={{ color: 'var(--accordion-text)' }}>Instructions on Form</h3>
                   </div>
                   <svg 
                     className="w-4 h-4 transition-transform duration-300"

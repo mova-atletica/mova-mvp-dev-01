@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Exercise } from "../../../data/exercises";
 import AdvancedResultsDisplay from "../../../components/AdvancedResultsDisplay";
 import SideBySideVideoPlayer from "../../../components/SideBySideVideoPlayer";
+import AssetGenerationModal from "../../../components/AssetGenerationModal";
 import { advancedAnalysisService, AdvancedAnalysisResult } from "../../../lib/advancedAnalysisService";
 import {
   LineChart,
@@ -27,6 +28,7 @@ import {
 
 import { useRef } from 'react';
 import React from "react"; // Added missing import for React
+import InfoTooltip from "../../../components/InfoTooltip";
 
 // Utility to calculate angle at point b (in degrees)
 function getAngle(a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) {
@@ -241,7 +243,12 @@ function ResultsTabs({
           <div className="space-y-6">
             {/* Angle Comparison Chart */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-xl font-bold text-onyx-10 mb-4">Angle Comparison Over Time</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-xl font-bold text-onyx-10">Angle Comparison Over Time</h3>
+                <InfoTooltip content="Shows how your joint angles compare to the reference video over time. Click on the chart to jump to that moment in your video. The vertical line shows your current video position.">
+                  <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                </InfoTooltip>
+              </div>
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart data={prepareAngleComparisonData()} onClick={handleChartClick}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -282,7 +289,12 @@ function ResultsTabs({
               <>
                 {/* Radar Chart */}
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-xl font-bold text-onyx-10 mb-4">Performance Radar</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-xl font-bold text-onyx-10">Performance Radar</h3>
+                    <InfoTooltip content="Overall performance metrics across different analysis methods. Larger areas indicate better performance. This gives you a quick visual overview of your movement quality.">
+                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                    </InfoTooltip>
+                  </div>
                   <ResponsiveContainer width="100%" height={400}>
                     <RadarChart data={prepareRadarData()}>
                       <PolarGrid />
@@ -300,7 +312,12 @@ function ResultsTabs({
                 </div>
                 {/* Bar Chart: Joint Analysis */}
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-xl font-bold text-onyx-10 mb-4">Advanced Joint Analysis</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-xl font-bold text-onyx-10">Advanced Joint Analysis</h3>
+                    <InfoTooltip content="Detailed analysis of each joint using multiple metrics: DTW Pattern (movement similarity), Cosine Similarity (angle patterns), Range of Motion (flexibility), and Basic Score (overall accuracy).">
+                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                    </InfoTooltip>
+                  </div>
                   <ResponsiveContainer width="100%" height={400}>
                     <BarChart data={prepareJointScoresData()}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -317,25 +334,50 @@ function ResultsTabs({
                 </div>
                 {/* Balance & Stability */}
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-xl font-bold text-onyx-10 mb-4">Balance & Stability</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-xl font-bold text-onyx-10">Balance & Stability</h3>
+                    <InfoTooltip content="Measures your balance and stability during the exercise. Higher scores indicate better control and less sway. Most relevant for exercises requiring balance like squats or single-leg movements.">
+                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                    </InfoTooltip>
+                  </div>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-onyx-30">Stability Score:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-onyx-30">Stability Score:</span>
+                        <InfoTooltip content="How steady you maintained your position throughout the exercise. Higher scores mean less unwanted movement.">
+                          <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                        </InfoTooltip>
+                      </div>
                       <span className="font-bold">{Math.round(advancedAnalysis.balance_metrics?.stability_score || 0)}%</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-onyx-30">Symmetry Score:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-onyx-30">Symmetry Score:</span>
+                        <InfoTooltip content="How balanced your movement was between left and right sides. Higher scores indicate more symmetrical movement.">
+                          <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                        </InfoTooltip>
+                      </div>
                       <span className="font-bold">{Math.round(advancedAnalysis.balance_metrics?.symmetry_score || 0)}%</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-onyx-30">Sway Variance:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-onyx-30">Sway Variance:</span>
+                        <InfoTooltip content="A measure of how much your center of mass moved during the exercise. Lower values indicate better balance control.">
+                          <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                        </InfoTooltip>
+                      </div>
                       <span className="font-medium">{advancedAnalysis.balance_metrics?.sway_metrics?.variance ? advancedAnalysis.balance_metrics.sway_metrics.variance.toFixed(2) : '0.00'}</span>
                     </div>
                   </div>
                 </div>
                 {/* Repetition Analysis */}
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-xl font-bold text-onyx-10 mb-4">Repetition Analysis</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-xl font-bold text-onyx-10">Repetition Analysis</h3>
+                    <InfoTooltip content="Detailed breakdown of your repetitions for each joint. Shows consistency, timing, and range of motion across multiple reps. Most useful for exercises with clear repetitions like squats or push-ups.">
+                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                    </InfoTooltip>
+                  </div>
                   <div className="space-y-4">
                     {Object.entries(advancedAnalysis.repetition_analysis || {}).map(([joint, analysis]: [string, any]) => (
                       <div key={joint} className="border-b border-gray-200 pb-3">
@@ -343,10 +385,34 @@ function ResultsTabs({
                           {joint.replace(/([A-Z])/g, ' $1').trim()}
                         </h4>
                         <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>Reps: {analysis.rep_count || 0}</div>
-                          <div>Consistency: {Math.round(analysis.consistency || 0)}%</div>
-                          <div>Avg Duration: {typeof analysis.avg_duration === 'number' ? analysis.avg_duration.toFixed(2) : '0.00'}s</div>
-                          <div>Avg ROM: {typeof analysis.avg_rom === 'number' ? analysis.avg_rom.toFixed(1) : '0.0'}°</div>
+                          <div className="flex items-center gap-1">
+                            <span>Reps:</span>
+                            <InfoTooltip content="Number of complete repetitions detected for this joint.">
+                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                            </InfoTooltip>
+                            <span>{analysis.rep_count || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>Consistency:</span>
+                            <InfoTooltip content="How similar each repetition was to the others. Higher percentages mean more consistent form.">
+                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                            </InfoTooltip>
+                            <span>{Math.round(analysis.consistency || 0)}%</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>Avg Duration:</span>
+                            <InfoTooltip content="Average time it took to complete each repetition.">
+                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                            </InfoTooltip>
+                            <span>{typeof analysis.avg_duration === 'number' ? analysis.avg_duration.toFixed(2) : '0.00'}s</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>Avg ROM:</span>
+                            <InfoTooltip content="Average range of motion achieved during each repetition.">
+                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                            </InfoTooltip>
+                            <span>{typeof analysis.avg_rom === 'number' ? analysis.avg_rom.toFixed(1) : '0.0'}°</span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -362,7 +428,12 @@ function ResultsTabs({
           <div className="space-y-6">
             {/* Overall Feedback */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-xl font-bold text-onyx-10 mb-4">Overall Feedback</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-xl font-bold text-onyx-10">Overall Feedback</h3>
+                <InfoTooltip content="Your overall performance score and grade based on how well your joint angles matched the reference video. The advanced score uses more sophisticated analysis methods.">
+                  <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                </InfoTooltip>
+              </div>
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-1 flex flex-col items-center justify-center">
                   <div className="text-4xl font-bold mb-2">
@@ -372,27 +443,56 @@ function ResultsTabs({
                     Grade: {comparisonResults?.overall?.grade ?? 'N/A'}
                   </div>
                   {advancedAnalysis?.overall_score && (
-                    <div className="text-md text-onyx-30 mt-2">Advanced Score: {Math.round(advancedAnalysis.overall_score)}%</div>
+                    <div className="flex items-center gap-2 text-md text-onyx-30 mt-2">
+                      <span>Advanced Score:</span>
+                      <InfoTooltip content="A more sophisticated analysis that considers movement patterns, timing, and overall form quality beyond just angle matching.">
+                        <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                      </InfoTooltip>
+                      <span>{Math.round(advancedAnalysis.overall_score)}%</span>
+                    </div>
                   )}
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center">
-                  <div className="text-md text-onyx-30 mb-2">Joints Analyzed: {jointsOfInterest?.length ?? 0}</div>
-                  <div className="text-md text-onyx-30 mb-2">Best Joint: {jointsOfInterest && comparisonResults ? jointsOfInterest.reduce((best: string, joint: string) => {
-                    const currentScore = comparisonResults?.[joint]?.score || 0;
-                    const bestScore = comparisonResults?.[best]?.score || 0;
-                    return currentScore > bestScore ? joint : best;
-                  }, jointsOfInterest[0])?.replace(/([A-Z])/g, ' $1').trim() : 'N/A'}</div>
-                  <div className="text-md text-onyx-30">Needs Work: {jointsOfInterest && comparisonResults ? jointsOfInterest.reduce((worst: string, joint: string) => {
-                    const currentScore = comparisonResults?.[joint]?.score || 0;
-                    const worstScore = comparisonResults?.[worst]?.score || 0;
-                    return currentScore < worstScore ? joint : worst;
-                  }, jointsOfInterest[0])?.replace(/([A-Z])/g, ' $1').trim() : 'N/A'}</div>
+                  <div className="flex items-center gap-2 text-md text-onyx-30 mb-2">
+                    <span>Joints Analyzed:</span>
+                    <InfoTooltip content="Number of joints that were tracked and compared to the reference video.">
+                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                    </InfoTooltip>
+                    <span>{jointsOfInterest?.length ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-md text-onyx-30 mb-2">
+                    <span>Best Joint:</span>
+                    <InfoTooltip content="The joint that most closely matched the reference video's movement pattern.">
+                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                    </InfoTooltip>
+                    <span>{jointsOfInterest && comparisonResults ? jointsOfInterest.reduce((best: string, joint: string) => {
+                      const currentScore = comparisonResults?.[joint]?.score || 0;
+                      const bestScore = comparisonResults?.[best]?.score || 0;
+                      return currentScore > bestScore ? joint : best;
+                    }, jointsOfInterest[0])?.replace(/([A-Z])/g, ' $1').trim() : 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-md text-onyx-30">
+                    <span>Needs Work:</span>
+                    <InfoTooltip content="The joint that showed the biggest difference from the reference video and may need the most attention.">
+                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                    </InfoTooltip>
+                    <span>{jointsOfInterest && comparisonResults ? jointsOfInterest.reduce((worst: string, joint: string) => {
+                      const currentScore = comparisonResults?.[joint]?.score || 0;
+                      const worstScore = comparisonResults?.[worst]?.score || 0;
+                      return currentScore < worstScore ? joint : worst;
+                    }, jointsOfInterest[0])?.replace(/([A-Z])/g, ' $1').trim() : 'N/A'}</span>
+                  </div>
                 </div>
               </div>
             </div>
             {/* Joint-by-Joint Feedback */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-xl font-bold text-onyx-10 mb-4">Joint-by-Joint Feedback</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-xl font-bold text-onyx-10">Joint-by-Joint Feedback</h3>
+                <InfoTooltip content="Detailed feedback for each joint showing your score and average angle difference from the reference. Green scores (80%+) are excellent, yellow (60-79%) need improvement, red (below 60%) need significant work.">
+                  <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                </InfoTooltip>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {jointsOfInterest?.map((joint: string) => {
                   const jointData = comparisonResults?.[joint];
@@ -404,12 +504,22 @@ function ResultsTabs({
                         {joint.replace(/([A-Z])/g, ' $1').trim()}
                       </h4>
                       <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-onyx-30">Score:</span>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm text-onyx-30">Score:</span>
+                            <InfoTooltip content="Percentage accuracy of your joint angles compared to the reference video. Higher is better.">
+                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                            </InfoTooltip>
+                          </div>
                           <span className={`font-bold ${score >= 80 ? 'text-green-600' : score >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{score}%</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-onyx-30">Avg Difference:</span>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm text-onyx-30">Avg Difference:</span>
+                            <InfoTooltip content="Average difference in degrees between your joint angles and the reference video. Lower is better.">
+                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+                            </InfoTooltip>
+                          </div>
                           <span className="font-medium">{typeof avgDiff === 'number' ? avgDiff.toFixed(1) : '0.0'}°</span>
                         </div>
                       </div>
@@ -421,7 +531,12 @@ function ResultsTabs({
             {/* Improvement Suggestions */}
             {(advancedAnalysis?.improvement_suggestions?.length > 0) && (
               <div className="bg-blue-50 rounded-lg shadow p-6">
-                <h3 className="text-xl font-bold text-onyx-10 mb-4">Improvement Suggestions</h3>
+                <div className="flex items-center gap-2 mb-4">
+                  <h3 className="text-xl font-bold text-onyx-10">Improvement Suggestions</h3>
+                  <InfoTooltip content="AI-generated suggestions based on your performance analysis. These are specific, actionable tips to help you improve your form and technique.">
+                    <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                  </InfoTooltip>
+                </div>
                 <div className="space-y-3">
                   {advancedAnalysis.improvement_suggestions.map((suggestion: string, idx: number) => (
                     <div key={idx} className="flex items-start space-x-3 p-3 bg-white rounded-lg">
@@ -434,7 +549,12 @@ function ResultsTabs({
             )}
             {(!advancedAnalysis?.improvement_suggestions || advancedAnalysis.improvement_suggestions.length === 0) && (
               <div className="bg-blue-50 rounded-lg shadow p-6">
-                <h3 className="text-xl font-bold text-onyx-10 mb-4">Improvement Suggestions</h3>
+                <div className="flex items-center gap-2 mb-4">
+                  <h3 className="text-xl font-bold text-onyx-10">Improvement Suggestions</h3>
+                  <InfoTooltip content="AI-generated suggestions based on your performance analysis. These are specific, actionable tips to help you improve your form and technique.">
+                    <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                  </InfoTooltip>
+                </div>
                 <div className="text-onyx-30">No specific suggestions available. Review your joint scores above for areas to improve.</div>
               </div>
             )}
@@ -471,6 +591,7 @@ function SessionSummaryTab({
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAssets, setGeneratedAssets] = useState<{ [key: string]: any }>({});
+  const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
 
   // Calculate session stats
   const sessionStats = {
@@ -562,23 +683,48 @@ function SessionSummaryTab({
     <div className="space-y-6">
       {/* Session Summary Card */}
       <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg p-6">
-        <h3 className="text-2xl font-bold mb-4">Session Summary</h3>
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="text-2xl font-bold">Session Summary</h3>
+          <InfoTooltip content="Overview of your workout session with key performance metrics and highlights.">
+            <span className="text-white opacity-80 hover:opacity-100 cursor-help">ⓘ</span>
+          </InfoTooltip>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
             <div className="text-3xl font-bold">{sessionStats.overallScore}%</div>
-            <div className="text-sm opacity-90">Overall Score</div>
+            <div className="flex items-center justify-center gap-1 text-sm opacity-90">
+              <span>Overall Score</span>
+              <InfoTooltip content="Your overall performance score based on joint angle accuracy compared to the reference video.">
+                <span className="text-white opacity-80 hover:opacity-100 cursor-help text-xs">ⓘ</span>
+              </InfoTooltip>
+            </div>
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold">{sessionStats.grade}</div>
-            <div className="text-sm opacity-90">Grade</div>
+            <div className="flex items-center justify-center gap-1 text-sm opacity-90">
+              <span>Grade</span>
+              <InfoTooltip content="Letter grade based on your overall score: A (90%+), B (80-89%), C (70-79%), D (60-69%), F (below 60%).">
+                <span className="text-white opacity-80 hover:opacity-100 cursor-help text-xs">ⓘ</span>
+              </InfoTooltip>
+            </div>
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold">{sessionStats.repCount}</div>
-            <div className="text-sm opacity-90">Repetitions</div>
+            <div className="flex items-center justify-center gap-1 text-sm opacity-90">
+              <span>Repetitions</span>
+              <InfoTooltip content="Total number of complete repetitions detected across all joints during your session.">
+                <span className="text-white opacity-80 hover:opacity-100 cursor-help text-xs">ⓘ</span>
+              </InfoTooltip>
+            </div>
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold">{sessionStats.balanceScore}%</div>
-            <div className="text-sm opacity-90">Balance</div>
+            <div className="flex items-center justify-center gap-1 text-sm opacity-90">
+              <span>Balance</span>
+              <InfoTooltip content="Your stability score measuring how steady you maintained your position throughout the exercise.">
+                <span className="text-white opacity-80 hover:opacity-100 cursor-help text-xs">ⓘ</span>
+              </InfoTooltip>
+            </div>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -594,7 +740,12 @@ function SessionSummaryTab({
       </div>
       {/* Creative Assets Gallery */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-xl font-bold text-onyx-10 mb-4">Creative Assets</h3>
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="text-xl font-bold text-onyx-10">Creative Assets</h3>
+          <InfoTooltip content="Generate visual assets from your workout session to share on social media or keep for your fitness journey.">
+            <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+          </InfoTooltip>
+        </div>
         <p className="text-onyx-30 mb-6">Generate and share visual assets from your workout session</p>
         {!poses || poses.length === 0 ? (
           <div className="text-center py-8">
@@ -664,8 +815,19 @@ function SessionSummaryTab({
       </div>
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-xl font-bold text-onyx-10 mb-4">Quick Actions</h3>
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="text-xl font-bold text-onyx-10">Quick Actions</h3>
+          <InfoTooltip content="Quick actions to download, share, or retry your workout session.">
+            <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+          </InfoTooltip>
+        </div>
         <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={() => setIsAssetModalOpen(true)}
+            className="bg-purple-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-600 transition"
+          >
+            🎨 Create Shareable Asset
+          </button>
           <button 
             onClick={downloadAllAssets}
             className="bg-blue-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-600 transition"
@@ -680,12 +842,21 @@ function SessionSummaryTab({
           </button>
           <button 
             onClick={() => window.location.reload()}
-            className="bg-purple-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-600 transition"
+            className="bg-gray-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition"
           >
             🎯 Try Again
           </button>
         </div>
       </div>
+      
+      {/* Asset Generation Modal */}
+      <AssetGenerationModal
+        isOpen={isAssetModalOpen}
+        onClose={() => setIsAssetModalOpen(false)}
+        videoUrl={videoUrl}
+        poses={poses}
+        exerciseTitle={exerciseTitle}
+      />
     </div>
   );
 }
@@ -1104,7 +1275,7 @@ export default function ResultsPage() {
     <main className="min-h-screen bg-onyx-100 flex flex-col items-center px-4 py-8" style={{ border: '4px solid red', maxWidth: '2560px', marginLeft: '3%', marginRight: '3%' }}>
       <div className="w-full max-w-6xl flex flex-row" style={{ border: '2px solid green', maxWidth: '2560px', minHeight: '70vh' }}>
         {/* Left: Side-by-Side Video Player (50%) */}
-        <div className="flex-1 min-w-0 max-w-[50%] flex flex-col justify-start" style={{ border: '2px solid blue', maxWidth: '50%' }}>
+        <div className="flex-1 min-w-0 max-w-[50%] flex flex-col justify-start" style={{ border: '2px solid blue', maxWidth: '50%', minHeight: 0 }}>
           <SideBySideVideoPlayer
             userVideoUrl={videoUrl}
             referenceVideoUrl={referenceVideoUrl}
@@ -1114,7 +1285,6 @@ export default function ResultsPage() {
             seekFrame={seekFrame}
             onSeekFrameHandled={() => setSeekFrame(null)}
             onReferenceFrameChange={setReferenceFrame}
-            className="h-full"
             maxHeight="70vh"
           />
         </div>

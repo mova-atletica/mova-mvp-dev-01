@@ -1,0 +1,27 @@
+Compiler type: unix
+--noopenmp: 0
+--forceopenmp: 0
+--noxpreprocessor: 0
+--forcellvm: 0
+--forcegnugcc: 0
+--forcestatic: 0
+Cython found (during compilation)
+- Version: 0.29.32
+- Locations: <module 'Cython' from '/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/build-env-vth84kyc/lib/python3.8/site-packages/Cython/__init__.py'>
+Numpy found (during compilation):
+- Version: 1.23.3
+- Location: <module 'numpy' from '/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/build-env-vth84kyc/lib/python3.8/site-packages/numpy/__init__.py'>
+Checking if gcc redirects to clang
+gcc --version # with stdout=-1, stderr=-1, input=, encoding=ascii
+Configured with: --prefix=/Applications/Xcode_13.2.1.app/Contents/Developer/usr --with-gxx-include-dir=/Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/4.2.1
+
+Apple clang version 13.0.0 (clang-1300.0.29.30)
+... found clang
+Using LLVM settings (gcc)
+Checking for OpenMP availability for gcc
+gcc -dM -E -Xpreprocessor -fopenmp - # with stdout=-1, stderr=-1, input=, encoding=ascii
+
+#define _OPENMP 201811
+... found OpenMP
+All extensions:
+[<setuptools.extension.Extension('dtaidistance.dtw_cc') at 0x10b583160>, <setuptools.extension.Extension('dtaidistance.ed_cc') at 0x10b583760>, <setuptools.extension.Extension('dtaidistance.dtw_cc_omp') at 0x10b583ac0>, <setuptools.extension.Extension('dtaidistance.dtw_cc_numpy') at 0x10b5804c0>]

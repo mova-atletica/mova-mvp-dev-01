@@ -45,14 +45,14 @@ export default function CoreVideoPlayer({
     <>
       <div 
         className={`flex flex-col items-center ${containerClassName}`} 
-        style={{ ...style, height: height || undefined, maxHeight: height || '80vh' }}
+        style={{ ...style, height: height || undefined }}
       >
         <div className="flex flex-col items-center w-full h-full">
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', position: 'relative', width: '100%', height: '100%' }}>
             
             {/* Advanced Panel */}
             {showAdvancedPanel && (
-              <div style={{ minWidth: '260px', maxWidth: '300px', marginRight: '-24px', zIndex: 2 }}>
+              <div style={{ minWidth: '260px', maxWidth: '300px', marginRight: '-24px', zIndex: 2, overflow: 'visible' }}>
                 {advancedPanel}
               </div>
             )}

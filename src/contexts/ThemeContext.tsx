@@ -154,6 +154,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--accordion-chevron', '#c0c9cc'); // onyx-50
       root.style.setProperty('--accordion-shadow', '0 1px 3px 0 rgba(0, 0, 0, 0.3)');
       root.style.setProperty('--accordion-shadow-hover', '0 0px 0px 0px rgba(0, 0, 0, 0.4)');
+      // Tooltip (Dark Mode)
+      root.style.setProperty('--tooltip-bg', '#23272e'); // dark background
+      root.style.setProperty('--tooltip-text', '#eef0f1'); // light text
+      root.style.setProperty('--tooltip-border', '#55595b'); // subtle border
+      root.style.setProperty('--tooltip-shadow', '0 4px 24px 0 rgba(0,0,0,0.45)');
     } else {
       // Light mode - reset to original values
       root.style.setProperty('--background', '#c0c9cc'); // onyx-50
@@ -280,6 +285,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--accordion-chevron', '#353839'); // gray-500
       root.style.setProperty('--accordion-shadow', '0 0px 0px 0 rgba(0, 0, 0, 0.1)');
       root.style.setProperty('--accordion-shadow-hover', '0 4px 6px -1px rgba(0, 0, 0, 0.1)');
+      // Tooltip (Light Mode)
+      root.style.setProperty('--tooltip-bg', '#f3f3f4'); // light background
+      root.style.setProperty('--tooltip-text', '#353839'); // dark text
+      root.style.setProperty('--tooltip-border', '#c0c9cc'); // subtle border
+      root.style.setProperty('--tooltip-shadow', '0 4px 24px 0 rgba(0,0,0,0.10)');
     }
   }, [theme]);
 

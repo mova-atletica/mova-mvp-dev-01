@@ -63,7 +63,7 @@ export default function SideBySideVideoPlayer({
     const currentOnTimeUpdate = activeVideo === 'user' ? onUserTimeUpdate : onReferenceTimeUpdate;
 
     return (
-      <div className={`w-full ${className}`} style={maxHeight ? { maxHeight, overflow: 'hidden' } : undefined}>
+      <div className={`w-full ${className}`} style={maxHeight ? { maxHeight } : undefined}>
         {/* Toggle Controls */}
         <div 
           className="flex items-center justify-between mb-4 px-2"
@@ -87,8 +87,8 @@ export default function SideBySideVideoPlayer({
           </div>
         </div>
 
-        {/* Video Player Container */}
-        <div className="w-full" style={maxHeight ? { maxHeight, overflow: 'hidden' } : undefined}>
+        {/* Video Player Container - no overflow hidden */}
+        <div className="w-full">
           <VideoPlayer
             ref={activeVideo === 'user' ? userVideoRef : undefined}
             videoUrl={currentVideoUrl || ""}
@@ -103,7 +103,7 @@ export default function SideBySideVideoPlayer({
 
   // Side-by-side view mode
   return (
-    <div className={`w-full ${className}`} style={maxHeight ? { maxHeight, overflow: 'hidden' } : undefined}>
+    <div className={`w-full ${className}`} style={maxHeight ? { maxHeight } : undefined}>
       {/* Toggle Controls */}
       <div 
         className="flex items-center justify-between mb-4 px-2"
@@ -121,14 +121,14 @@ export default function SideBySideVideoPlayer({
         </div>
       </div>
 
-      {/* Side-by-Side Videos Container */}
-      <div className="w-full" style={maxHeight ? { maxHeight, overflow: 'hidden' } : undefined}>
+      {/* Side-by-Side Videos Container - no overflow hidden */}
+      <div className="w-full">
         {/* Responsive Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* User Video */}
           <div className="w-full flex flex-col">
             <div className="text-sm font-semibold text-gray-700 mb-2 px-2">Your Video</div>
-            <div style={maxHeight ? { maxHeight, overflow: 'hidden' } : undefined}>
+            <div>
               <VideoPlayer
                 ref={userVideoRef}
                 videoUrl={userVideoUrl || ""}
@@ -142,7 +142,7 @@ export default function SideBySideVideoPlayer({
           {/* Reference Video */}
           <div className="w-full flex flex-col">
             <div className="text-sm font-semibold text-gray-700 mb-2 px-2">Reference Video</div>
-            <div style={maxHeight ? { maxHeight, overflow: 'hidden' } : undefined}>
+            <div>
               <VideoPlayer
                 videoUrl={referenceVideoUrl || ""}
                 keypointData={referencePoses}
