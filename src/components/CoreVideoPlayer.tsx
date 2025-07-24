@@ -1,12 +1,14 @@
 "use client";
 import { ReactNode } from 'react';
+import { Download, Settings, Sun, BarChart2 } from 'lucide-react';
+import React, { useState } from 'react';
 
 interface CoreVideoPlayerProps {
   videoElement: ReactNode; // <video> or <Webcam>
   canvasRef: React.RefObject<HTMLCanvasElement>;
   overlays: ReactNode; // overlays (e.g., skeleton, angles)
   controls: ReactNode; // playback or live controls
-  advancedPanel: ReactNode; // advanced panel UI
+  advancedPanel?: ReactNode; // advanced panel UI (optional)
   containerClassName?: string;
   loading?: boolean;
   error?: string | null;
@@ -14,6 +16,9 @@ interface CoreVideoPlayerProps {
   onCloseAdvancedPanel?: () => void;
   style?: React.CSSProperties;
   height?: string;
+  openMenu?: null | 'export' | 'selection' | 'style' | 'actions';
+  setOpenMenu?: (menu: null | 'export' | 'selection' | 'style' | 'actions') => void;
+  panelContent?: React.ReactNode;
 }
 
 export default function CoreVideoPlayer({
@@ -29,7 +34,15 @@ export default function CoreVideoPlayer({
   onCloseAdvancedPanel,
   style = {},
   height,
+  openMenu: controlledOpenMenu,
+  setOpenMenu: controlledSetOpenMenu,
+  panelContent,
 }: CoreVideoPlayerProps) {
+  // If controlled props are provided, use them; otherwise, use local state (for backward compatibility)
+  const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<null | 'export' | 'selection' | 'style' | 'actions'>(null);
+  const openMenu = controlledOpenMenu !== undefined ? controlledOpenMenu : uncontrolledOpenMenu;
+  const setOpenMenu = controlledSetOpenMenu !== undefined ? controlledSetOpenMenu : setUncontrolledOpenMenu;
+
   if (error) {
     return (
       <div className={`relative flex items-center justify-center ${containerClassName}`} style={style}>
@@ -49,61 +62,89 @@ export default function CoreVideoPlayer({
       >
         <div className="flex flex-col items-center w-full h-full">
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', position: 'relative', width: '100%', height: '100%' }}>
-            
-            {/* Advanced Panel */}
-            {showAdvancedPanel && (
-              <div style={{ minWidth: '260px', maxWidth: '300px', marginRight: '-24px', zIndex: 2, overflow: 'visible' }}>
-                {advancedPanel}
-              </div>
-            )}
-            
             {/* Video Player Container */}
             <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', position: 'relative' }}>
               <div style={{ display: 'inline-block', position: 'relative' }}>
-                {/* Toggle Button - Absolutely positioned over video/canvas */}
-                <button
-                  onClick={onCloseAdvancedPanel}
-                  aria-label={showAdvancedPanel ? "Hide advanced controls" : "Show advanced controls"}
-                  style={{
+                {/* --- New Vertical Controls Overlay (moved here) --- */}
+                <div style={{
+                  position: 'absolute',
+                  top: 24,
+                  right: 24,
+                  zIndex: 40,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}>
+                  <button
+                    style={{
+                      width: 48, height: 48, borderRadius: '50%', background: openMenu === 'export' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'export' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
+                    }}
+                    onClick={() => setOpenMenu(openMenu === 'export' ? null : 'export')}
+                    aria-label="Export"
+                  >
+                    <Download size={24} />
+                  </button>
+                  <button
+                    style={{
+                      width: 48, height: 48, borderRadius: '50%', background: openMenu === 'selection' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'selection' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
+                    }}
+                    onClick={() => setOpenMenu(openMenu === 'selection' ? null : 'selection')}
+                    aria-label="Selection"
+                  >
+                    <Settings size={24} />
+                  </button>
+                  <button
+                    style={{
+                      width: 48, height: 48, borderRadius: '50%', background: openMenu === 'style' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'style' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
+                    }}
+                    onClick={() => setOpenMenu(openMenu === 'style' ? null : 'style')}
+                    aria-label="Style"
+                  >
+                    <Sun size={24} />
+                  </button>
+                  <button
+                    style={{
+                      width: 48, height: 48, borderRadius: '50%', background: openMenu === 'actions' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'actions' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)',
+                    }}
+                    onClick={() => setOpenMenu(openMenu === 'actions' ? null : 'actions')}
+                    aria-label="Actions"
+                  >
+                    <BarChart2 size={24} />
+                  </button>
+                </div>
+                {/* --- Floating Panel for Open Menu (moved here) --- */}
+                {openMenu && (
+                  <div style={{
                     position: 'absolute',
-                    top: 8,
-                    left: 8,
-                    width: 32,
-                    height: 32,
-                    background: 'rgba(0, 0, 0, 0.42)',
-                    border: '1px solid var(--vp-dropdown-border, rgba(255, 255, 255, 1)',
-                    borderRadius: '50%',
+                    top: 24,
+                    right: 88,
+                    background: 'var(--vp-panel-bg)',
+                    borderRadius: 18,
+                    boxShadow: 'var(--vp-panel-shadow)',
+                    padding: '18px 14px',
+                    zIndex: 41,
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    zIndex: 30,
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
-                    transition: 'background 0.2s, border 0.2s',
-                  }}
-                  tabIndex={0}
-                >
-                  {showAdvancedPanel ? (
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6 6L14 14M14 6L6 14" stroke="rgba(255, 255, 255, 1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 12h14M3 6h14M3 18h14" stroke="rgba(255, 255, 255, 1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </button>
-                {/* Video or Webcam Element */}
+                    flexDirection: 'column',
+                    gap: 16,
+                    alignItems: 'flex-start',
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: 'var(--vp-panel-title)',
+                    width: 'auto',
+                    maxWidth: '90vw',
+                    border: '1px solid var(--vp-panel-border)',
+                  }}>
+                    {panelContent}
+                  </div>
+                )}
+                {/* --- End Overlay --- */}
                 {videoElement}
-                {/* Canvas for Overlays */}
                 <canvas
                   ref={canvasRef}
                   className="absolute pointer-events-none"
                   style={{ zIndex: 10, top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain' }}
                 />
-                {/* Custom Overlays (e.g., feedback, angles) */}
                 {overlays}
-                {/* Loading Overlay */}
                 {loading && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="text-white text-center">
@@ -112,16 +153,21 @@ export default function CoreVideoPlayer({
                     </div>
                   </div>
                 )}
-                {/* Always Visible Overlay Controls */}
-                <div 
-                  className="absolute bottom-0 left-0 right-0"
+                {/* Playback Bar (remains at bottom) */}
+                <div
                   style={{
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
                     background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
                     padding: '20px 16px 16px 16px',
                     zIndex: 15,
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
                   }}
                 >
-                  <div className="flex flex-row flex-wrap items-center justify-center" style={{ gap: '16px', maxWidth: '520px', margin: '0 auto' }}>
+                  <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
                     {controls}
                   </div>
                 </div>
@@ -171,7 +217,6 @@ export default function CoreVideoPlayer({
           transform: translateY(0);
           pointer-events: auto;
         }
-        /* Custom slider thumb */
         input[type="range"].slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;

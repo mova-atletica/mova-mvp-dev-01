@@ -117,7 +117,7 @@ export default function ExerciseCard({ exercise }: { exercise: Exercise }) {
 
   return (
     <div
-      className="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+      className="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105"
       style={{ 
         width: '200px', 
         height: '355px', 
@@ -191,8 +191,24 @@ export default function ExerciseCard({ exercise }: { exercise: Exercise }) {
         borderBottomLeftRadius: '8px',
         borderBottomRightRadius: '8px'
       }}>
-        <h3 className="text-base font-bold mb-2" style={{ color: 'var(--card-title)' }}>{exercise.title}</h3>
-        <p className="text-sm line-clamp-3" style={{ color: 'var(--card-description)' }}>{exercise.description}</p>
+        <h3 className="text-sm font-medium mb-1" style={{ color: 'var(--card-title)' }}>{exercise.title}</h3>
+        {exercise.author && exercise.author.name && (
+          <div className="text-xs text-gray-400 mb-1" style={{ color: 'var(--card-description)' }}>
+            by {exercise.author.name}
+          </div>
+        )}
+        <p
+          className="text-xs"
+          style={{
+            color: 'var(--card-description)',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }}
+        >
+          {exercise.description}
+        </p>
       </div>
     </div>
   );

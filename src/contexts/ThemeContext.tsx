@@ -123,10 +123,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--vp-dropdown-item-bg', '#181a1a');
       root.style.setProperty('--vp-dropdown-item-hover-bg', '#353839');
       root.style.setProperty('--vp-dropdown-item-text', '#eef0f1');
-      root.style.setProperty('--vp-button-bg', '#353839');
+      root.style.setProperty('--vp-button-bg', 'rgba(0,0,0,0.1)');
       root.style.setProperty('--vp-button-hover-bg', '#55595b');
       root.style.setProperty('--vp-button-text', '#eef0f1');
-      root.style.setProperty('--vp-button-border', '#181a1a');
+      root.style.setProperty('--vp-button-border', '#f3f3f4');
       root.style.setProperty('--vp-slider-bg', '#353839');
       root.style.setProperty('--vp-slider-thumb', '#3b82f6');
       root.style.setProperty('--vp-slider-active', '#60a5fa');
@@ -145,6 +145,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--vp-dropdown-label', '#c0c9cc');
       root.style.setProperty('--vp-dropdown-chevron', '#c0c9cc');
       root.style.setProperty('--vp-panel-border', '#55595b');
+      root.style.setProperty('--vp-panel-bg', '#23272e');
+      root.style.setProperty('--vp-panel-shadow', '0 4px 24px 0 rgba(0,0,0,0.45)');
+      root.style.setProperty('--vp-panel-title', '#eef0f1');
+      root.style.setProperty('--vp-panel-border', '#353839');
+      root.style.setProperty('--vp-panel-divider', '#353839');
+      root.style.setProperty('--vp-panel-icon-bg', '#353839');
+      root.style.setProperty('--vp-panel-icon-active-bg', '#F97316');
+      root.style.setProperty('--vp-panel-icon', '#eef0f1');
+      root.style.setProperty('--vp-panel-icon-active', '#fff');
+      root.style.setProperty('--vp-panel-icon-border', '#C0C9CC');
       
       // Accordion (Dark Mode)
       root.style.setProperty('--accordion-bg', 'transparent'); // onyx-90
@@ -159,6 +169,47 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--tooltip-text', '#eef0f1'); // light text
       root.style.setProperty('--tooltip-border', '#55595b'); // subtle border
       root.style.setProperty('--tooltip-shadow', '0 4px 24px 0 rgba(0,0,0,0.45)');
+      // Results Page Tabs (Dark)
+      root.style.setProperty('--results-tab-bg-active', '#353839');
+      root.style.setProperty('--results-tab-bg-inactive', 'transparent');
+      root.style.setProperty('--results-tab-text-active', '#eef0f1');
+      root.style.setProperty('--results-tab-text-inactive', '#c0c9cc');
+      root.style.setProperty('--results-tab-border-active', 'transparent');
+      root.style.setProperty('--results-tab-border-inactive', 'transparent');
+      root.style.setProperty('--results-tab-hover-bg', '#23272e');
+      root.style.setProperty('--results-tab-hover-text', '#eef0f1');
+      root.style.setProperty('--results-tab-hover-border', '#c0c9cc');
+      root.style.setProperty('--results-tabs-border-color', '#55595b');
+      // Results Page Summary Card (Dark)
+      root.style.setProperty('--results-summary-bg', 'transparent');
+      root.style.setProperty('--results-summary-border', '#353839');
+      root.style.setProperty('--results-summary-title', '#eef0f1');
+      root.style.setProperty('--results-summary-info-bg', '#353839');
+      root.style.setProperty('--results-summary-info-text', '#c0c9cc');
+      root.style.setProperty('--results-summary-shadow', '0 2px 12px 0 rgba(0,0,0,0.18)');
+      // Results Page Info Icon (Dark)
+      root.style.setProperty('--results-info-icon', '#c0c9cc');
+      root.style.setProperty('--results-info-icon-hover', '#3B82F6');
+      // Results Page Chart Internals (Dark)
+      root.style.setProperty('--results-chart-bg', '#23272e');
+      root.style.setProperty('--results-chart-axis', '#c0c9cc');
+      root.style.setProperty('--results-chart-grid', '#353839');
+      root.style.setProperty('--results-chart-tooltip-bg', '#353839');
+      root.style.setProperty('--results-chart-tooltip-text', '#eef0f1');
+      root.style.setProperty('--results-chart-legend', '#c0c9cc');
+      root.style.setProperty('--results-chart-cursor', '#3B82F6');
+      // Results Page Chart Series Colors (Dark)
+      root.style.setProperty('--results-chart-series-1', '#F81818');
+      root.style.setProperty('--results-chart-series-2', '#22D3EE');
+      root.style.setProperty('--results-chart-series-3', '#F59E42');
+      root.style.setProperty('--results-chart-series-4', '#F97316');
+      root.style.setProperty('--results-chart-series-5', '#A78BFA');
+      root.style.setProperty('--results-chart-series-6', '#F472B6');
+      root.style.setProperty('--results-chart-series-7', '#34D399');
+      root.style.setProperty('--results-chart-series-8', '#F87171');
+      // Chart cursor, highlight, selection (Dark)
+      root.style.setProperty('--results-chart-highlight', '#F59E42');
+      root.style.setProperty('--results-chart-selection', '#22D3EE');
     } else {
       // Light mode - reset to original values
       root.style.setProperty('--background', '#c0c9cc'); // onyx-50
@@ -249,19 +300,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--vp-bg', '#011500');
       root.style.setProperty('--vp-border', '#ccc19e');
       root.style.setProperty('--vp-dropdown-bg', '#c0c9cc');
-      root.style.setProperty('--vp-dropdown-border', '#9ba2a5');
-      root.style.setProperty('--vp-dropdown-shadow', '0 4px 24px 0 rgba(0,0,0,0.10)');
+      root.style.setProperty('--vp-dropdown-border', '#353839');
+      root.style.setProperty('--vp-dropdown-label', '#181a1a');
       root.style.setProperty('--vp-dropdown-item-bg', '#c0c9cc');
-      root.style.setProperty('--vp-dropdown-item-hover-bg', '#F3F4F5');
+      root.style.setProperty('--vp-dropdown-item-hover-bg', '#353839');
       root.style.setProperty('--vp-dropdown-item-text', '#353839');
-      root.style.setProperty('--vp-button-bg', '#F3F4F5');
-      root.style.setProperty('--vp-button-hover-bg', '#D7D8D9');
-      root.style.setProperty('--vp-button-text', '#17150f');
-      root.style.setProperty('--vp-button-border', '#c0c9cc');
-      root.style.setProperty('--vp-slider-bg', '#ede7d1');
-      root.style.setProperty('--vp-slider-thumb', '#3b82f6');
-      root.style.setProperty('--vp-slider-active', '#2563eb');
-      root.style.setProperty('--vp-label', '#55595b');
+      root.style.setProperty('--vp-button-bg', '#c0c9cc');
+      root.style.setProperty('--vp-button-hover-bg', '#DAE4E7');
+      root.style.setProperty('--vp-button-text', '#181a1a');
+      root.style.setProperty('--vp-button-border', '#181a1a');
+      root.style.setProperty('--vp-slider-bg', '#353839');
+      root.style.setProperty('--vp-slider-thumb', '#F6F1E3');
+      root.style.setProperty('--vp-slider-active', '#60a5fa');
+      root.style.setProperty('--vp-dropdown-item-hover-bg', '#f3f4f6');
+      root.style.setProperty('--vp-dropdown-chevron', '#353839');
+      root.style.setProperty('--vp-label', '#181a1a');
       root.style.setProperty('--vp-focus-bg', '#f6f1e3');
       root.style.setProperty('--vp-focus-text', '#353839');
       // Video Player Tabs (Light)
@@ -275,7 +328,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Dropdown label and chevron (Light)
       root.style.setProperty('--vp-dropdown-label', '#353839');
       root.style.setProperty('--vp-dropdown-chevron', '#353839');
-      root.style.setProperty('--vp-panel-border', '#eef0f1');
+      root.style.setProperty('--vp-panel-bg', '#c0c9cc');
+      root.style.setProperty('--vp-panel-shadow', '0 4px 24px 0 rgba(0,0,0,0.10)');
+      root.style.setProperty('--vp-panel-title', '#353839');
+      root.style.setProperty('--vp-panel-border', '#c0c9cc');
+      root.style.setProperty('--vp-panel-divider', '#e5e7eb');
+      root.style.setProperty('--vp-panel-icon-bg', '#F3F4F5');
+      root.style.setProperty('--vp-panel-icon-active-bg', '#F97316');
+      root.style.setProperty('--vp-panel-icon', '#353839');
+      root.style.setProperty('--vp-panel-icon-active', '#fff');
+      root.style.setProperty('--vp-panel-icon-border', '#c0c9cc');
       
       // Accordion (Light Mode)
       root.style.setProperty('--accordion-bg', '#c0c9cc'); // white
@@ -290,6 +352,47 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--tooltip-text', '#353839'); // dark text
       root.style.setProperty('--tooltip-border', '#c0c9cc'); // subtle border
       root.style.setProperty('--tooltip-shadow', '0 4px 24px 0 rgba(0,0,0,0.10)');
+      // Results Page Tabs (Light)
+      root.style.setProperty('--results-tab-bg-active', '#F3F4F5');
+      root.style.setProperty('--results-tab-bg-inactive', 'transparent');
+      root.style.setProperty('--results-tab-text-active', '#353839');
+      root.style.setProperty('--results-tab-text-inactive', '#353839');
+      root.style.setProperty('--results-tab-border-active', 'transparent');
+      root.style.setProperty('--results-tab-border-inactive', 'transparent');
+      root.style.setProperty('--results-tab-hover-bg', 'transparent');
+      root.style.setProperty('--results-tab-hover-text', '#353839');
+      root.style.setProperty('--results-tab-hover-border', '#f3f3f4');
+      root.style.setProperty('--results-tabs-border-color', '#e5e7eb');
+      // Results Page Summary Card (Light)
+      root.style.setProperty('--results-summary-bg', '#c0c9cc');
+      root.style.setProperty('--results-summary-border', '#e5e7eb');
+      root.style.setProperty('--results-summary-title', '#353839');
+      root.style.setProperty('--results-summary-info-bg', '#DAE4E7');
+      root.style.setProperty('--results-summary-info-text', '#353839');
+      root.style.setProperty('--results-summary-shadow', '0 2px 12px 0 rgba(0,0,0,0.08)');
+      // Results Page Info Icon (Light)
+      root.style.setProperty('--results-info-icon', '#55595b');
+      root.style.setProperty('--results-info-icon-hover', '#1D4ED8');
+      // Results Page Chart Internals (Light)
+      root.style.setProperty('--results-chart-bg', '#c0c9cc');
+      root.style.setProperty('--results-chart-axis', '#353839');
+      root.style.setProperty('--results-chart-grid', '#777d7f');
+      root.style.setProperty('--results-chart-tooltip-bg', '#c0c9cc');
+      root.style.setProperty('--results-chart-tooltip-text', '#353839');
+      root.style.setProperty('--results-chart-legend', '#55595b');
+      root.style.setProperty('--results-chart-cursor', '#1D4ED8');
+      // Results Page Chart Series Colors (Light)
+      root.style.setProperty('--results-chart-series-1', '#2563EB');
+      root.style.setProperty('--results-chart-series-2', '#06B6D4');
+      root.style.setProperty('--results-chart-series-3', '#F59E42');
+      root.style.setProperty('--results-chart-series-4', '#F97316');
+      root.style.setProperty('--results-chart-series-5', '#8B5CF6');
+      root.style.setProperty('--results-chart-series-6', '#EC4899');
+      root.style.setProperty('--results-chart-series-7', '#10B981');
+      root.style.setProperty('--results-chart-series-8', '#EF4444');
+      // Chart cursor, highlight, selection (Light)
+      root.style.setProperty('--results-chart-highlight', '#F59E42');
+      root.style.setProperty('--results-chart-selection', '#06B6D4');
     }
   }, [theme]);
 

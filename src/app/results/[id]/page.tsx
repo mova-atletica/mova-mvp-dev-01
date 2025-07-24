@@ -1,5 +1,61 @@
 "use client";
+
+// Chart series color palette using CSS variables
+const seriesColors = [
+  'var(--results-chart-series-1)',
+  'var(--results-chart-series-2)',
+  'var(--results-chart-series-3)',
+  'var(--results-chart-series-4)',
+  'var(--results-chart-series-5)',
+  'var(--results-chart-series-6)',
+  'var(--results-chart-series-7)',
+  'var(--results-chart-series-8)',
+];
+
+// Custom legend formatter for field/value hierarchy and value capping
+function legendFormatter(value: any, entry: any) {
+  // If value is a number, cap at 2 decimals
+  let displayValue = value;
+  if (typeof value === 'number') {
+    displayValue = value.toFixed(2);
+  }
+  return (
+    <span>
+      <span style={{ fontSize: '9px', fontWeight: 700 }}>{entry?.dataKey || ''}</span>
+      {typeof value !== 'undefined' && (
+        <span style={{ fontSize: '12px', fontWeight: 300, marginLeft: 4 }}>{displayValue}</span>
+      )}
+    </span>
+  );
+}
+
+// Custom Legend content renderer for field/value hierarchy and value capping
+function CustomLegendContent({ payload, data }: any) {
+  if (!payload || !data || data.length === 0) return null;
+  // Get the latest data point
+  const latest = data[data.length - 1];
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+      {payload.map((entry: any, idx: number) => {
+        const value = latest[entry.dataKey];
+        let displayValue = value;
+        if (typeof value === 'number') {
+          displayValue = value.toFixed(2);
+        }
+        return (
+          <div key={entry.dataKey} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 12, height: 12, background: entry.color, borderRadius: 2, display: 'inline-block', marginRight: 6 }} />
+            <span style={{ fontSize: '11px', fontWeight: 700 }}>{entry.value}</span>
+            <span style={{ fontSize: '13px', fontWeight: 400, marginLeft: 4 }}>{displayValue}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 import { useParams, useSearchParams } from "next/navigation";
+import { useTheme } from '../../../contexts/ThemeContext';
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Exercise } from "../../../data/exercises";
@@ -29,6 +85,8 @@ import {
 import { useRef } from 'react';
 import React from "react"; // Added missing import for React
 import InfoTooltip from "../../../components/InfoTooltip";
+import * as Select from '@radix-ui/react-select';
+import { ChevronDown } from 'lucide-react';
 
 // Utility to calculate angle at point b (in degrees)
 function getAngle(a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) {
@@ -156,7 +214,19 @@ function ResultsTabs({
   currentFrame,
   onSeekFrame
 }: any) {
-  const [activeTab, setActiveTab] = useState<'charts' | 'feedback' | 'summary'>('charts');
+  const [activeTab, setActiveTab] = useState<'charts' | 'feedback' | 'summary'>('summary');
+  
+  // Chart selection states
+  const [selectedMainChart, setSelectedMainChart] = useState<'angle-comparison' | 'radar' | 'joint-analysis' | 'balance'>('angle-comparison');
+  
+  // Chart options - combined into one list
+  const chartOptions = [
+    { value: 'angle-comparison', label: 'Angle Comparison Over Time' },
+    { value: 'radar', label: 'Performance Radar' },
+    { value: 'joint-analysis', label: 'Advanced Joint Analysis' },
+    { value: 'balance', label: 'Balance & Stability' },
+  ];
+
   // Prepare data for angle comparison chart
   const prepareAngleComparisonData = () => {
     if (!userAngles || !referenceAngles) return [];
@@ -216,222 +286,509 @@ function ResultsTabs({
     return data;
   };
 
+  // Function to render selected charts
+  const renderSelectedCharts = () => {
+    const charts = [];
+    switch (selectedMainChart) {
+      case 'angle-comparison':
+        charts.push(<div key="angle-comparison">{renderAngleComparisonChart()}</div>);
+        break;
+      case 'radar':
+        charts.push(<div key="radar">{renderRadarChart()}</div>);
+        break;
+      case 'joint-analysis':
+        charts.push(<div key="joint-analysis">{renderJointAnalysisChart()}</div>);
+        break;
+      case 'balance':
+        charts.push(<div key="balance">{renderBalanceChart()}</div>);
+        break;
+    }
+    return charts;
+  };
+
+  // Chart render functions
+  const renderAngleComparisonChart = () => (
+    <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Angle Comparison Over Time</h3>
+        <InfoTooltip content="Shows how your joint angles compare to the reference video over time. Click on the chart to jump to that moment in your video. The vertical line shows your current video position.">
+          <span
+            style={{
+              color: 'var(--results-info-icon)',
+              cursor: 'help',
+              transition: 'color 0.18s',
+              display: 'inline-flex',
+              alignItems: 'center',
+              marginLeft: 6,
+              fontSize: '1em',
+              verticalAlign: 'middle',
+            }}
+            onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
+            onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
+          >
+            ⓘ
+          </span>
+        </InfoTooltip>
+      </div>
+      <ResponsiveContainer width="100%" height={400}>
+        <LineChart data={prepareAngleComparisonData()} onClick={handleChartClick} style={{ background: 'var(--results-chart-bg)' }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--results-chart-grid)" />
+          <XAxis dataKey="frame" stroke="var(--results-chart-axis)" tick={{ fill: 'var(--results-chart-axis)', fontSize: '13px', fontWeight: 400 }} />
+          <YAxis domain={[0, 100]} stroke="var(--results-chart-axis)" tick={{ fill: 'var(--results-chart-axis)', fontSize: '13px', fontWeight: 400 }} />
+          <Tooltip 
+            contentStyle={{ background: 'var(--results-chart-tooltip-bg)', color: 'var(--results-chart-tooltip-text)', border: 'none', borderRadius: 8, fontSize: '13px', fontWeight: 400 }}
+            labelStyle={{ color: 'var(--results-chart-tooltip-text)', fontSize: '11px', fontWeight: 700 }}
+            itemStyle={{ color: 'var(--results-chart-tooltip-text)', fontSize: '13px', fontWeight: 400 }}
+          />
+          <Legend wrapperStyle={{ color: 'var(--results-chart-legend)' }} content={props => <CustomLegendContent {...props} data={prepareAngleComparisonData()} />} />
+          {jointsOfInterest.map((joint: string, index: number) => (
+            <React.Fragment key={joint}>
+              <Line
+                type="monotone"
+                dataKey={`${joint}_user`}
+                stroke={seriesColors[index % seriesColors.length]}
+                strokeWidth={2}
+                dot={false}
+                name={`${joint} (User)`}
+                activeDot={{ r: 6, fill: 'var(--results-chart-highlight)' }}
+              />
+              <Line
+                type="monotone"
+                dataKey={`${joint}_ref`}
+                stroke={seriesColors[(index + jointsOfInterest.length) % seriesColors.length]}
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+                name={`${joint} (Reference)`}
+                activeDot={{ r: 6, fill: 'var(--results-chart-selection)' }}
+              />
+            </React.Fragment>
+          ))}
+          {/* Vertical cursor for current video frame */}
+          {currentFrame !== null && (
+            <ReferenceLine x={currentFrame} stroke="#000" strokeWidth={2} label="Video" />
+          )}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+
+  const radarMetricDescriptions: Record<string, { label: string; desc: string }> = {
+    dtw_score: { label: 'DTW Pattern', desc: 'Movement similarity' },
+    cosine_score: { label: 'Cosine Similarity', desc: 'Angle pattern match' },
+    rom_score: { label: 'Range of Motion', desc: 'Flexibility' },
+    basic_score: { label: 'Basic Score', desc: 'Overall accuracy' },
+  };
+
+  function RadarTooltipContent({ active, payload }: any) {
+    if (!active || !payload || !payload.length) return null;
+    const { metric, score } = payload[0].payload;
+    const info = radarMetricDescriptions[metric] || { label: metric, desc: '' };
+    return (
+      <div style={{ background: 'var(--results-chart-tooltip-bg)', color: 'var(--results-chart-tooltip-text)', borderRadius: 8, padding: 10, fontSize: 13, fontWeight: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}>
+        <div style={{ fontWeight: 700, fontSize: 13 }}>{info.label}</div>
+        <div style={{ fontSize: 12, color: 'var(--results-chart-tooltip-text)', marginBottom: 4 }}>{info.desc}</div>
+        <div style={{ fontWeight: 500, fontSize: 15 }}>Score: {typeof score === 'number' ? score.toFixed(2) : score}</div>
+      </div>
+    );
+  }
+
+  // Add near radarMetricDescriptions:
+  const radarShortLabels: Record<string, string> = {
+    dtw_score: 'DTW',
+    cosine_score: 'Cosine',
+    rom_score: 'ROM',
+    basic_score: 'Score',
+  };
+
+  function RadarAxisTick({ x, y, payload, index }: any) {
+    const shortLabel = radarShortLabels[payload.value] || payload.value.replace(/_/g, ' ');
+    let dx = 0, dy = 0;
+    // Padding logic for each axis
+    if (payload.value === 'cosine_score') dx = 22; // right axis, move right
+    if (payload.value === 'basic_score') dx = -20; // left axis, move left
+    if (payload.value === 'rom_score') dy = 16; // bottom axis, move up
+    if (payload.value === 'dtw_score') dy = -16; // top axis, move down
+    return (
+      <text
+        x={x}
+        y={y}
+        dx={dx}
+        dy={dy}
+        textAnchor="middle"
+        fill="var(--results-chart-axis)"
+        fontSize="12px"
+        fontWeight="400"
+        alignmentBaseline="middle"
+      >
+        {shortLabel}
+      </text>
+    );
+  }
+
+  const renderRadarChart = () => (
+    <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Performance Radar</h3>
+        <InfoTooltip content="Overall performance metrics across different analysis methods. Larger areas indicate better performance. This gives you a quick visual overview of your movement quality.">
+          <span
+            style={{
+              color: 'var(--results-info-icon)',
+              cursor: 'help',
+              transition: 'color 0.18s',
+              display: 'inline-flex',
+              alignItems: 'center',
+              marginLeft: 6,
+              fontSize: '1em',
+              verticalAlign: 'middle',
+            }}
+            onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
+            onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
+          >
+            ⓘ
+          </span>
+        </InfoTooltip>
+      </div>
+      <ResponsiveContainer width="100%" height={400}>
+        <RadarChart data={prepareRadarData()} style={{ background: 'var(--results-chart-bg)' }}>
+          <PolarGrid stroke="var(--results-chart-grid)" />
+          <PolarAngleAxis
+            dataKey="metric"
+            stroke="var(--results-chart-axis)"
+            tick={<RadarAxisTick />}
+          />
+          <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="var(--results-chart-axis)" tick={{ fill: 'var(--results-chart-axis)', fontSize: '13px', fontWeight: 400 }} />
+          <Radar
+            name="Performance"
+            dataKey="score"
+            stroke={seriesColors[0]}
+            fill={seriesColors[0]}
+            fillOpacity={0.6}
+          />
+          <Tooltip 
+            content={<RadarTooltipContent />}
+            contentStyle={{ background: 'var(--results-chart-tooltip-bg)', color: 'var(--results-chart-tooltip-text)', border: 'none', borderRadius: 8, fontSize: '13px', fontWeight: 400 }}
+            itemStyle={{ fontSize: '13px', fontWeight: 400 }}
+            labelStyle={{ color: 'var(--results-chart-tooltip-text)', fontSize: '11px', fontWeight: 700 }}
+            cursor={{ stroke: 'var(--results-chart-cursor)', strokeWidth: 2 }}
+          />
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+
+  const renderJointAnalysisChart = () => (
+    <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Advanced Joint Analysis</h3>
+        <InfoTooltip content="Detailed analysis of each joint using multiple metrics: DTW Pattern (movement similarity), Cosine Similarity (angle patterns), Range of Motion (flexibility), and Basic Score (overall accuracy).">
+          <span
+            style={{
+              color: 'var(--results-info-icon)',
+              cursor: 'help',
+              transition: 'color 0.18s',
+              display: 'inline-flex',
+              alignItems: 'center',
+              marginLeft: 6,
+              fontSize: '1em',
+              verticalAlign: 'middle',
+            }}
+            onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
+            onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
+          >
+            ⓘ
+          </span>
+        </InfoTooltip>
+      </div>
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={prepareJointScoresData()} style={{ background: 'var(--results-chart-bg)' }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--results-chart-grid)" />
+          <XAxis dataKey="joint" stroke="var(--results-chart-axis)" tick={{ fill: 'var(--results-chart-axis)', fontSize: '13px', fontWeight: 400 }} />
+          <YAxis domain={[0, 100]} stroke="var(--results-chart-axis)" tick={{ fill: 'var(--results-chart-axis)', fontSize: '13px', fontWeight: 400 }} />
+          <Tooltip 
+            contentStyle={{ background: 'var(--results-chart-tooltip-bg)', color: 'var(--results-chart-tooltip-text)', border: 'none', borderRadius: 8, fontSize: '13px', fontWeight: 400 }}
+            labelStyle={{ color: 'var(--results-chart-tooltip-text)', fontSize: '11px', fontWeight: 700 }}
+            itemStyle={{ color: 'var(--results-chart-tooltip-text)', fontSize: '13px', fontWeight: 400 }}
+          />
+          <Legend wrapperStyle={{ color: 'var(--results-chart-legend)' }} content={props => <CustomLegendContent {...props} data={prepareJointScoresData()} />} />
+          <Bar dataKey="dtw_score" fill={seriesColors[0]} name="DTW Pattern" activeBar={CustomActiveBar} />
+          <Bar dataKey="cosine_score" fill={seriesColors[1]} name="Cosine Similarity" activeBar={CustomActiveBar} />
+          <Bar dataKey="rom_score" fill={seriesColors[2]} name="Range of Motion" activeBar={CustomActiveBar} />
+          <Bar dataKey="basic_score" fill={seriesColors[3]} name="Basic Score" activeBar={CustomActiveBar} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+
+  const renderBalanceChart = () => {
+    if (!advancedAnalysis || !advancedAnalysis.balance_metrics) {
+      return (
+        <div className="bg-white rounded-lg shadow p-6 text-onyx-30">
+          Balance & Stability metrics are not available for this session.
+        </div>
+      );
+    }
+    return (
+      <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+          <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Balance & Stability</h3>
+          <InfoTooltip content="Measures your balance and stability during the exercise. Higher scores indicate better control and less sway. Most relevant for exercises requiring balance like squats or single-leg movements.">
+            <span
+              style={{
+                color: 'var(--results-info-icon)',
+                cursor: 'help',
+                transition: 'color 0.18s',
+                display: 'inline-flex',
+                alignItems: 'center',
+                marginLeft: 6,
+                fontSize: '1em',
+                verticalAlign: 'middle',
+              }}
+              onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
+              onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
+            >
+              ⓘ
+            </span>
+          </InfoTooltip>
+        </div>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-onyx-30">Stability Score:</span>
+              <InfoTooltip content="How steady you maintained your position throughout the exercise. Higher scores mean less unwanted movement.">
+                <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+              </InfoTooltip>
+            </div>
+            <span className="font-bold">{Math.round(advancedAnalysis.balance_metrics.stability_score || 0)}%</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-onyx-30">Symmetry Score:</span>
+              <InfoTooltip content="How balanced your movement was between left and right sides. Higher scores indicate more symmetrical movement.">
+                <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+              </InfoTooltip>
+            </div>
+            <span className="font-bold">{Math.round(advancedAnalysis.balance_metrics.symmetry_score || 0)}%</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-onyx-30">Sway Variance:</span>
+              <InfoTooltip content="A measure of how much your center of mass moved during the exercise. Lower values indicate better balance control.">
+                <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
+              </InfoTooltip>
+            </div>
+            <span className="font-medium">{advancedAnalysis.balance_metrics.sway_metrics?.variance ? advancedAnalysis.balance_metrics.sway_metrics.variance.toFixed(2) : '0.00'}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Chart dropdown open state
+  const [chartDropdownOpen, setChartDropdownOpen] = useState(false);
+
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex border-b border-gray-200 bg-white">
+      <div
+        className="flex flex-row flex-wrap items-center justify-start mb-2"
+        style={{
+          padding: 6,
+          gap: 6,
+          background: 'transparent',
+          border: '1.5px solid var(--results-tabs-border-color)',
+          borderRadius: 6,
+        }}
+      >
         <button
-          className={`py-2 px-4 font-medium text-sm focus:outline-none ${activeTab === 'charts' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          type="button"
+          style={{
+            borderRadius: 6,
+            padding: '3px 6px',
+            marginRight: 6,
+            background: activeTab === 'summary' ? 'var(--results-tab-bg-active)' : 'var(--results-tab-bg-inactive)',
+            color: activeTab === 'summary' ? 'var(--results-tab-text-active)' : 'var(--results-tab-text-inactive)',
+            border: `1.5px solid ${activeTab === 'summary' ? 'var(--results-tab-border-active)' : 'var(--results-tab-border-inactive)'}`,
+            //fontWeight: 600,
+            //fontSize: 12,
+            fontSize: activeTab === 'feedback' ? 12 : 12,
+            fontWeight: activeTab === 'feedback' ? 600 : 500,
+            transition: 'all 0.18s cubic-bezier(.4,0,.2,1)',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'summary' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+          }}
+          onMouseOver={e => {
+            if (activeTab !== 'summary') {
+              e.currentTarget.style.background = 'var(--results-tab-hover-bg)';
+              e.currentTarget.style.color = 'var(--results-tab-hover-text)';
+              e.currentTarget.style.border = '1.5px solid var(--results-tab-hover-border)';
+            }
+          }}
+          onMouseOut={e => {
+            if (activeTab !== 'summary') {
+              e.currentTarget.style.background = 'var(--results-tab-bg-inactive)';
+              e.currentTarget.style.color = 'var(--results-tab-text-inactive)';
+              e.currentTarget.style.border = '1.5px solid var(--results-tab-border-inactive)';
+            }
+          }}
+          onClick={() => setActiveTab('summary')}
+        >
+          Summary
+        </button>
+        <button
+          type="button"
+          style={{
+            borderRadius: 6,
+            padding: '3px 6px',
+            marginRight: 6,
+            background: activeTab === 'charts' ? 'var(--results-tab-bg-active)' : 'var(--results-tab-bg-inactive)',
+            color: activeTab === 'charts' ? 'var(--results-tab-text-active)' : 'var(--results-tab-text-inactive)',
+            border: `1.5px solid ${activeTab === 'charts' ? 'var(--results-tab-border-active)' : 'var(--results-tab-border-inactive)'}`,
+            //fontWeight: 600,
+            //fontSize: 12,
+            fontSize: activeTab === 'feedback' ? 12 : 12,
+            fontWeight: activeTab === 'feedback' ? 600 : 500,
+            transition: 'all 0.18s cubic-bezier(.4,0,.2,1)',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'charts' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+          }}
+          onMouseOver={e => {
+            if (activeTab !== 'charts') {
+              e.currentTarget.style.background = 'var(--results-tab-hover-bg)';
+              e.currentTarget.style.color = 'var(--results-tab-hover-text)';
+              e.currentTarget.style.border = '1.5px solid var(--results-tab-hover-border)';
+            }
+          }}
+          onMouseOut={e => {
+            if (activeTab !== 'charts') {
+              e.currentTarget.style.background = 'var(--results-tab-bg-inactive)';
+              e.currentTarget.style.color = 'var(--results-tab-text-inactive)';
+              e.currentTarget.style.border = '1.5px solid var(--results-tab-border-inactive)';
+            }
+          }}
           onClick={() => setActiveTab('charts')}
         >
           Charts
         </button>
         <button
-          className={`py-2 px-4 font-medium text-sm focus:outline-none ${activeTab === 'feedback' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          type="button"
+          style={{
+            borderRadius: 6,
+            padding: '3px 6px',
+            marginRight: 6,
+            background: activeTab === 'feedback' ? 'var(--results-tab-bg-active)' : 'var(--results-tab-bg-inactive)',
+            color: activeTab === 'feedback' ? 'var(--results-tab-text-active)' : 'var(--results-tab-text-inactive)',
+            border: `1.5px solid ${activeTab === 'feedback' ? 'var(--results-tab-border-active)' : 'var(--results-tab-border-inactive)'}`,
+            //fontWeight: 600,
+            //fontSize: 12,
+            fontSize: activeTab === 'feedback' ? 12 : 12,
+            fontWeight: activeTab === 'feedback' ? 600 : 500,
+            transition: 'all 0.18s cubic-bezier(.4,0,.2,1)',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'feedback' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+          }}
+          onMouseOver={e => {
+            if (activeTab !== 'feedback') {
+              e.currentTarget.style.background = 'var(--results-tab-hover-bg)';
+              e.currentTarget.style.color = 'var(--results-tab-hover-text)';
+              e.currentTarget.style.border = '1.5px solid var(--results-tab-hover-border)';
+            }
+          }}
+          onMouseOut={e => {
+            if (activeTab !== 'feedback') {
+              e.currentTarget.style.background = 'var(--results-tab-bg-inactive)';
+              e.currentTarget.style.color = 'var(--results-tab-text-inactive)';
+              e.currentTarget.style.border = '1.5px solid var(--results-tab-border-inactive)';
+            }
+          }}
           onClick={() => setActiveTab('feedback')}
         >
-          Feedback
-        </button>
-        <button
-          className={`py-2 px-4 font-medium text-sm focus:outline-none ${activeTab === 'summary' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-          onClick={() => setActiveTab('summary')}
-        >
-          Summary
+          Advanced Feedback
         </button>
       </div>
-      <div className="flex-1 p-4 bg-white overflow-y-auto">
+      <div className="flex-1 p-4 bg-transparent overflow-y-auto">
         {activeTab === 'charts' && (
           <div className="space-y-6">
-            {/* Angle Comparison Chart */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <h3 className="text-xl font-bold text-onyx-10">Angle Comparison Over Time</h3>
-                <InfoTooltip content="Shows how your joint angles compare to the reference video over time. Click on the chart to jump to that moment in your video. The vertical line shows your current video position.">
-                  <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
-                </InfoTooltip>
-              </div>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={prepareAngleComparisonData()} onClick={handleChartClick}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="frame" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  {jointsOfInterest.map((joint: string, index: number) => (
-                    <React.Fragment key={joint}>
-                      <Line
-                        type="monotone"
-                        dataKey={`${joint}_user`}
-                        stroke={COLORS[index % COLORS.length]}
-                        strokeWidth={2}
-                        dot={false}
-                        name={`${joint} (User)`}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey={`${joint}_ref`}
-                        stroke={COLORS[index % COLORS.length]}
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        dot={false}
-                        name={`${joint} (Reference)`}
-                      />
-                    </React.Fragment>
-                  ))}
-                  {/* Vertical cursor for current video frame */}
-                  {currentFrame !== null && (
-                    <ReferenceLine x={currentFrame} stroke="#000" strokeWidth={2} label="Video" />
+            {/* Chart Selection Controls */}
+            <div className="bg-transparent rounded-lg shadow p-4 border border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Chart Dropdown */}
+                <div className="flex-1" style={{ position: 'relative', minWidth: '160px' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 500, color: 'var(--vp-label)', marginBottom: '4px' }}>
+                    Chart
+                  </div>
+                  <button
+                    className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
+                    style={{
+                      border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
+                      color: 'var(--vp-dropdown-label, #353839)',
+                      background: 'var(--vp-dropdown-bg, #fff)',
+                      fontWeight: 500,
+                      marginBottom: '3px',
+                      borderRadius: '3px',
+                      transition: 'color 0.2s, border 0.2s, background 0.2s',
+                    }}
+                    onClick={() => setChartDropdownOpen((open) => !open)}
+                    type="button"
+                  >
+                    {chartOptions.find(opt => opt.value === selectedMainChart)?.label}
+                    <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+                      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                  </button>
+                  {chartDropdownOpen && (
+                    <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '160px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open">
+                      {chartOptions.map(opt => (
+                        <label
+                          key={opt.value}
+                          className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
+                          style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }}
+                          onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')}
+                          onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}
+                          onClick={() => { setSelectedMainChart(opt.value as any); setChartDropdownOpen(false); }}
+                        >
+                          <input
+                            type="radio"
+                            checked={selectedMainChart === opt.value}
+                            readOnly
+                            style={{ marginRight: '9px' }}
+                          />
+                          {opt.label}
+                        </label>
+                      ))}
+                    </div>
                   )}
-                </LineChart>
-              </ResponsiveContainer>
+                </div>
+              </div>
             </div>
-            {/* Advanced Analysis Charts */}
-            {advancedAnalysis ? (
-              <>
-                {/* Radar Chart */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <h3 className="text-xl font-bold text-onyx-10">Performance Radar</h3>
-                    <InfoTooltip content="Overall performance metrics across different analysis methods. Larger areas indicate better performance. This gives you a quick visual overview of your movement quality.">
-                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
-                    </InfoTooltip>
-                  </div>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <RadarChart data={prepareRadarData()}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="metric" />
-                      <PolarRadiusAxis angle={90} domain={[0, 100]} />
-                      <Radar
-                        name="Performance"
-                        dataKey="score"
-                        stroke="#8884d8"
-                        fill="#8884d8"
-                        fillOpacity={0.6}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-                {/* Bar Chart: Joint Analysis */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <h3 className="text-xl font-bold text-onyx-10">Advanced Joint Analysis</h3>
-                    <InfoTooltip content="Detailed analysis of each joint using multiple metrics: DTW Pattern (movement similarity), Cosine Similarity (angle patterns), Range of Motion (flexibility), and Basic Score (overall accuracy).">
-                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
-                    </InfoTooltip>
-                  </div>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={prepareJointScoresData()}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="joint" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="dtw_score" fill="#0088FE" name="DTW Pattern" />
-                      <Bar dataKey="cosine_score" fill="#00C49F" name="Cosine Similarity" />
-                      <Bar dataKey="rom_score" fill="#FFBB28" name="Range of Motion" />
-                      <Bar dataKey="basic_score" fill="#FF8042" name="Basic Score" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                {/* Balance & Stability */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <h3 className="text-xl font-bold text-onyx-10">Balance & Stability</h3>
-                    <InfoTooltip content="Measures your balance and stability during the exercise. Higher scores indicate better control and less sway. Most relevant for exercises requiring balance like squats or single-leg movements.">
-                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
-                    </InfoTooltip>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="text-onyx-30">Stability Score:</span>
-                        <InfoTooltip content="How steady you maintained your position throughout the exercise. Higher scores mean less unwanted movement.">
-                          <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-                        </InfoTooltip>
-                      </div>
-                      <span className="font-bold">{Math.round(advancedAnalysis.balance_metrics?.stability_score || 0)}%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="text-onyx-30">Symmetry Score:</span>
-                        <InfoTooltip content="How balanced your movement was between left and right sides. Higher scores indicate more symmetrical movement.">
-                          <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-                        </InfoTooltip>
-                      </div>
-                      <span className="font-bold">{Math.round(advancedAnalysis.balance_metrics?.symmetry_score || 0)}%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="text-onyx-30">Sway Variance:</span>
-                        <InfoTooltip content="A measure of how much your center of mass moved during the exercise. Lower values indicate better balance control.">
-                          <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-                        </InfoTooltip>
-                      </div>
-                      <span className="font-medium">{advancedAnalysis.balance_metrics?.sway_metrics?.variance ? advancedAnalysis.balance_metrics.sway_metrics.variance.toFixed(2) : '0.00'}</span>
-                    </div>
-                  </div>
-                </div>
-                {/* Repetition Analysis */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <h3 className="text-xl font-bold text-onyx-10">Repetition Analysis</h3>
-                    <InfoTooltip content="Detailed breakdown of your repetitions for each joint. Shows consistency, timing, and range of motion across multiple reps. Most useful for exercises with clear repetitions like squats or push-ups.">
-                      <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
-                    </InfoTooltip>
-                  </div>
-                  <div className="space-y-4">
-                    {Object.entries(advancedAnalysis.repetition_analysis || {}).map(([joint, analysis]: [string, any]) => (
-                      <div key={joint} className="border-b border-gray-200 pb-3">
-                        <h4 className="font-semibold text-onyx-10 mb-2">
-                          {joint.replace(/([A-Z])/g, ' $1').trim()}
-                        </h4>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="flex items-center gap-1">
-                            <span>Reps:</span>
-                            <InfoTooltip content="Number of complete repetitions detected for this joint.">
-                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-                            </InfoTooltip>
-                            <span>{analysis.rep_count || 0}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span>Consistency:</span>
-                            <InfoTooltip content="How similar each repetition was to the others. Higher percentages mean more consistent form.">
-                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-                            </InfoTooltip>
-                            <span>{Math.round(analysis.consistency || 0)}%</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span>Avg Duration:</span>
-                            <InfoTooltip content="Average time it took to complete each repetition.">
-                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-                            </InfoTooltip>
-                            <span>{typeof analysis.avg_duration === 'number' ? analysis.avg_duration.toFixed(2) : '0.00'}s</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span>Avg ROM:</span>
-                            <InfoTooltip content="Average range of motion achieved during each repetition.">
-                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-                            </InfoTooltip>
-                            <span>{typeof analysis.avg_rom === 'number' ? analysis.avg_rom.toFixed(1) : '0.0'}°</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="bg-white rounded-lg shadow p-6 text-onyx-30">Advanced analysis charts will appear here when available.</div>
-            )}
+            {/* Render selected charts */}
+            {renderSelectedCharts()}
           </div>
         )}
         {activeTab === 'feedback' && (
           <div className="space-y-6">
             {/* Overall Feedback */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <h3 className="text-xl font-bold text-onyx-10">Overall Feedback</h3>
+            <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Overall Feedback</h3>
                 <InfoTooltip content="Your overall performance score and grade based on how well your joint angles matched the reference video. The advanced score uses more sophisticated analysis methods.">
-                  <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                  <span
+                    style={{
+                      color: 'var(--results-info-icon)',
+                      cursor: 'help',
+                      transition: 'color 0.18s',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      marginLeft: 6,
+                      fontSize: '1em',
+                      verticalAlign: 'middle',
+                    }}
+                    onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
+                    onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
+                  >
+                    ⓘ
+                  </span>
                 </InfoTooltip>
               </div>
               <div className="flex flex-col md:flex-row gap-6">
@@ -486,78 +843,119 @@ function ResultsTabs({
               </div>
             </div>
             {/* Joint-by-Joint Feedback */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-var(--results-summary-bg) rounded-lg shadow p-6" style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}
+            >
               <div className="flex items-center gap-2 mb-4">
-                <h3 className="text-xl font-bold text-onyx-10">Joint-by-Joint Feedback</h3>
+                <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Joint-by-Joint Feedback</h3>
                 <InfoTooltip content="Detailed feedback for each joint showing your score and average angle difference from the reference. Green scores (80%+) are excellent, yellow (60-79%) need improvement, red (below 60%) need significant work.">
-                  <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+                  <span
+                    style={{
+                      color: 'var(--results-info-icon)',
+                      cursor: 'help',
+                      transition: 'color 0.18s',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      marginLeft: 6,
+                      fontSize: '1em',
+                      verticalAlign: 'middle',
+                    }}
+                    onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
+                    onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
+                  >
+                    ⓘ
+                  </span>
                 </InfoTooltip>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {jointsOfInterest?.map((joint: string) => {
-                  const jointData = comparisonResults?.[joint];
-                  const score = jointData?.score || 0;
-                  const avgDiff = jointData?.avgDifference || 0;
-                  return (
-                    <div key={joint} className="border rounded-lg p-4">
-                      <h4 className="font-semibold text-onyx-10 mb-2">
-                        {joint.replace(/([A-Z])/g, ' $1').trim()}
-                      </h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-1">
-                            <span className="text-sm text-onyx-30">Score:</span>
-                            <InfoTooltip content="Percentage accuracy of your joint angles compared to the reference video. Higher is better.">
-                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-                            </InfoTooltip>
-                          </div>
-                          <span className={`font-bold ${score >= 80 ? 'text-green-600' : score >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{score}%</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-1">
-                            <span className="text-sm text-onyx-30">Avg Difference:</span>
-                            <InfoTooltip content="Average difference in degrees between your joint angles and the reference video. Lower is better.">
-                              <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-                            </InfoTooltip>
-                          </div>
-                          <span className="font-medium">{typeof avgDiff === 'number' ? avgDiff.toFixed(1) : '0.0'}°</span>
-                        </div>
-                      </div>
-                    </div>
+              {/* Helper function to match suggestions to joints */}
+              {(() => {
+                const getJointSuggestions = (jointName: string) => {
+                  if (!advancedAnalysis?.improvement_suggestions) return [];
+                  
+                  const jointDisplayName = jointName.replace(/([A-Z])/g, ' $1').trim();
+                  const jointShortName = jointName.replace('Angles', '');
+                  
+                  return advancedAnalysis.improvement_suggestions.filter((suggestion: string) => 
+                    suggestion.toLowerCase().includes(jointDisplayName.toLowerCase()) ||
+                    suggestion.toLowerCase().includes(jointShortName.toLowerCase())
                   );
-                })}
-              </div>
+                };
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {jointsOfInterest?.map((joint: string) => {
+                      const jointData = comparisonResults?.[joint];
+                      const score = jointData?.score || 0;
+                      const avgDiff = jointData?.avgDifference || 0;
+                      const repData = advancedAnalysis?.repetition_analysis?.[joint];
+                      const jointSuggestions = getJointSuggestions(joint);
+                      
+                      return (
+                        <div key={joint} className="border rounded-lg p-4">
+                          <h4 className="font-semibold text-onyx-10 mb-2">
+                            {joint.replace(/([A-Z])/g, ' $1').trim()}
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-1">
+                                <span className="text-sm text-onyx-30">Score:</span>
+                                <InfoTooltip content="Percentage accuracy of your joint angles compared to the reference video. Higher is better."><span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span></InfoTooltip>
+                              </div>
+                              <span className={`font-bold ${score >= 80 ? 'text-green-600' : score >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{score}%</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-1">
+                                <span className="text-sm text-onyx-30">Avg Difference:</span>
+                                <InfoTooltip content="Average difference in degrees between your joint angles and the reference video. Lower is better."><span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span></InfoTooltip>
+                              </div>
+                              <span className="font-medium">{typeof avgDiff === 'number' ? avgDiff.toFixed(1) : '0.0'}°</span>
+                            </div>
+                            {/* Repetition Analysis Integration */}
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-1">
+                                <span className="text-sm text-onyx-30">Consistency:</span>
+                                <InfoTooltip content="How similar each repetition was to the others. Higher percentages mean more consistent form."><span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span></InfoTooltip>
+                              </div>
+                              <span className="font-medium">{repData ? Math.round(repData.consistency || 0) + '%' : 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-1">
+                                <span className="text-sm text-onyx-30">Avg Duration:</span>
+                                <InfoTooltip content="Average time it took to complete each repetition."><span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span></InfoTooltip>
+                              </div>
+                              <span className="font-medium">{repData && typeof repData.avg_duration === 'number' ? repData.avg_duration.toFixed(2) + 's' : 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-1">
+                                <span className="text-sm text-onyx-30">Avg ROM:</span>
+                                <InfoTooltip content="Average range of motion achieved during each repetition."><span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span></InfoTooltip>
+                              </div>
+                              <span className="font-medium">{repData && typeof repData.avg_rom === 'number' ? repData.avg_rom.toFixed(1) + '°' : 'N/A'}</span>
+                            </div>
+                            
+                            {/* Joint-specific feedback suggestions */}
+                            {jointSuggestions.length > 0 && (
+                              <div className="mt-4 border-t" style={{ paddingTop: 12, borderColor: 'var(--results-summary-border)' }}>
+                                <div className="flex items-center gap-1 mb-2">
+                                  <span className="text-sm font-medium" style={{ color: 'var(--results-chart-series-1)' }}>Suggestions:</span>
+                                </div>
+                                <div className="space-y-1">
+                                  {jointSuggestions.map((suggestion: string, idx: number) => (
+                                    <div key={idx} className="text-xs leading-relaxed" style={{ color: 'var(--results-summary-text)' }}>
+                                      • {suggestion}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
-            {/* Improvement Suggestions */}
-            {(advancedAnalysis?.improvement_suggestions?.length > 0) && (
-              <div className="bg-blue-50 rounded-lg shadow p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <h3 className="text-xl font-bold text-onyx-10">Improvement Suggestions</h3>
-                  <InfoTooltip content="AI-generated suggestions based on your performance analysis. These are specific, actionable tips to help you improve your form and technique.">
-                    <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
-                  </InfoTooltip>
-                </div>
-                <div className="space-y-3">
-                  {advancedAnalysis.improvement_suggestions.map((suggestion: string, idx: number) => (
-                    <div key={idx} className="flex items-start space-x-3 p-3 bg-white rounded-lg">
-                      <div className="text-blue-500 text-lg">💡</div>
-                      <p className="text-onyx-10">{suggestion}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {(!advancedAnalysis?.improvement_suggestions || advancedAnalysis.improvement_suggestions.length === 0) && (
-              <div className="bg-blue-50 rounded-lg shadow p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <h3 className="text-xl font-bold text-onyx-10">Improvement Suggestions</h3>
-                  <InfoTooltip content="AI-generated suggestions based on your performance analysis. These are specific, actionable tips to help you improve your form and technique.">
-                    <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
-                  </InfoTooltip>
-                </div>
-                <div className="text-onyx-30">No specific suggestions available. Review your joint scores above for areas to improve.</div>
-              </div>
-            )}
+
           </div>
         )}
         {activeTab === 'summary' && (
@@ -675,176 +1073,130 @@ function SessionSummaryTab({
     alert('Download all assets (placeholder)');
   };
 
-  const shareSession = async () => {
-    alert('Share session (placeholder)');
+  // Utility to convert poses to CSV
+  function posesToCSV(poses: any[]): string {
+    if (!poses || poses.length === 0) return '';
+    // Assume each pose has a 'keypoints' array with { name, x, y, score }
+    const headers = ['frame', 'keypoint_name', 'x', 'y', 'score'];
+    let csv = headers.join(',') + '\n';
+    poses.forEach((pose, frameIdx) => {
+      const keypoints = pose.keypoints || pose;
+      if (Array.isArray(keypoints)) {
+        keypoints.forEach((kp: any) => {
+          const name = kp.name || kp.part || '';
+          const x = kp.x ?? kp.position?.x ?? '';
+          const y = kp.y ?? kp.position?.y ?? '';
+          const score = kp.score ?? '';
+          csv += `${frameIdx + 1},${name},${x},${y},${score}\n`;
+        });
+      }
+    });
+    return csv;
+  }
+
+  // Replace shareSession with downloadMotionData
+  const downloadMotionData = () => {
+    if (!poses || poses.length === 0) return;
+    const csv = posesToCSV(poses);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'motion_keypoints.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-6">
       {/* Session Summary Card */}
-      <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <h3 className="text-2xl font-bold">Session Summary</h3>
+      <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+          <h3 style={{ fontSize: 21, fontWeight: 500, marginBottom: 0, color: 'var(--results-summary-title)' }}>Session Summary</h3>
           <InfoTooltip content="Overview of your workout session with key performance metrics and highlights.">
-            <span className="text-white opacity-80 hover:opacity-100 cursor-help">ⓘ</span>
+            <span
+              style={{
+                color: 'var(--results-info-icon)',
+                cursor: 'help',
+                transition: 'color 0.18s',
+                display: 'inline-flex',
+                alignItems: 'center',
+                marginLeft: 6,
+                fontSize: '1em',
+                verticalAlign: 'middle',
+              }}
+              onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
+              onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
+            >
+              ⓘ
+            </span>
           </InfoTooltip>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-3xl font-bold">{sessionStats.overallScore}%</div>
-            <div className="flex items-center justify-center gap-1 text-sm opacity-90">
-              <span>Overall Score</span>
-              <InfoTooltip content="Your overall performance score based on joint angle accuracy compared to the reference video.">
-                <span className="text-white opacity-80 hover:opacity-100 cursor-help text-xs">ⓘ</span>
-              </InfoTooltip>
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 27, fontWeight: 700 }}>{sessionStats.overallScore}%</div>
+            <div style={{ fontSize: 12, opacity: 0.9 }}>Overall Score</div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold">{sessionStats.grade}</div>
-            <div className="flex items-center justify-center gap-1 text-sm opacity-90">
-              <span>Grade</span>
-              <InfoTooltip content="Letter grade based on your overall score: A (90%+), B (80-89%), C (70-79%), D (60-69%), F (below 60%).">
-                <span className="text-white opacity-80 hover:opacity-100 cursor-help text-xs">ⓘ</span>
-              </InfoTooltip>
-            </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 27, fontWeight: 700 }}>{sessionStats.grade}</div>
+            <div style={{ fontSize: 12, opacity: 0.9 }}>Grade</div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold">{sessionStats.repCount}</div>
-            <div className="flex items-center justify-center gap-1 text-sm opacity-90">
-              <span>Repetitions</span>
-              <InfoTooltip content="Total number of complete repetitions detected across all joints during your session.">
-                <span className="text-white opacity-80 hover:opacity-100 cursor-help text-xs">ⓘ</span>
-              </InfoTooltip>
-            </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 27, fontWeight: 700 }}>{sessionStats.repCount}</div>
+            <div style={{ fontSize: 12, opacity: 0.9 }}>Repetitions</div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold">{sessionStats.balanceScore}%</div>
-            <div className="flex items-center justify-center gap-1 text-sm opacity-90">
-              <span>Balance</span>
-              <InfoTooltip content="Your stability score measuring how steady you maintained your position throughout the exercise.">
-                <span className="text-white opacity-80 hover:opacity-100 cursor-help text-xs">ⓘ</span>
-              </InfoTooltip>
-            </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 27, fontWeight: 700 }}>{typeof sessionStats.balanceScore === 'number' ? sessionStats.balanceScore.toFixed(2) : sessionStats.balanceScore}%</div>
+            <div style={{ fontSize: 12, opacity: 0.9 }}>Balance</div>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white bg-opacity-20 rounded-lg p-3">
+        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+          <div style={{ background: 'var(--results-summary-info-bg)', color: 'var(--results-summary-info-text)', borderRadius: 8, padding: 12 }}>
             <div className="text-sm opacity-90">Best Joint</div>
             <div className="font-semibold">{sessionStats.bestJoint?.replace(/([A-Z])/g, ' $1').trim()}</div>
           </div>
-          <div className="bg-white bg-opacity-20 rounded-lg p-3">
+          <div style={{ background: 'var(--results-summary-info-bg)', color: 'var(--results-summary-info-text)', borderRadius: 8, padding: 12 }}>
             <div className="text-sm opacity-90">Needs Work</div>
             <div className="font-semibold">{sessionStats.worstJoint?.replace(/([A-Z])/g, ' $1').trim()}</div>
           </div>
         </div>
       </div>
-      {/* Creative Assets Gallery */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <h3 className="text-xl font-bold text-onyx-10">Creative Assets</h3>
-          <InfoTooltip content="Generate visual assets from your workout session to share on social media or keep for your fitness journey.">
-            <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
-          </InfoTooltip>
-        </div>
-        <p className="text-onyx-30 mb-6">Generate and share visual assets from your workout session</p>
-        {!poses || poses.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-6xl mb-4">📹</div>
-            <h4 className="text-lg font-semibold text-onyx-10 mb-2">No Session Data Available</h4>
-            <p className="text-onyx-30">Complete a workout session to generate creative assets</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {assetTypes.map((asset) => {
-              const isGenerated = !!generatedAssets[asset.id];
-              const isCurrentlyGenerating = selectedAsset === asset.id && isGenerating;
-              return (
-                <div key={asset.id} className="border rounded-lg p-4 hover:shadow-md transition">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="text-2xl">{asset.icon}</div>
-                    <div>
-                      <h4 className="font-semibold text-onyx-10">{asset.name}</h4>
-                      <p className="text-sm text-onyx-30">{asset.description}</p>
-                    </div>
-                  </div>
-                  <div className="bg-gray-100 rounded p-3 mb-3 text-sm text-onyx-30">{asset.preview}</div>
-                  <div className="flex gap-2">
-                    {isCurrentlyGenerating ? (
-                      <button className="flex-1 bg-blue-500 text-white px-3 py-2 rounded text-sm font-medium">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>
-                      </button>
-                    ) :
-                      <>
-                        <button
-                          onClick={() => generateAsset(asset.id)}
-                          className="flex-1 bg-blue-500 text-white px-3 py-2 rounded text-sm font-medium hover:bg-blue-600 transition"
-                        >
-                          {isGenerated ? 'Regenerate' : 'Generate'}
-                        </button>
-                        {isGenerated && (
-                          <>
-                            <button
-                              onClick={() => downloadAsset(asset.id)}
-                              className="bg-green-500 text-white px-3 py-2 rounded text-sm font-medium hover:bg-green-600 transition"
-                              title="Download"
-                            >
-                              📥
-                            </button>
-                            <button
-                              onClick={() => shareAsset(asset.id)}
-                              className="bg-purple-500 text-white px-3 py-2 rounded text-sm font-medium hover:bg-purple-600 transition"
-                              title="Share"
-                            >
-                              📤
-                            </button>
-                          </>
-                        )}
-                      </>
-                    }
-                  </div>
-                  {isGenerated && (
-                    <div className="mt-2 text-xs text-green-600 font-medium">
-                      ✓ Generated successfully
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <h3 className="text-xl font-bold text-onyx-10">Quick Actions</h3>
+      <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+          <h3 style={{ fontSize: 21, fontWeight: 500, marginBottom: '6px', color: 'var(--results-summary-title)' }}>Quick Actions</h3>
           <InfoTooltip content="Quick actions to download, share, or retry your workout session.">
-            <span className="text-onyx-30 hover:text-onyx-20 cursor-help">ⓘ</span>
+            <span className="text-onyx-30 hover:text-onyx-20 cursor-help"
+                          style={{
+                            color: 'var(--results-info-icon)',
+                            cursor: 'help',
+                            transition: 'color 0.18s',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            marginLeft: 6,
+                            fontSize: '1em',
+                            verticalAlign: 'middle',
+                          }}
+            >ⓘ</span>
           </InfoTooltip>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
           <button 
             onClick={() => setIsAssetModalOpen(true)}
-            className="bg-purple-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-600 transition"
+            className="px-4 py-2 border-2 rounded-md font-medium text-sm hover:bg-purple-600 transition"
+            style={{ background: 'transparent', borderColor: '#2CFF05', color: '--primary-button-text' , cursor: 'pointer' }}
           >
-            🎨 Create Shareable Asset
+            Create Shareable Asset
           </button>
-          <button 
-            onClick={downloadAllAssets}
-            className="bg-blue-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-600 transition"
+          <button
+            onClick={downloadMotionData}
+            className={`px-4 py-2 border-2 rounded-md font-medium text-sm hover:bg-green-600 transition${!poses || poses.length === 0 ? ' opacity-50 cursor-not-allowed' : ''}`}
+            style={{ background: 'transparent', borderColor: '#D805FF', color: '--primary-button-text' , cursor: 'pointer' }}
+            disabled={!poses || poses.length === 0}
           >
-            📊 Download All Assets
-          </button>
-          <button 
-            onClick={shareSession}
-            className="bg-green-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-600 transition"
-          >
-            📱 Share Session
-          </button>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-gray-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition"
-          >
-            🎯 Try Again
+            Download Motion Data
           </button>
         </div>
       </div>
@@ -862,6 +1214,7 @@ function SessionSummaryTab({
 }
 
 export default function ResultsPage() {
+  const { theme, toggleTheme } = useTheme();
   const params = useParams();
   const searchParams = useSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -1272,11 +1625,12 @@ export default function ResultsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-onyx-100 flex flex-col items-center px-4 py-8" style={{ border: '4px solid red', maxWidth: '2560px', marginLeft: '3%', marginRight: '3%' }}>
-      <div className="w-full max-w-6xl flex flex-row" style={{ border: '2px solid green', maxWidth: '2560px', minHeight: '70vh' }}>
+    <main className="bg-onyx-100 flex flex-col items-center px-0 pb-0" style={{ maxWidth: '2560px', marginLeft: '3%', marginRight: '3%' }}>
+      <div className="w-full max-w-6xl flex flex-row" style={{ maxWidth: '2560px', minHeight: '70vh' }}>
         {/* Left: Side-by-Side Video Player (50%) */}
-        <div className="flex-1 min-w-0 max-w-[50%] flex flex-col justify-start" style={{ border: '2px solid blue', maxWidth: '50%', minHeight: 0 }}>
+        <div className="flex-1 min-w-0 max-w-[50%] flex flex-col justify-start" style={{ maxWidth: '50%'}}>
           <SideBySideVideoPlayer
+            className="h-full"
             userVideoUrl={videoUrl}
             referenceVideoUrl={referenceVideoUrl}
             userPoses={poses}
@@ -1285,11 +1639,23 @@ export default function ResultsPage() {
             seekFrame={seekFrame}
             onSeekFrameHandled={() => setSeekFrame(null)}
             onReferenceFrameChange={setReferenceFrame}
-            maxHeight="70vh"
+            //maxHeight="60vh"
           />
         </div>
         {/* Right: Tabbed Panel (50%) */}
-        <div className="flex-1 min-w-0 max-w-[50%] flex flex-col justify-start" style={{ border: '2px solid purple', maxWidth: '50%' }}>
+        <div className="flex-1 min-w-0 max-w-[50%] flex flex-col justify-start" style={{ maxWidth: '50%' }}>
+        <div className="w-full mx-auto">
+          <div
+            style={{
+              background: 'var(--results-summary-bg)',
+              color: 'var(--results-summary-title)',
+              borderRadius: 6,
+              //boxShadow: 'var(--results-summary-shadow)',
+              //border: '1.5px solid var(--results-summary-border)',
+              //padding: 12,
+              marginBottom: 12
+            }}
+          >
           <ResultsTabs
             comparisonResults={comparisonResults}
             advancedAnalysis={advancedAnalysis}
@@ -1304,10 +1670,13 @@ export default function ResultsPage() {
             currentFrame={currentFrame}
             onSeekFrame={setSeekFrame}
           />
+          </div>
+        </div>
+
         </div>
       </div>
       {/* Navigation */}
-      <div className="mt-6 text-center" style={{ border: '2px solid orange' }}>
+      <div className="mt-8 mb-6 text-center" style={{ border: 'transparent' }}>
         <Link href={`/exercises/${exercise.id}`} className="text-blue-70 underline">
           ← Back to {exercise.title} details
         </Link>
@@ -1315,3 +1684,24 @@ export default function ResultsPage() {
     </main>
   );
 }
+
+// Custom active bar for BarChart (highlight on hover/active)
+const CustomActiveBar = (props: any) => {
+  const { fill, x, y, width, height } = props;
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      fill={
+        props.isSelection
+          ? 'var(--results-chart-selection)'
+          : 'var(--results-chart-highlight)'
+      }
+      stroke="var(--results-chart-selection)"
+      strokeWidth={2}
+      rx={3}
+    />
+  );
+};

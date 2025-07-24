@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import VideoPlayer, { VideoPlayerHandle } from './VideoPlayer';
+import * as ToggleGroup from '@radix-ui/react-toggle-group';
 
 interface SideBySideVideoPlayerProps {
   userVideoUrl: string | null;
@@ -63,32 +64,34 @@ export default function SideBySideVideoPlayer({
     const currentOnTimeUpdate = activeVideo === 'user' ? onUserTimeUpdate : onReferenceTimeUpdate;
 
     return (
-      <div className={`w-full ${className}`} style={maxHeight ? { maxHeight } : undefined}>
+      <div className={`w-full ${className}`} style={maxHeight ? { maxHeight } : {}}>
         {/* Toggle Controls */}
-        <div 
-          className="flex items-center justify-between mb-4 px-2"
-        >
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={toggleViewMode}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+        <div className="flex items-center space-x-2 mb-4 px-2">
+          <ToggleGroup.Root
+            type="single"
+            value={viewMode}
+            onValueChange={val => { if (val) setViewMode(val as 'single' | 'side-by-side'); }}
+            className="flex"
+          >
+            <ToggleGroup.Item
+              value="side-by-side"
+              aria-label="Switch to Side-by-Side"
+              className="px-2 py-1 rounded text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 data-[state=on]:bg-blue-600 data-[state=on]:text-white transition"
+              style={{ minWidth: 0 }}
             >
-              Switch to Side-by-Side
-            </button>
-            <button
-              onClick={switchActiveVideo}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
-            >
-              Switch to {activeVideo === 'user' ? 'Reference' : 'User'} Video
-            </button>
-          </div>
-          <div className="text-sm text-gray-600">
-            Currently showing: <span className="font-semibold">{activeVideo === 'user' ? 'Your Video' : 'Reference Video'}</span>
-          </div>
+              Side-by-Side
+            </ToggleGroup.Item>
+          </ToggleGroup.Root>
+          <button
+            onClick={switchActiveVideo}
+            className="px-2 py-1 rounded text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
+            style={{ minWidth: 0 }}
+          >
+            Switch to {activeVideo === 'user' ? 'Reference' : 'User'}
+          </button>
         </div>
-
-        {/* Video Player Container - no overflow hidden */}
-        <div className="w-full">
+        {/* Video Player Container */}
+        <div className="w-full" style={maxHeight ? { maxHeight } : {}}>
           <VideoPlayer
             ref={activeVideo === 'user' ? userVideoRef : undefined}
             videoUrl={currentVideoUrl || ""}
@@ -116,15 +119,12 @@ export default function SideBySideVideoPlayer({
             Switch to Single View
           </button>
         </div>
-        <div className="text-sm text-gray-600">
-          Side-by-side comparison view
-        </div>
       </div>
 
       {/* Side-by-Side Videos Container - no overflow hidden */}
-      <div className="w-full">
+      <div className="h-full">
         {/* Responsive Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
           {/* User Video */}
           <div className="w-full flex flex-col">
             <div className="text-sm font-semibold text-gray-700 mb-2 px-2">Your Video</div>

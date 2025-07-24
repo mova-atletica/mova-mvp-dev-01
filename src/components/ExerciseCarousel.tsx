@@ -58,7 +58,7 @@ export default function ExerciseCarousel({ title, exercises, className = "" }: E
         <div className="w-16 h-1 rounded-full" style={{ backgroundColor: 'var(--section-accent)' }}></div>
       </div>
       
-      <div className="relative group overflow-hidden">
+      <div className="relative group">
         {/* Left Arrow */}
         {showLeftArrow && (
           <button

@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import Webcam from "react-webcam";
 import * as poseDetection from "@tensorflow-models/pose-detection";
 import "@tensorflow/tfjs-backend-webgl";
@@ -82,6 +82,9 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
 
   // Add a ref for closing dropdowns on outside click
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Controls for panel switching
+  const [openMenu, setOpenMenu] = useState<null | 'export' | 'selection' | 'style' | 'actions'>(null);
 
   // Load pose detection model
   useEffect(() => {
@@ -451,7 +454,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
   // Controls: Start/stop recording, toggles, audio, advanced panel trigger
   const controls = (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 0', minWidth: '260px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
         {!recording ? (
           <button
             className="px-6 py-3 rounded text-xs font-medium transition cursor-pointer"
@@ -507,303 +510,236 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
     </>
   );
 
-  // Advanced panel UI (tabs, dropdowns, style/actions)
-  const advancedPanel = (
-    <div
-      style={{
-        background: 'transparent',
-        borderRadius: '9px',
-        boxShadow: '0 1px 8px rgba(0,0,0,0.07)',
-        padding: '18px 14px',
-        border: '2px solid var(--vp-panel-border,rgb(17, 255, 0))',
-        color: 'var(--vp-panel-text, #222)',
-        minHeight: '100px',
-        maxHeight: '1000px',
-        overflow: 'visible',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0',
-        alignItems: 'stretch',
-      }}
-    >
-      {/* Tab Bar */}
-      <div style={{ display: 'flex', flexDirection: 'row', marginBottom: '10px', gap: '4px' }}>
+  // --- Panel Content for Each Menu ---
+  const selectionPanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Focus Selection</div>
+      {/* Angles Dropdown */}
+      <div className="flex flex-col" style={{ position: 'relative' }}>
         <button
-          onClick={() => setAdvancedTab('selection')}
+          className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
           style={{
-            flex: 1,
-            padding: '6px 0',
-            border: 'none',
-            borderBottom: advancedTab === 'selection'
-              ? '0px solid var(--vp-tab-border-active)'
-              : '0px solid var(--vp-tab-border-inactive)',
-            background: advancedTab === 'selection'
-              ? 'var(--vp-tab-bg-active)'
-              : 'var(--vp-tab-bg-inactive)',
-            color: advancedTab === 'selection'
-              ? 'var(--vp-tab-active)'
-              : 'var(--vp-tab-inactive)',
+            border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
+            color: 'var(--vp-dropdown-label, #353839)',
             fontWeight: 500,
-            fontSize: '0.78rem',
-            cursor: 'pointer',
-            borderRadius: '6px 6px 6px 6px',
-            transition: 'color 0.3s, background 0.3s, border-bottom 0.0s',
+            marginBottom: '3px',
+            transition: 'color 0.2s, border 0.2s',
           }}
-        >Selection</button>
-        <button
-          onClick={() => setAdvancedTab('style')}
-          style={{
-            flex: 1,
-            padding: '6px 0',
-            border: 'none',
-            borderBottom: advancedTab === 'style'
-              ? '0px solid var(--vp-tab-border-active)'
-              : '0px solid var(--vp-tab-border-inactive)',
-            background: advancedTab === 'style'
-              ? 'var(--vp-tab-bg-active)'
-              : 'var(--vp-tab-bg-inactive)',
-            color: advancedTab === 'style'
-              ? 'var(--vp-tab-active)'
-              : 'var(--vp-tab-inactive)',
-            fontWeight: 500,
-            fontSize: '0.78rem',
-            cursor: 'pointer',
-            borderRadius: '6px 6px 6px 6px',
-            transition: 'color 0.3s, background 0.3s, border-bottom 0.0s',
-          }}
-        >Style</button>
-        <button
-          onClick={() => setAdvancedTab('actions')}
-          style={{
-            flex: 1,
-            padding: '6px 0',
-            border: 'none',
-            borderBottom: advancedTab === 'actions'
-              ? '0px solid var(--vp-tab-border-active)'
-              : '0px solid var(--vp-tab-border-inactive)',
-            background: advancedTab === 'actions'
-              ? 'var(--vp-tab-bg-active)'
-              : 'var(--vp-tab-bg-inactive)',
-            color: advancedTab === 'actions'
-              ? 'var(--vp-tab-active)'
-              : 'var(--vp-tab-inactive)',
-            fontWeight: 500,
-            fontSize: '0.78rem',
-            cursor: 'pointer',
-            borderRadius: '6px 6px 6px 6px',
-            transition: 'color 0.3s, background 0.3s, border-bottom 0.0s',
-          }}
-        >Actions</button>
+          onClick={() => setOpenDropdown(openDropdown === 'angles' ? null : 'angles')}
+          type="button"
+        >
+          Angles
+          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+        </button>
+        {openDropdown === 'angles' &&
+          <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open">
+            {ANGLE_OPTIONS.map(opt => (
+              <label key={opt.key} className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors" style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }} onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')} onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}>
+                <input
+                  type="checkbox"
+                  checked={selectedAngles.includes(opt.key)}
+                  onChange={() => setSelectedAngles(selectedAngles => selectedAngles.includes(opt.key)
+                    ? selectedAngles.filter(a => a !== opt.key)
+                    : [...selectedAngles, opt.key])}
+                  style={{ marginRight: '9px' }}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        }
       </div>
-      {/* Tab Content */}
-      {advancedTab === 'selection' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Angles Dropdown */}
-          <div className="flex flex-col" style={{ position: 'relative' }}>
-            <button
-              className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
-              style={{
-                border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
-                color: 'var(--vp-dropdown-label, #353839)',
-                fontWeight: 500,
-                marginBottom: '10px',
-                transition: 'color 0.2s, border 0.2s',
-              }}
-              onClick={() => setOpenDropdown(openDropdown === 'angles' ? null : 'angles')}
-              type="button"
-            >
-              Angles
-              <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </span>
-            </button>
-            {openDropdown === 'angles' &&
-              <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open">
-                {ANGLE_OPTIONS.map(opt => (
-                  <label key={opt.key} className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors" style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }} onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')} onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}>
-                    <input
-                      type="checkbox"
-                      checked={selectedAngles.includes(opt.key)}
-                      onChange={() => setSelectedAngles(selectedAngles => selectedAngles.includes(opt.key)
-                        ? selectedAngles.filter(a => a !== opt.key)
-                        : [...selectedAngles, opt.key])}
-                      style={{ marginRight: '9px' }}
-                    />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-            }
+      {/* Joints Dropdown */}
+      <div className="flex flex-col" style={{ position: 'relative' }}>
+        <button
+          className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
+          style={{
+            border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
+            color: 'var(--vp-dropdown-label, #353839)',
+            fontWeight: 500,
+            marginBottom: '3px',
+            transition: 'color 0.2s, border 0.2s',
+          }}
+          onClick={() => setOpenDropdown(openDropdown === 'joints' ? null : 'joints')}
+          type="button"
+        >
+          Joints
+          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+        </button>
+        {openDropdown === 'joints' && (
+          <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open dropdown-scroll">
+            {JOINT_OPTIONS.map(opt => (
+              <label key={opt.key} className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors" style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }} onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')} onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}>
+                <input
+                  type="checkbox"
+                  checked={selectedJoints.includes(opt.key)}
+                  onChange={() => setSelectedJoints(selectedJoints => selectedJoints.includes(opt.key)
+                    ? selectedJoints.filter(j => j !== opt.key)
+                    : [...selectedJoints, opt.key])}
+                  style={{ marginRight: '9px' }}
+                />
+                {opt.label}
+              </label>
+            ))}
           </div>
-          {/* Joints Dropdown */}
-          <div className="flex flex-col" style={{ position: 'relative' }}>
-            <button
-              className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
-              style={{
-                border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
-                color: 'var(--vp-dropdown-label, #353839)',
-                fontWeight: 500,
-                marginBottom: '10px',
-                transition: 'color 0.2s, border 0.2s',
-              }}
-              onClick={() => setOpenDropdown(openDropdown === 'joints' ? null : 'joints')}
-              type="button"
-            >
-              Joints
-              <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </span>
-            </button>
-            {openDropdown === 'joints' && (
-              <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open dropdown-scroll">
-                {JOINT_OPTIONS.map(opt => (
-                  <label key={opt.key} className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors" style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }} onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')} onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}>
-                    <input
-                      type="checkbox"
-                      checked={selectedJoints.includes(opt.key)}
-                      onChange={() => setSelectedJoints(selectedJoints => selectedJoints.includes(opt.key)
-                        ? selectedJoints.filter(j => j !== opt.key)
-                        : [...selectedJoints, opt.key])}
-                      style={{ marginRight: '9px' }}
-                    />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-            )}
+        )}
+      </div>
+      {/* Bones Dropdown */}
+      <div className="flex flex-col" style={{ position: 'relative' }}>
+        <button
+          className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
+          style={{
+            border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
+            color: 'var(--vp-dropdown-label, #353839)',
+            fontWeight: 500,
+            marginBottom: '3px',
+            transition: 'color 0.2s, border 0.2s',
+          }}
+          onClick={() => setOpenDropdown(openDropdown === 'bones' ? null : 'bones')}
+          type="button"
+        >
+          Bones
+          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+        </button>
+        {openDropdown === 'bones' && (
+          <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open dropdown-scroll">
+            {BONE_OPTIONS.map(opt => (
+              <label key={opt.key} className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors" style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }} onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')} onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}>
+                <input
+                  type="checkbox"
+                  checked={selectedBones.includes(opt.key)}
+                  onChange={() => setSelectedBones(selectedBones => selectedBones.includes(opt.key)
+                    ? selectedBones.filter(b => b !== opt.key)
+                    : [...selectedBones, opt.key])}
+                  style={{ marginRight: '9px' }}
+                />
+                {opt.label}
+              </label>
+            ))}
           </div>
-          {/* Bones Dropdown */}
-          <div className="flex flex-col" style={{ position: 'relative' }}>
-            <button
-              className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
-              style={{
-                border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
-                color: 'var(--vp-dropdown-label, #353839)',
-                fontWeight: 500,
-                marginBottom: '10px',
-                transition: 'color 0.2s, border 0.2s',
-              }}
-              onClick={() => setOpenDropdown(openDropdown === 'bones' ? null : 'bones')}
-              type="button"
-            >
-              Bones
-              <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </span>
-            </button>
-            {openDropdown === 'bones' && (
-              <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open dropdown-scroll">
-                {BONE_OPTIONS.map(opt => (
-                  <label key={opt.key} className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors" style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }} onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')} onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}>
-                    <input
-                      type="checkbox"
-                      checked={selectedBones.includes(opt.key)}
-                      onChange={() => setSelectedBones(selectedBones => selectedBones.includes(opt.key)
-                        ? selectedBones.filter(b => b !== opt.key)
-                        : [...selectedBones, opt.key])}
-                      style={{ marginRight: '9px' }}
-                    />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      {advancedTab === 'style' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Overlay Theme Controls */}
-          <div className="flex flex-col gap-2" style={{ borderTop: '0px solid var(--vp-border)', paddingTop: '6px' }}>
-            <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
-              Bone Color
-              <input
-                type="color"
-                value={boneColor}
-                onChange={e => setBoneColor(e.target.value)}
-                style={{ marginLeft: '8px', width: '28px', height: '22px', border: 'none', background: 'none', verticalAlign: 'middle', cursor: 'pointer' }}
-              />
-            </label>
-            <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
-              Joint Color
-              <input
-                type="color"
-                value={jointColor}
-                onChange={e => setJointColor(e.target.value)}
-                style={{ marginLeft: '8px', width: '28px', height: '22px', border: 'none', background: 'none', verticalAlign: 'middle', cursor: 'pointer' }}
-              />
-            </label>
-            <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
-              Bone Weight
-              <input
-                type="range"
-                min={1}
-                max={8}
-                value={boneWeight}
-                onChange={e => setBoneWeight(Number(e.target.value))}
-                style={{ marginLeft: '8px', width: '60px', verticalAlign: 'middle' }}
-              />
-              <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--vp-label)' }}>{boneWeight}px</span>
-            </label>
-            <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
-              Joint Size
-              <input
-                type="range"
-                min={2}
-                max={16}
-                value={jointSize}
-                onChange={e => setJointSize(Number(e.target.value))}
-                style={{ marginLeft: '8px', width: '60px', verticalAlign: 'middle' }}
-              />
-              <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--vp-label)' }}>{jointSize}px</span>
-            </label>
-          </div>
-        </div>
-      )}
-      {advancedTab === 'actions' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Skeleton Toggle (icon + text) */}
-          <button
-            onClick={() => setShowKeypoints(!showKeypoints)}
-            className="px-3 py-2 rounded text-sm vp-btn flex items-center"
-            style={{ marginBottom: '4px' }}
-          >
-            {showKeypoints ? EyeIcon : EyeOffIcon}Skeleton
-          </button>
-          {/* Angles Toggle (icon + text) */}
-          <button
-            onClick={() => setShowAngles(!showAngles)}
-            className="px-3 py-2 rounded text-sm vp-btn flex items-center"
-            style={{ marginBottom: '4px' }}
-          >
-            {showAngles ? EyeIcon : EyeOffIcon}Angles
-          </button>
-          {/* Show/Hide Video Toggle (icon + text) */}
-          <button
-            onClick={() => setVideoVisible(v => !v)}
-            className="px-3 py-2 rounded text-sm vp-btn flex items-center"
-            style={{ marginBottom: '4px' }}
-          >
-            {videoVisible ? EyeIcon : EyeOffIcon}Video
-          </button>
-          {/* Export Frame Button */}
-          <button
-            onClick={exportCurrentFrame}
-            className="px-3 py-2 rounded text-sm vp-btn"
-            style={{ marginBottom: '4px' }}
-          >
-            Export Frame
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
+  const stylePanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Style</div>
+      {/* Overlay Theme Controls */}
+      <div className="flex flex-col gap-2" style={{ borderTop: '0px solid var(--vp-border)', paddingTop: '6px' }}>
+        <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
+          Bone Color
+          <input
+            type="color"
+            value={boneColor}
+            onChange={e => setBoneColor(e.target.value)}
+            style={{ marginLeft: '8px', width: '28px', height: '22px', border: 'none', background: 'none', verticalAlign: 'middle', cursor: 'pointer' }}
+          />
+        </label>
+        <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
+          Joint Color
+          <input
+            type="color"
+            value={jointColor}
+            onChange={e => setJointColor(e.target.value)}
+            style={{ marginLeft: '8px', width: '28px', height: '22px', border: 'none', background: 'none', verticalAlign: 'middle', cursor: 'pointer' }}
+          />
+        </label>
+        <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
+          Bone Weight
+          <input
+            type="range"
+            min={1}
+            max={8}
+            value={boneWeight}
+            onChange={e => setBoneWeight(Number(e.target.value))}
+            style={{ marginLeft: '8px', width: '60px', verticalAlign: 'middle' }}
+          />
+          <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--vp-label)' }}>{boneWeight}px</span>
+        </label>
+        <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
+          Joint Size
+          <input
+            type="range"
+            min={2}
+            max={16}
+            value={jointSize}
+            onChange={e => setJointSize(Number(e.target.value))}
+            style={{ marginLeft: '8px', width: '60px', verticalAlign: 'middle' }}
+          />
+          <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--vp-label)' }}>{jointSize}px</span>
+        </label>
+      </div>
+    </div>
+  );
+  const actionsPanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Actions</div>
+      {/* Skeleton Toggle (icon + text) */}
+      <button
+        onClick={() => setShowKeypoints(!showKeypoints)}
+        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
+        style={{ marginBottom: '4px' }}
+      >
+        {showKeypoints ? EyeIcon : EyeOffIcon}Skeleton
+      </button>
+      {/* Angles Toggle (icon + text) */}
+      <button
+        onClick={() => setShowAngles(!showAngles)}
+        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
+        style={{ marginBottom: '4px' }}
+      >
+        {showAngles ? EyeIcon : EyeOffIcon}Angles
+      </button>
+      {/* Show/Hide Video Toggle (icon + text) */}
+      <button
+        onClick={() => setVideoVisible(v => !v)}
+        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
+        style={{ marginBottom: '4px' }}
+      >
+        {videoVisible ? EyeIcon : EyeOffIcon}Video
+      </button>
+      {/* Export Frame Button */}
+      <button
+        onClick={exportCurrentFrame}
+        className="px-3 py-2 rounded text-xs vp-btn"
+        style={{ marginBottom: '4px' }}
+      >
+        Export Frame
+      </button>
+    </div>
+  );
+  const exportPanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Export</div>
+      {/* Export Frame Button only */}
+      <button
+        onClick={exportCurrentFrame}
+        className="px-3 py-2 rounded text-xs vp-btn"
+        style={{ marginBottom: '4px' }}
+      >
+        Export Frame
+      </button>
+    </div>
+  );
+
+  // --- Panel Content Switch ---
+  let panelContent: React.ReactNode = null;
+  if (openMenu === 'selection') panelContent = selectionPanel;
+  else if (openMenu === 'style') panelContent = stylePanel;
+  else if (openMenu === 'actions') panelContent = actionsPanel;
+  else if (openMenu === 'export') panelContent = exportPanel;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
@@ -814,26 +750,28 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
           <CoreVideoPlayer
             videoElement={
               <div style={{ opacity: videoVisible ? 1 : 0, pointerEvents: videoVisible ? 'auto' : 'none', transition: 'opacity 0.2s ease-in-out' }}>
-    <Webcam
-      ref={webcamRef}
-      audio={false}
-      videoConstraints={{
-        width: 360,
-        height: 640,
-        aspectRatio: 9 / 16,
-        facingMode: "user",
-      }}
-      className="rounded w-full"
+                <Webcam
+                  ref={webcamRef}
+                  audio={false}
+                  videoConstraints={{
+                    width: 360,
+                    height: 640,
+                    aspectRatio: 9 / 16,
+                    facingMode: "user",
+                  }}
+                  className="rounded w-full"
                 />
               </div>
             }
-        canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
+            canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
             overlays={<></>}
-        controls={controls}
-        advancedPanel={advancedPanel}
-        showAdvancedPanel={showAdvancedPanel}
-        onCloseAdvancedPanel={() => setShowAdvancedPanel(v => !v)}
-      />
+            controls={controls}
+            panelContent={panelContent}
+            openMenu={openMenu}
+            setOpenMenu={setOpenMenu}
+            showAdvancedPanel={showAdvancedPanel}
+            onCloseAdvancedPanel={() => setShowAdvancedPanel(v => !v)}
+          />
         </div>
       </div>
     </div>

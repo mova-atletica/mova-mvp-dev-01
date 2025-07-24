@@ -22,15 +22,15 @@ export default function InfoTooltip({
         </Tooltip.Trigger>
         <Tooltip.Portal>
           <Tooltip.Content
-            className="text-xs font-normal rounded-lg px-3 py-2 z-50"
+            className="text-xs font-normal rounded-lg px-4 py-2 z-50"
             style={{
               background: 'var(--tooltip-bg)',
               color: 'var(--tooltip-text)',
               border: '1px solid var(--tooltip-border)',
               boxShadow: 'var(--tooltip-shadow)',
-              maxWidth: '24rem',
-              minWidth: '15rem',
-              width: 'max-content',
+              maxWidth: '180px',
+              //minWidth: '9rem',
+              //width: 'max-content',
             }}
             sideOffset={8}
             side="top"

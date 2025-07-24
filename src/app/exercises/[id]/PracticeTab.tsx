@@ -8,6 +8,8 @@ import { calculateEnhancedComparison, calculateBalanceMetrics, getAngleWithConfi
 import LiveVideoPlayer from '../../../components/LiveVideoPlayer';
 import { Exercise } from '../../../data/exercises';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import * as Dialog from '@radix-ui/react-dialog';
+import * as Tooltip from '@radix-ui/react-tooltip';
 
 export type PracticeTabProps = { 
   exercise: Exercise; 
@@ -210,6 +212,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
   const [currentFeedback, setCurrentFeedback] = useState<string>("");
   const [feedbackColor, setFeedbackColor] = useState<'green' | 'yellow' | 'red'>('green');
   const [currentAnalysisPose, setCurrentAnalysisPose] = useState<any>(null);
+  const [showLiveModal, setShowLiveModal] = useState(false);
 
   // Angle tracking
   const [leftKneeAngles, setLeftKneeAngles] = useState<(number | null)[]>([]);
@@ -820,38 +823,104 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
 
   // --- UI ---
   return (
-    <div className="p-0 border-0 border-red-500">
-      
-      {!videoUrl ? (
-        <>
-          {!cameraActive ? (
+    <Tooltip.Provider>
+      <div className="p-0 border-0 border-red-500">
+        
+        {!videoUrl ? (
+          <>
             <div className="text-left border-0 pt-4">
-              <h3 className="text-lg font-semibold text-onyx-10">Test Your Form</h3>
+              <div className="flex items-center gap-2 mb-2">
+                <h2 className="text-xl font-medium">Test Your Form</h2>
+                <Tooltip.Root delayDuration={150}>
+                  <Tooltip.Trigger asChild>
+                    <button
+                      aria-label="Recording Guidelines"
+                      className="ml-1 p-1 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      style={{ verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" />
+                        <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" />
+                        <circle cx="12" cy="16" r="1" fill="currentColor" />
+                      </svg>
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      side="top"
+                      align="center"
+                      className="z-50 max-w-[180px] break-words rounded-lg bg-white dark:bg-gray-900 p-4 shadow-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200"
+                      style={{ fontSize: 12, maxWidth: '201px' }}
+                    >
+                      <div className="font-semibold mb-2">Recording Guidelines</div>
+                      <ul className="list-disc pl-4 space-y-1" style={{ paddingLeft: '12px' }}>
+                        <li>Make sure your <b>full body is in frame</b> – especially ensuring that the joints of interest are clearly visible and in frame.</li>
+                        <li><b>Good lighting</b></li>
+                        <li><b>Good color contrast</b> between clothes and background</li>
+                      </ul>
+                      <Tooltip.Arrow className="fill-white" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </div>
               <p className="text-onyx-30 text-sm  mb-4">
                 Compare and analyze your form to the reference video by either uploading a video or live-recording a video of yourself performing the movement(s).
               </p>
-             <div className="flex gap-4 justify-left mb-0">
-                <button
-                  className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
-                  style={{
-                    background: 'var(--secondary-button-bg)',
-                    color: 'var(--secondary-button-text)',
-                    border: '2px solid var(--secondary-button-border)'
-                  }}
-                  onMouseOver={e => {
-                    e.currentTarget.style.background = 'var(--secondary-button-hover-bg)';
-                    e.currentTarget.style.color = 'var(--secondary-button-hover-text)';
-                    e.currentTarget.style.borderColor = 'var(--secondary-button-hover-border)';
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.background = 'var(--secondary-button-bg)';
-                    e.currentTarget.style.color = 'var(--secondary-button-text)';
-                    e.currentTarget.style.borderColor = 'var(--secondary-button-border)';
-                  }}
-                  onClick={handleStartCamera}
-                >
-                  Record Live
-                </button>
+              <div className="flex gap-4 justify-left mb-0">
+                <Dialog.Root open={showLiveModal} onOpenChange={setShowLiveModal}>
+                  <Dialog.Trigger asChild>
+                    <button
+                      className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                      style={{
+                        background: 'var(--secondary-button-bg)',
+                        color: 'var(--secondary-button-text)',
+                        border: '2px solid var(--secondary-button-border)'
+                      }}
+                      onMouseOver={e => {
+                        e.currentTarget.style.background = 'var(--secondary-button-hover-bg)';
+                        e.currentTarget.style.color = 'var(--secondary-button-hover-text)';
+                        e.currentTarget.style.borderColor = 'var(--secondary-button-hover-border)';
+                      }}
+                      onMouseOut={e => {
+                        e.currentTarget.style.background = 'var(--secondary-button-bg)';
+                        e.currentTarget.style.color = 'var(--secondary-button-text)';
+                        e.currentTarget.style.borderColor = 'var(--secondary-button-border)';
+                      }}
+                    >
+                      Record Live
+                    </button>
+                  </Dialog.Trigger>
+                  <Dialog.Portal>
+                    <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+                    <Dialog.Content
+                      className="fixed inset-0 z-50 flex flex-col"
+                      style={{ width: '100vw', height: '100vh', padding: 0, background: 'rgba(24,24,27,0.92)' }}
+                    >
+                      <button
+                        className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/80 hover:bg-black focus:outline-none"
+                        aria-label="Close"
+                        type="button"
+                        onClick={() => setShowLiveModal(false)}
+                      >
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/>
+                          <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </button>
+                      <div className="flex flex-col items-center justify-center w-full h-full relative">
+                        <Dialog.Title className="text-lg font-semibold pt-6 pb-2">Live Record Method</Dialog.Title>
+                        <div className="flex-1 flex items-center justify-center w-full">
+                          <LiveVideoPlayer
+                            onRecordingComplete={handleRecordingComplete}
+                            onMethodChange={() => setShowLiveModal(false)}
+                            referenceAngles={referenceAngles}
+                            exercise={exercise}
+                          />
+                        </div>
+                      </div>
+                    </Dialog.Content>
+                  </Dialog.Portal>
+                </Dialog.Root>
                 <label
                   className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
                   style={{
@@ -880,114 +949,105 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
                 </label>
               </div>
             </div>
-          ) : (
-            <div className="border-4 border-green-500">
-              <LiveVideoPlayer
-                onRecordingComplete={handleRecordingComplete}
-                onMethodChange={() => setCameraActive(false)}
-                referenceAngles={referenceAngles}
-                exercise={exercise}
+          </>
+        ) : (
+          <div className="flex flex-col w-full max-w-md">
+            <div className="relative w-full">
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                controls
+                className="rounded w-full"
+                onLoadedMetadata={() => {
+                  console.log('video onLoadedMetadata fired');
+                  if (videoRef.current && canvasRef.current) {
+                    canvasRef.current.width = videoRef.current.videoWidth;
+                    canvasRef.current.height = videoRef.current.videoHeight;
+                  }
+                }}
               />
+              <canvas
+                ref={canvasRef}
+                className="absolute top-0 left-0 w-full h-full pointer-events-none"
+              />
+              {/* Enhanced pose visualization for uploaded videos */}
             </div>
-          )}
-        </>
-      ) : (
-        <div className="flex flex-col w-full max-w-md">
-          <div className="relative w-full">
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              controls
-              className="rounded w-full"
-              onLoadedMetadata={() => {
-                console.log('video onLoadedMetadata fired');
-                if (videoRef.current && canvasRef.current) {
-                  canvasRef.current.width = videoRef.current.videoWidth;
-                  canvasRef.current.height = videoRef.current.videoHeight;
-                }
-              }}
-            />
-            <canvas
-              ref={canvasRef}
-              className="absolute top-0 left-0 w-full h-full pointer-events-none"
-            />
-            {/* Enhanced pose visualization for uploaded videos */}
-          </div>
-          
-          {/* Analysis Progress */}
-          {isAnalyzing && (
-            <div className="w-full my-4">
-              <div className="bg-onyx-20 rounded-lg p-4">
-                <h3 className="font-semibold text-onyx-10 mb-2">Processing Video...</h3>
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                  <div 
-                    className="bg-blue-100 h-2 rounded-full transition-all duration-300" 
-                    style={{ width: `${analysisProgress}%` }}
-                  ></div>
+            
+            {/* Analysis Progress */}
+            {isAnalyzing && (
+              <div className="w-full my-4">
+                <div className="bg-onyx-20 rounded-lg p-4">
+                  <h3 className="font-semibold text-onyx-10 mb-2">Processing Video...</h3>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div 
+                      className="bg-blue-100 h-2 rounded-full transition-all duration-300" 
+                      style={{ width: `${analysisProgress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-onyx-30">{analysisProgress}% complete</p>
                 </div>
-                <p className="text-sm text-onyx-30">{analysisProgress}% complete</p>
-              </div>
-            </div>
-          )}
-          
-          <div className="flex flex-row flex-wrap gap-4 mt-4">
-            {!isAnalyzing ? (
-              <>
-                <button
-                  className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
-                  style={{
-                    background: 'var(--primary-button-bg)',
-                    color: 'var(--primary-button-text)',
-                    border: '2px solid var(--primary-button-border)'
-                  }}
-                  onMouseOver={e => {
-                    e.currentTarget.style.background = 'var(--primary-button-hover-bg)';
-                    e.currentTarget.style.color = 'var(--primary-button-hover-text)';
-                    e.currentTarget.style.borderColor = 'var(--primary-button-hover-border)';
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.background = 'var(--primary-button-bg)';
-                    e.currentTarget.style.color = 'var(--primary-button-text)';
-                    e.currentTarget.style.borderColor = 'var(--primary-button-border)';
-                  }}
-                  onClick={processUploadedVideo}
-                >
-                  Analyze Video
-                </button>
-                <button
-                  className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
-                  style={{
-                    background: 'var(--secondary-button-bg)',
-                    color: 'var(--secondary-button-text)',
-                    border: '2px solid var(--secondary-button-border)'
-                  }}
-                  onMouseOver={e => {
-                    e.currentTarget.style.background = 'var(--secondary-button-hover-bg)';
-                    e.currentTarget.style.color = 'var(--secondary-button-hover-text)';
-                    e.currentTarget.style.borderColor = 'var(--secondary-button-hover-border)';
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.background = 'var(--secondary-button-bg)';
-                    e.currentTarget.style.color = 'var(--secondary-button-text)';
-                    e.currentTarget.style.borderColor = 'var(--secondary-button-border)';
-                  }}
-                  onClick={() => {
-                    setVideoUrl(null);
-                    setIsRecordedVideo(false);
-                  }}
-                >
-                  Record/Upload New Video
-                </button>
-              </>
-            ) : (
-              <div className="text-center text-onyx-30">
-                {isRecordedVideo ? "Processing your recorded video..." : "Please wait while we analyze your video..."}
               </div>
             )}
+            
+            <div className="flex flex-row flex-wrap gap-4 mt-4">
+              {!isAnalyzing ? (
+                <>
+                  <button
+                    className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                    style={{
+                      background: 'var(--primary-button-bg)',
+                      color: 'var(--primary-button-text)',
+                      border: '2px solid var(--primary-button-border)'
+                    }}
+                    onMouseOver={e => {
+                      e.currentTarget.style.background = 'var(--primary-button-hover-bg)';
+                      e.currentTarget.style.color = 'var(--primary-button-hover-text)';
+                      e.currentTarget.style.borderColor = 'var(--primary-button-hover-border)';
+                    }}
+                    onMouseOut={e => {
+                      e.currentTarget.style.background = 'var(--primary-button-bg)';
+                      e.currentTarget.style.color = 'var(--primary-button-text)';
+                      e.currentTarget.style.borderColor = 'var(--primary-button-border)';
+                    }}
+                    onClick={processUploadedVideo}
+                  >
+                    Analyze Video
+                  </button>
+                  <button
+                    className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                    style={{
+                      background: 'var(--secondary-button-bg)',
+                      color: 'var(--secondary-button-text)',
+                      border: '2px solid var(--secondary-button-border)'
+                    }}
+                    onMouseOver={e => {
+                      e.currentTarget.style.background = 'var(--secondary-button-hover-bg)';
+                      e.currentTarget.style.color = 'var(--secondary-button-hover-text)';
+                      e.currentTarget.style.borderColor = 'var(--secondary-button-hover-border)';
+                    }}
+                    onMouseOut={e => {
+                      e.currentTarget.style.background = 'var(--secondary-button-bg)';
+                      e.currentTarget.style.color = 'var(--secondary-button-text)';
+                      e.currentTarget.style.borderColor = 'var(--secondary-button-border)';
+                    }}
+                    onClick={() => {
+                      setVideoUrl(null);
+                      setIsRecordedVideo(false);
+                    }}
+                  >
+                    Record/Upload New Video
+                  </button>
+                </>
+              ) : (
+                <div className="text-center text-onyx-30">
+                  {isRecordedVideo ? "Processing your recorded video..." : "Please wait while we analyze your video..."}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </Tooltip.Provider>
   );
 } 
 
