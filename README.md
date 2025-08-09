@@ -2,7 +2,7 @@
 
 A web-based platform for real-time exercise analysis using computer vision and machine learning.
 
-## Features
+## 🚀 Features
 
 ### Core Analysis
 - **Real-time Pose Detection**: Live camera analysis using TensorFlow.js and MoveNet
@@ -10,7 +10,7 @@ A web-based platform for real-time exercise analysis using computer vision and m
 - **Reference Comparison**: Compare user performance against reference videos
 - **Advanced Metrics**: DTW, cosine similarity, range of motion, tempo analysis, and balance metrics
 
-### Session Summary & Creative Assets (NEW!)
+### Session Summary & Creative Assets
 - **Session Summary Card**: Comprehensive overview of workout performance
 - **Creative Asset Generation**: Generate visual assets from your workout session:
   - **Muybridge Sequence**: Grid of key frames with pose overlays
@@ -27,7 +27,13 @@ A web-based platform for real-time exercise analysis using computer vision and m
 - **Custom Exercises**: Create and manage your own exercise library
 - **Google Cloud Storage**: Secure video and image storage
 
-## Architecture
+### Advanced Analysis System
+- **Live Analysis (Browser-based)**: Real-time feedback during recording with basic angle comparison
+- **Advanced Analysis (Python Backend)**: DTW, cosine similarity, repetition detection, tempo analysis, balance metrics
+- **Comprehensive Scoring**: Multiple metrics with improvement suggestions
+- **Privacy-focused**: Live analysis happens in browser, advanced analysis requires backend
+
+## 🏗️ Architecture
 
 ### Frontend
 - **Next.js 14**: React framework with App Router
@@ -46,7 +52,7 @@ A web-based platform for real-time exercise analysis using computer vision and m
 - **SQLite**: Local development database
 - **Prisma ORM**: Type-safe database access
 
-## Setup
+## 🛠️ Setup
 
 ### Prerequisites
 - Node.js 18+
@@ -81,9 +87,9 @@ A web-based platform for real-time exercise analysis using computer vision and m
    ```
 
 5. **Start the development servers**
-```bash
+   ```bash
    # Terminal 1: Frontend
-npm run dev
+   npm run dev
    
    # Terminal 2: Backend (optional, for advanced analysis)
    cd backend
@@ -91,7 +97,57 @@ npm run dev
    python main.py
    ```
 
-## Usage
+### Environment Variables
+Create a `.env.local` file in the root directory:
+```env
+NEXT_PUBLIC_PYTHON_BACKEND_URL=http://localhost:8000
+GOOGLE_CLOUD_PROJECT_ID=your-actual-project-id
+GOOGLE_CLOUD_BUCKET_NAME=your-actual-bucket-name
+GOOGLE_CLOUD_KEY_FILE=./google-cloud-key.json
+DATABASE_URL="file:./dev.db"
+```
+
+## 📊 Advanced Analysis Features
+
+### DTW (Dynamic Time Warping)
+- **Purpose**: Handles different movement speeds and body types
+- **How it works**: Aligns two time series by finding optimal matching path
+- **Benefits**: 
+  - Compares movements regardless of speed differences
+  - Accounts for individual body proportions
+  - More robust than frame-by-frame comparison
+
+### Cosine Similarity
+- **Purpose**: Pattern matching for movement sequences
+- **How it works**: Compares normalized angle sequences
+- **Benefits**:
+  - Focuses on movement shape, not absolute values
+  - Handles different body types effectively
+  - Provides pattern-based scoring
+
+### Repetition Analysis
+- **Purpose**: Detects and analyzes exercise repetitions
+- **How it works**: 
+  - Finds peaks and valleys in angle data
+  - Groups movements into repetitions
+  - Calculates consistency metrics
+- **Benefits**:
+  - Counts actual repetitions performed
+  - Measures consistency between reps
+  - Provides tempo analysis
+
+### Balance & Stability
+- **Purpose**: Analyzes postural stability during exercise
+- **How it works**:
+  - Calculates center of mass movement
+  - Measures sway variance and velocity
+  - Analyzes symmetry between left/right sides
+- **Benefits**:
+  - Identifies balance issues
+  - Measures postural control
+  - Provides stability scoring
+
+## 🎯 Usage
 
 ### Basic Analysis
 1. Navigate to an exercise in the library
@@ -110,7 +166,14 @@ npm run dev
 3. Generate creative assets from your session
 4. Download or share your assets
 
-## API Endpoints
+### Asset Generation
+The platform supports generating creative visual assets from workout sessions:
+- **Canvas-based generation**: Uses HTML5 Canvas for image creation
+- **Client-side processing**: All generation happens in the browser
+- **Download support**: Direct download of generated assets
+- **Native sharing**: Device-native sharing when available
+
+## 🔧 API Endpoints
 
 ### Exercises
 - `GET /api/exercises` - List all exercises
@@ -128,9 +191,28 @@ npm run dev
 - `POST /api/storage/signed-url` - Get signed URL for upload
 - `POST /api/storage/proxy` - Proxy file access
 
-## Development
+### Advanced Analysis
+- `POST /analyze` - Analyzes exercise data and returns comprehensive results
+- `GET /health` - Health check endpoint
 
-### Project Structure
+## 🎨 Theme Customization
+
+### Quick Color Adjustments
+- **Light Mode Colors**: `src/app/globals.css` (lines 1-50)
+- **Dark Mode Colors**: `src/contexts/ThemeContext.tsx` (lines 30-120)
+
+### Key Color Variables
+```css
+:root {
+  --background: #f6f1e3;     /* Main page background */
+  --foreground: #17150f;     /* Primary text color */
+  --surface: #f6f1e2;        /* Card/section backgrounds */
+  --surface-hover: #f4eedd;  /* Hover states */
+  --muted: #7d765f;          /* Secondary text */
+}
+```
+
+## 📁 Project Structure
 ```
 src/
 ├── app/                 # Next.js App Router pages
@@ -140,24 +222,60 @@ src/
 │   └── results/       # Analysis results
 ├── components/         # React components
 ├── lib/               # Utility functions
+│   ├── effects/       # Visual effects (muybridge, motion-trails, stats)
+│   └── exportService.ts # Asset export functionality
 ├── data/              # Static data
 └── types/             # TypeScript types
 ```
 
 ### Key Components
-- `AdvancedResultsDisplay`: Main results display with tabs
 - `SessionSummaryTab`: Session summary and asset generation
 - `ExerciseCard`: Exercise display component
 - `Layout`: Main layout wrapper
+- `AssetGenerationModal`: Creative asset generation interface
 
-### Asset Generation
-The platform supports generating creative visual assets from workout sessions:
-- **Canvas-based generation**: Uses HTML5 Canvas for image creation
-- **Client-side processing**: All generation happens in the browser
-- **Download support**: Direct download of generated assets
-- **Native sharing**: Device-native sharing when available
+## 🔍 Troubleshooting
 
-## Contributing
+### Backend Not Starting
+```bash
+# Check Python version
+python3 --version
+
+# Install missing dependencies
+pip install -r requirements.txt
+
+# Check if port 8000 is available
+lsof -i :8000
+```
+
+### Frontend Can't Connect to Backend
+```bash
+# Check if backend is running
+curl http://localhost:8000/health
+
+# Verify environment variable
+echo $NEXT_PUBLIC_PYTHON_BACKEND_URL
+```
+
+### Analysis Not Working
+- Ensure reference data exists for the exercise
+- Check browser console for errors
+- Verify pose detection is working
+- Check network connectivity to backend
+
+## 🚀 Performance Considerations
+
+### Browser Performance
+- **Live analysis**: Optimized for real-time processing
+- **Memory usage**: Efficient data structures for angle storage
+- **GPU acceleration**: Uses WebGL for TensorFlow.js
+
+### Backend Performance
+- **Async processing**: Non-blocking analysis
+- **Memory efficient**: Streaming data processing
+- **Scalable**: Can handle multiple concurrent requests
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -165,6 +283,14 @@ The platform supports generating creative visual assets from workout sessions:
 4. Add tests if applicable
 5. Submit a pull request
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
+- Check the troubleshooting section
+- Review the API documentation
+- Contact the development team

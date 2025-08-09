@@ -897,13 +897,13 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
                     type="button"
                     onClick={() => setShowLiveModal(false)}
                   >
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18"/>
                       <line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
                   </button>
                   <div className="flex flex-col items-center justify-center w-full h-full relative">
-                    <Dialog.Title className="text-lg font-semibold pt-6 pb-2">Live Record Method</Dialog.Title>
+                    <Dialog.Title className="text-sm font-regular text-white pt-6 pb-2">Live Record Method</Dialog.Title>
                     <div className="flex-1 flex items-center justify-center w-full">
                       <LiveVideoPlayer
                         onRecordingComplete={handleRecordingComplete}
@@ -963,13 +963,13 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
                   resetFileInput();
                 }}
               >
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"/>
                   <line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </button>
               <div className="flex flex-col items-center w-full h-full relative overflow-hidden">
-                <Dialog.Title className="text-lg font-semibold pt-6 pb-4 text-white">Upload Video Analysis</Dialog.Title>
+                <Dialog.Title className="text-sm font-normal pt-6 pb-4 text-white">Upload a video to analyze</Dialog.Title>
                 <div className="flex-1 flex flex-col items-center w-full max-w-4xl px-4 min-h-0">
                   
                   {/* Video Player Section */}

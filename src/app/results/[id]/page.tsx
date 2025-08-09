@@ -59,7 +59,6 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Exercise } from "../../../data/exercises";
-import AdvancedResultsDisplay from "../../../components/AdvancedResultsDisplay";
 import SideBySideVideoPlayer from "../../../components/SideBySideVideoPlayer";
 import AssetGenerationModal from "../../../components/AssetGenerationModal";
 import { advancedAnalysisService, AdvancedAnalysisResult } from "../../../lib/advancedAnalysisService";

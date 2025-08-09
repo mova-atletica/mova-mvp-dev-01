@@ -5,7 +5,7 @@ import * as Popover from '@radix-ui/react-popover';
 import * as Select from '@radix-ui/react-select';
 import * as Accordion from '@radix-ui/react-accordion';
 import * as Checkbox from '@radix-ui/react-checkbox';
-import { renderMuybridge, preExtractKeyFrames, clearFrameCache } from '../lib/effects/muybridge';
+import { preExtractKeyFrames, clearFrameCache } from '../lib/effects/muybridge';
 import { exportAsset, downloadBlob, ExportConfig } from '../lib/exportService';
 
 // 1. Add Tailwind and minimal custom CSS for transitions, shadows, and responsive design
@@ -748,7 +748,7 @@ export default function AssetGenerationModal({
                           <h3 className="font-semibold" style={{ color: 'black' }}>{effect.effect.name}</h3>
         </div>
         <Popover.Close asChild>
-                      <button style={{ color: '#c0c9cc' }} className="hover:text-white">
+                      <button style={{ color: 'black' }} className="hover:text-white">
             <X className="w-4 h-4" />
           </button>
         </Popover.Close>
@@ -1443,7 +1443,7 @@ export default function AssetGenerationModal({
         type="button"
         onClick={onClose}
       >
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"/>
           <line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -1684,7 +1684,7 @@ export default function AssetGenerationModal({
                     // Export Settings Menu
                     <>
                       <div style={{ fontSize: '12px', fontWeight: 600, color: '#181A1A', marginBottom: '8px' }}>
-                        Export Settings
+                        Download Settings
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div>
