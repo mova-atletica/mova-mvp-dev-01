@@ -179,10 +179,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--results-tab-hover-bg', '#23272e');
       root.style.setProperty('--results-tab-hover-text', '#eef0f1');
       root.style.setProperty('--results-tab-hover-border', '#c0c9cc');
-      root.style.setProperty('--results-tabs-border-color', '#55595b');
+      root.style.setProperty('--results-tabs-border-color', '#9ba2a5');
       // Results Page Summary Card (Dark)
       root.style.setProperty('--results-summary-bg', 'transparent');
-      root.style.setProperty('--results-summary-border', '#353839');
+      root.style.setProperty('--results-summary-border', '#9ba2a5');
       root.style.setProperty('--results-summary-title', '#eef0f1');
       root.style.setProperty('--results-summary-info-bg', '#353839');
       root.style.setProperty('--results-summary-info-text', '#c0c9cc');

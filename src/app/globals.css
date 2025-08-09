@@ -192,3 +192,45 @@ html {
 .aspect-\[9\/16\] {
   aspect-ratio: 9 / 16;
 }
+
+/* Hide unwanted video controls */
+.video-controls-limited::-webkit-media-controls-fullscreen-button {
+  display: none !important;
+}
+
+.video-controls-limited::-webkit-media-controls-picture-in-picture-button {
+  display: none !important;
+}
+
+.video-controls-limited::-webkit-media-controls-download-button {
+  display: none !important;
+}
+
+.video-controls-limited::-webkit-media-controls-playback-rate-button {
+  display: none !important;
+}
+
+/* Additional WebKit selectors for more control */
+.video-controls-limited::-webkit-media-controls-overflow-button {
+  display: none !important;
+}
+
+.video-controls-limited::-webkit-media-controls-toggle-closed-captions-button {
+  display: none !important;
+}
+
+/* Firefox controls */
+.video-controls-limited::-moz-media-controls-fullscreen-button {
+  display: none !important;
+}
+
+.video-controls-limited::-moz-media-controls-picture-in-picture-button {
+  display: none !important;
+}
+
+/* General approach for hiding overflow menu */
+.video-controls-limited {
+  --webkit-media-controls-fullscreen-button-display: none;
+  --webkit-media-controls-picture-in-picture-button-display: none;
+  --webkit-media-controls-download-button-display: none;
+}

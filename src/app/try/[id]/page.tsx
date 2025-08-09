@@ -425,15 +425,15 @@ export default function TryExercise() {
             const rightWrist = keypoints[10];
 
             // Calculate angles
-            refAngles.leftKneeAngles.push(leftHip && leftKnee && leftAnkle ? getAngle(leftHip, leftKnee, leftAnkle) : null);
-            refAngles.rightKneeAngles.push(rightHip && rightKnee && rightAnkle ? getAngle(rightHip, rightKnee, rightAnkle) : null);
-            refAngles.leftHipAngles.push(leftShoulder && leftHip && leftKnee ? getAngle(leftShoulder, leftHip, leftKnee) : null);
-            refAngles.rightHipAngles.push(rightShoulder && rightHip && rightKnee ? getAngle(rightShoulder, rightHip, rightKnee) : null);
-            refAngles.leftElbowAngles.push(leftShoulder && leftElbow && leftWrist ? getAngle(leftShoulder, leftElbow, leftWrist) : null);
-            refAngles.rightElbowAngles.push(rightShoulder && rightElbow && rightWrist ? getAngle(rightShoulder, rightElbow, rightWrist) : null);
-            refAngles.leftShoulderAbdAngles.push(leftHip && leftShoulder && leftElbow ? getAngle(leftHip, leftShoulder, leftElbow) : null);
-            refAngles.rightShoulderAbdAngles.push(rightHip && rightShoulder && rightElbow ? getAngle(rightHip, rightShoulder, rightElbow) : null);
-            refAngles.trunkAngles.push(leftShoulder && leftHip ? getTrunkAngle(leftShoulder, leftHip) : null);
+            refAngles.leftKneeAngles.push(leftHip && leftKnee && leftAnkle ? getAngleWithConfidence(leftHip, leftKnee, leftAnkle).angle : null);
+            refAngles.rightKneeAngles.push(rightHip && rightKnee && rightAnkle ? getAngleWithConfidence(rightHip, rightKnee, rightAnkle).angle : null);
+            refAngles.leftHipAngles.push(leftShoulder && leftHip && leftKnee ? getAngleWithConfidence(leftShoulder, leftHip, leftKnee).angle : null);
+            refAngles.rightHipAngles.push(rightShoulder && rightHip && rightKnee ? getAngleWithConfidence(rightShoulder, rightHip, rightKnee).angle : null);
+            refAngles.leftElbowAngles.push(leftShoulder && leftElbow && leftWrist ? getAngleWithConfidence(leftShoulder, leftElbow, leftWrist).angle : null);
+            refAngles.rightElbowAngles.push(rightShoulder && rightElbow && rightWrist ? getAngleWithConfidence(rightShoulder, rightElbow, rightWrist).angle : null);
+            refAngles.leftShoulderAbdAngles.push(leftHip && leftShoulder && leftElbow ? getAngleWithConfidence(leftHip, leftShoulder, leftElbow).angle : null);
+            refAngles.rightShoulderAbdAngles.push(rightHip && rightShoulder && rightElbow ? getAngleWithConfidence(rightHip, rightShoulder, rightElbow).angle : null);
+            refAngles.trunkAngles.push(leftShoulder && leftHip ? getTrunkAngleWithConfidence(leftShoulder, leftHip).angle : null);
           });
           
           setReferenceAngles(refAngles);
@@ -854,15 +854,15 @@ export default function TryExercise() {
           const leftWrist = keypoints[9];
           const rightWrist = keypoints[10];
 
-          angles.leftKneeAngles.push(leftHip && leftKnee && leftAnkle ? getAngle(leftHip, leftKnee, leftAnkle) : null);
-          angles.rightKneeAngles.push(rightHip && rightKnee && rightAnkle ? getAngle(rightHip, rightKnee, rightAnkle) : null);
-          angles.leftHipAngles.push(leftShoulder && leftHip && leftKnee ? getAngle(leftShoulder, leftHip, leftKnee) : null);
-          angles.rightHipAngles.push(rightShoulder && rightHip && rightKnee ? getAngle(rightShoulder, rightHip, rightKnee) : null);
-          angles.leftElbowAngles.push(leftShoulder && leftElbow && leftWrist ? getAngle(leftShoulder, leftElbow, leftWrist) : null);
-          angles.rightElbowAngles.push(rightShoulder && rightElbow && rightWrist ? getAngle(rightShoulder, rightElbow, rightWrist) : null);
-          angles.leftShoulderAbdAngles.push(leftHip && leftShoulder && leftElbow ? getAngle(leftHip, leftShoulder, leftElbow) : null);
-          angles.rightShoulderAbdAngles.push(rightHip && rightShoulder && rightElbow ? getAngle(rightHip, rightShoulder, rightElbow) : null);
-          angles.trunkAngles.push(leftShoulder && leftHip ? getTrunkAngle(leftShoulder, leftHip) : null);
+          angles.leftKneeAngles.push(leftHip && leftKnee && leftAnkle ? getAngleWithConfidence(leftHip, leftKnee, leftAnkle).angle : null);
+          angles.rightKneeAngles.push(rightHip && rightKnee && rightAnkle ? getAngleWithConfidence(rightHip, rightKnee, rightAnkle).angle : null);
+          angles.leftHipAngles.push(leftShoulder && leftHip && leftKnee ? getAngleWithConfidence(leftShoulder, leftHip, leftKnee).angle : null);
+          angles.rightHipAngles.push(rightShoulder && rightHip && rightKnee ? getAngleWithConfidence(rightShoulder, rightHip, rightKnee).angle : null);
+          angles.leftElbowAngles.push(leftShoulder && leftElbow && leftWrist ? getAngleWithConfidence(leftShoulder, leftElbow, leftWrist).angle : null);
+          angles.rightElbowAngles.push(rightShoulder && rightElbow && rightWrist ? getAngleWithConfidence(rightShoulder, rightElbow, rightWrist).angle : null);
+          angles.leftShoulderAbdAngles.push(leftHip && leftShoulder && leftElbow ? getAngleWithConfidence(leftHip, leftShoulder, leftElbow).angle : null);
+          angles.rightShoulderAbdAngles.push(rightHip && rightShoulder && rightElbow ? getAngleWithConfidence(rightHip, rightShoulder, rightElbow).angle : null);
+          angles.trunkAngles.push(leftShoulder && leftHip ? getTrunkAngleWithConfidence(leftShoulder, leftHip).angle : null);
         } else {
           poses.push(null);
           angles.leftKneeAngles.push(null);
@@ -1068,15 +1068,15 @@ export default function TryExercise() {
           const leftWrist = keypoints[9];
           const rightWrist = keypoints[10];
 
-          angles.leftKneeAngles.push(leftHip && leftKnee && leftAnkle ? getAngle(leftHip, leftKnee, leftAnkle) : null);
-          angles.rightKneeAngles.push(rightHip && rightKnee && rightAnkle ? getAngle(rightHip, rightKnee, rightAnkle) : null);
-          angles.leftHipAngles.push(leftShoulder && leftHip && leftKnee ? getAngle(leftShoulder, leftHip, leftKnee) : null);
-          angles.rightHipAngles.push(rightShoulder && rightHip && rightKnee ? getAngle(rightShoulder, rightHip, rightKnee) : null);
-          angles.leftElbowAngles.push(leftShoulder && leftElbow && leftWrist ? getAngle(leftShoulder, leftElbow, leftWrist) : null);
-          angles.rightElbowAngles.push(rightShoulder && rightElbow && rightWrist ? getAngle(rightShoulder, rightElbow, rightWrist) : null);
-          angles.leftShoulderAbdAngles.push(leftHip && leftShoulder && leftElbow ? getAngle(leftHip, leftShoulder, leftElbow) : null);
-          angles.rightShoulderAbdAngles.push(rightHip && rightShoulder && rightElbow ? getAngle(rightHip, rightShoulder, rightElbow) : null);
-          angles.trunkAngles.push(leftShoulder && leftHip ? getTrunkAngle(leftShoulder, leftHip) : null);
+          angles.leftKneeAngles.push(leftHip && leftKnee && leftAnkle ? getAngleWithConfidence(leftHip, leftKnee, leftAnkle).angle : null);
+          angles.rightKneeAngles.push(rightHip && rightKnee && rightAnkle ? getAngleWithConfidence(rightHip, rightKnee, rightAnkle).angle : null);
+          angles.leftHipAngles.push(leftShoulder && leftHip && leftKnee ? getAngleWithConfidence(leftShoulder, leftHip, leftKnee).angle : null);
+          angles.rightHipAngles.push(rightShoulder && rightHip && rightKnee ? getAngleWithConfidence(rightShoulder, rightHip, rightKnee).angle : null);
+          angles.leftElbowAngles.push(leftShoulder && leftElbow && leftWrist ? getAngleWithConfidence(leftShoulder, leftElbow, leftWrist).angle : null);
+          angles.rightElbowAngles.push(rightShoulder && rightElbow && rightWrist ? getAngleWithConfidence(rightShoulder, rightElbow, rightWrist).angle : null);
+          angles.leftShoulderAbdAngles.push(leftHip && leftShoulder && leftElbow ? getAngleWithConfidence(leftHip, leftShoulder, leftElbow).angle : null);
+          angles.rightShoulderAbdAngles.push(rightHip && rightShoulder && rightElbow ? getAngleWithConfidence(rightHip, rightShoulder, rightElbow).angle : null);
+          angles.trunkAngles.push(leftShoulder && leftHip ? getTrunkAngleWithConfidence(leftShoulder, leftHip).angle : null);
         } else {
           poses.push(null);
           angles.leftKneeAngles.push(null);

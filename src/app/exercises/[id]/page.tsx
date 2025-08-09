@@ -415,7 +415,7 @@ export default function ExerciseDetail({ params }: Props) {
         )}
 
         {/* Back to Library */}
-        <div className="mt-8 mb-2 text-center border-2 border-gray-400">
+        <div className="mt-8 mb-4 text-center border-0 border-gray-400">
           <Link href="/" className="text-sm font-regular">
             ← Back to Library
           </Link>

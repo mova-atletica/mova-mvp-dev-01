@@ -15,6 +15,284 @@ const frameCache = new Map<string, HTMLImageElement>();
 const extractionInProgress = new Set<string>();
 
 /**
+ * New function: Render Muybridge effect from a canvas with applied effects
+ * This processes each frame with effects applied
+ */
+export async function renderMuybridgeFromCanvas(
+  ctx: CanvasRenderingContext2D,
+  sourceVideo: HTMLVideoElement,
+  poses: any[],
+  config: MuybridgeConfig = {},
+  frameTime: number = 0,
+  isExport: boolean = false,
+  effectRenderer?: (ctx: CanvasRenderingContext2D, video: HTMLVideoElement, poses: any[], time: number) => Promise<void> | void,
+  videoVisibility?: { showVideo: boolean; opacity: number; blendMode: string }
+) {
+
+  
+  const rows = config.gridRows || 3;
+  const cols = config.gridCols || 3;
+  const padding = Math.max(0, Math.min(9, config.padding ?? 8));
+  const showBorders = config.showBorders !== false;
+  const borderColor = config.borderColor || '#333';
+  const borderWidth = config.borderWidth || 2;
+  
+  const { width, height } = ctx.canvas;
+
+  // Calculate cell size (including padding)
+  const totalPadX = padding * (cols - 1);
+  const totalPadY = padding * (rows - 1);
+  const cellW = (width - totalPadX) / cols;
+  const cellH = (height - totalPadY) / rows;
+
+  // Debug logging for Muybridge rendering
+  if (isExport) {
+    console.log('🎬 Muybridge Canvas Render Debug:', {
+      canvasDimensions: { width, height },
+      gridConfig: { rows, cols, padding },
+      cellDimensions: { width: cellW, height: cellH },
+      totalPadding: { x: totalPadX, y: totalPadY },
+      videoDimensions: { width: sourceVideo.videoWidth, height: sourceVideo.videoHeight }
+    });
+  }
+
+  // Clear the entire canvas
+  ctx.clearRect(0, 0, width, height);
+
+  // Get video dimensions for proper scaling
+  const videoWidth = sourceVideo.videoWidth;
+  const videoHeight = sourceVideo.videoHeight;
+  
+  if (!videoWidth || !videoHeight) {
+    console.warn('Video dimensions not available for Muybridge effect');
+    return;
+  }
+
+  // Calculate video aspect ratio for proper scaling within cells
+  const videoAspectRatio = videoWidth / videoHeight;
+  const cellAspectRatio = cellW / cellH;
+
+  // Calculate scaling to fit video frame within cell while maintaining aspect ratio
+  let drawWidth: number, drawHeight: number;
+  
+  if (videoAspectRatio > cellAspectRatio) {
+    // Video is wider than cell - scale by cell width
+    drawWidth = cellW;
+    drawHeight = cellW / videoAspectRatio;
+  } else {
+    // Video is taller than cell - scale by cell height
+    drawHeight = cellH;
+    drawWidth = cellH * videoAspectRatio;
+  }
+
+  // Calculate frame times for each tile
+  const totalFrames = rows * cols;
+  const frameTimes: number[] = [];
+  const interval = Math.max(0.1, (sourceVideo.duration || 0) / totalFrames);
+  
+  for (let i = 0; i < totalFrames; i++) {
+    const time = Math.min(i * interval, (sourceVideo.duration || 0) - 0.1);
+    frameTimes.push(time);
+  }
+
+  // Calculate animation offset based on current time
+  const animationSpeed = 2.0; // seconds per cycle
+  const animationOffset = Math.floor((frameTime / animationSpeed) * totalFrames) % totalFrames;
+
+  // Create a temporary canvas for processing each frame
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d')!;
+  tempCanvas.width = videoWidth;
+  tempCanvas.height = videoHeight;
+
+  // Save original video time
+  const originalTime = sourceVideo.currentTime;
+  const videoId = sourceVideo.src;
+
+  try {
+    // For live preview, use a simpler approach to avoid constant video seeking
+    if (!isExport) {
+      // Use cached frames if available, otherwise show a simplified grid
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = c * (cellW + padding);
+          const y = r * (cellH + padding);
+          
+          // Calculate animated frame index for this tile
+          const baseFrameIndex = r * cols + c;
+          const animatedFrameIndex = (baseFrameIndex + animationOffset) % totalFrames;
+          const tileFrameTime = frameTimes[animatedFrameIndex] || 0;
+          
+          // Center the frame within the cell
+          const drawX = x + (cellW - drawWidth) / 2;
+          const drawY = y + (cellH - drawHeight) / 2;
+          
+          // Create cache key for this frame
+          const cacheKey = `${videoId}-${tileFrameTime.toFixed(2)}`;
+          
+          // Check if we have effects to apply
+          if (effectRenderer) {
+            // If effects are active, we need to process each tile individually
+            try {
+              // Clear temp canvas
+              tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+              
+              // Draw video frame to temp canvas (use cached frame if available, otherwise current frame)
+              if (frameCache.has(cacheKey)) {
+                const cachedFrame = frameCache.get(cacheKey)!;
+                if (videoVisibility?.showVideo !== false) {
+                  tempCtx.globalAlpha = videoVisibility?.opacity ?? 1.0;
+                  tempCtx.drawImage(cachedFrame, 0, 0, tempCanvas.width, tempCanvas.height);
+                  tempCtx.globalAlpha = 1.0;
+                }
+              } else {
+                // Use current video frame as fallback
+                if (videoVisibility?.showVideo !== false) {
+                  tempCtx.globalAlpha = videoVisibility?.opacity ?? 1.0;
+                  tempCtx.drawImage(sourceVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+                  tempCtx.globalAlpha = 1.0;
+                }
+              }
+              
+              // Apply effects to this tile
+              const result = effectRenderer(tempCtx, sourceVideo, poses, tileFrameTime);
+              if (result instanceof Promise) {
+                await result;
+              }
+              
+              // Draw the processed tile to main canvas
+              ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, drawX, drawY, drawWidth, drawHeight);
+              
+            } catch (error) {
+              console.warn('Failed to process live preview tile with effects:', error);
+              // Fallback to cached frame or current video
+              if (frameCache.has(cacheKey)) {
+                const cachedFrame = frameCache.get(cacheKey)!;
+                if (videoVisibility?.showVideo !== false) {
+                  ctx.globalAlpha = videoVisibility?.opacity ?? 1.0;
+                  ctx.drawImage(cachedFrame, drawX, drawY, drawWidth, drawHeight);
+                  ctx.globalAlpha = 1.0;
+                }
+              } else {
+                if (videoVisibility?.showVideo !== false) {
+                  ctx.globalAlpha = videoVisibility?.opacity ?? 1.0;
+                  ctx.drawImage(sourceVideo, 0, 0, sourceVideo.videoWidth, sourceVideo.videoHeight, drawX, drawY, drawWidth, drawHeight);
+                  ctx.globalAlpha = 1.0;
+                }
+              }
+            }
+          } else {
+            // No effects - use cached frames or current video (original behavior)
+            if (frameCache.has(cacheKey)) {
+              const cachedFrame = frameCache.get(cacheKey)!;
+              if (videoVisibility?.showVideo !== false) {
+                ctx.globalAlpha = videoVisibility?.opacity ?? 1.0;
+                ctx.drawImage(cachedFrame, drawX, drawY, drawWidth, drawHeight);
+                ctx.globalAlpha = 1.0;
+              }
+            } else {
+              // Draw current video frame as fallback
+              if (videoVisibility?.showVideo !== false) {
+                ctx.globalAlpha = videoVisibility?.opacity ?? 1.0;
+                ctx.drawImage(sourceVideo, 0, 0, sourceVideo.videoWidth, sourceVideo.videoHeight, drawX, drawY, drawWidth, drawHeight);
+                ctx.globalAlpha = 1.0;
+              }
+            }
+          }
+
+          // Draw borders if enabled
+          if (showBorders) {
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = borderWidth;
+            ctx.strokeRect(x, y, cellW, cellH);
+          }
+        }
+      }
+    } else {
+      // For export, do the full processing with seeking and effects
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = c * (cellW + padding);
+          const y = r * (cellH + padding);
+          
+          // Calculate animated frame index for this tile
+          const baseFrameIndex = r * cols + c;
+          const animatedFrameIndex = (baseFrameIndex + animationOffset) % totalFrames;
+          const tileFrameTime = frameTimes[animatedFrameIndex] || 0;
+          
+          // Center the frame within the cell
+          const drawX = x + (cellW - drawWidth) / 2;
+          const drawY = y + (cellH - drawHeight) / 2;
+          
+          try {
+            // Set video to this frame time
+            sourceVideo.currentTime = tileFrameTime;
+            
+            // Wait for video to seek to the correct time
+            await new Promise<void>((resolve) => {
+              const handleSeeked = () => {
+                sourceVideo.removeEventListener('seeked', handleSeeked);
+                resolve();
+              };
+              sourceVideo.addEventListener('seeked', handleSeeked);
+              
+              // Fallback timeout
+              setTimeout(() => {
+                sourceVideo.removeEventListener('seeked', handleSeeked);
+                resolve();
+              }, 100);
+            });
+
+            // Clear temp canvas
+            tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // Draw video frame if video visibility is enabled
+            if (videoVisibility?.showVideo !== false) {
+              tempCtx.globalAlpha = videoVisibility?.opacity ?? 1.0;
+              tempCtx.drawImage(sourceVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+              tempCtx.globalAlpha = 1.0;
+            }
+            
+            // Apply effects if provided
+            if (effectRenderer) {
+              // Apply effects if provided
+              const result = effectRenderer(tempCtx, sourceVideo, poses, tileFrameTime);
+              if (result instanceof Promise) {
+                await result;
+              }
+            }
+            
+            // Draw the processed frame to the main canvas
+            ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, drawX, drawY, drawWidth, drawHeight);
+            
+          } catch (error) {
+            console.warn('Failed to process frame for tile:', error);
+            // Draw a placeholder
+            ctx.fillStyle = '#333';
+            ctx.fillRect(drawX, drawY, drawWidth, drawHeight);
+          }
+
+          // Draw borders if enabled
+          if (showBorders) {
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = borderWidth;
+            ctx.strokeRect(x, y, cellW, cellH);
+          }
+        }
+      }
+    }
+  } finally {
+    // Restore original video time only if we changed it (during export)
+    if (isExport) {
+      sourceVideo.currentTime = originalTime;
+    }
+    
+    // Clean up temp canvas
+    tempCanvas.remove();
+  }
+}
+
+/**
  * Pre-extract key frames from video at regular intervals
  */
 export async function preExtractKeyFrames(

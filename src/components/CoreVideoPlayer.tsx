@@ -154,7 +154,7 @@ export default function CoreVideoPlayer({
                   </div>
                 )}
                 {/* Playback Bar (remains at bottom) */}
-                <div
+                <div 
                   style={{
                     width: '100%',
                     display: 'flex',

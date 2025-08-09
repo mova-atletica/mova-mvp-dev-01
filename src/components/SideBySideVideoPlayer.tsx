@@ -82,13 +82,13 @@ export default function SideBySideVideoPlayer({
               Side-by-Side
             </ToggleGroup.Item>
           </ToggleGroup.Root>
-          <button
-            onClick={switchActiveVideo}
+            <button
+              onClick={switchActiveVideo}
             className="px-2 py-1 rounded text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
             style={{ minWidth: 0 }}
-          >
+            >
             Switch to {activeVideo === 'user' ? 'Reference' : 'User'}
-          </button>
+            </button>
         </div>
         {/* Video Player Container */}
         <div className="w-full" style={maxHeight ? { maxHeight } : {}}>

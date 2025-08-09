@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ExerciseCarousel from '../components/ExerciseCarousel';
 import { fetchCuratedSections, fetchFeaturedContent, fetchExerciseById, CuratedSection, FeaturedContent } from '../lib/exerciseService';
 import { Exercise } from '../data/exercises';
@@ -11,6 +11,10 @@ export default function Home() {
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFeaturedHovered, setIsFeaturedHovered] = useState(false);
+  const [isFeaturedVideoLoaded, setIsFeaturedVideoLoaded] = useState(false);
+  const featuredVideoRef = useRef<HTMLVideoElement>(null);
+  const [featuredVideoUrl, setFeaturedVideoUrl] = useState<string | null>(null);
 
   // Level badge colors - same as ExerciseCard
   const LEVEL_COLORS = {
@@ -90,6 +94,49 @@ export default function Home() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (featuredExercise?.referenceVideoUrl) {
+      let url = featuredExercise.referenceVideoUrl;
+      if (!url.startsWith('http') && !url.startsWith('blob:')) {
+        // Fetch signed URL for GCS path
+        fetch('/api/storage/signed-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: url }),
+        })
+          .then(res => res.json())
+          .then(data => setFeaturedVideoUrl(data.signedUrl))
+          .catch(() => setFeaturedVideoUrl(null));
+      } else {
+        setFeaturedVideoUrl(url);
+      }
+    } else {
+      setFeaturedVideoUrl(null);
+    }
+  }, [featuredExercise?.referenceVideoUrl]);
+
+  // Add handlers for featured video hover
+  const handleFeaturedMouseEnter = () => {
+    setIsFeaturedHovered(true);
+    if (featuredVideoRef.current && featuredVideoUrl) {
+      featuredVideoRef.current.currentTime = 0;
+      featuredVideoRef.current.play().catch(() => {});
+    }
+  };
+  const handleFeaturedMouseLeave = () => {
+    setIsFeaturedHovered(false);
+    if (featuredVideoRef.current) {
+      featuredVideoRef.current.pause();
+      featuredVideoRef.current.currentTime = 0;
+    }
+  };
+  const handleFeaturedVideoLoad = () => {
+    setIsFeaturedVideoLoaded(true);
+    if (isFeaturedHovered && featuredVideoRef.current) {
+      featuredVideoRef.current.play().catch(() => {});
+    }
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--background)' }}>
@@ -146,39 +193,67 @@ export default function Home() {
 
               {/* Featured Section - Netflix Style with Header Overlay */}
       {featuredContent && (
-        <div className="relative overflow-hidden mx-auto rounded-lg" style={{ 
-          height: '57vh', 
-          maxWidth: '2560px', 
-          marginTop: '0px', 
-          marginLeft: '3%', 
-          marginRight: '3%', 
-          width: '94%',
-          background: 'linear-gradient(to right, var(--surface), var(--surface-hover))'
-        }}>
-          {/* Background Image - Bleeds to top */}
-          {heroImageUrl && (
-            <div 
-              className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
-              style={{ 
-                backgroundImage: `url(${heroImageUrl})`,
-                filter: 'blur(1px) brightness(0.7)',
-                width: '100%',
-                height: '100%',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat'
-              }}
-            />
-          )}
+        <div
+          className="relative overflow-hidden mx-auto rounded-lg"
+          style={{
+            height: '57vh',
+            maxWidth: '2560px',
+            marginTop: '0px',
+            marginLeft: '3%',
+            marginRight: '3%',
+            width: '94%',
+            background: 'linear-gradient(to right, var(--surface), var(--surface-hover))',
+            borderRadius: '8px'
+          }}
+          onMouseEnter={handleFeaturedMouseEnter}
+          onMouseLeave={handleFeaturedMouseLeave}
+        >
+          {/* Video and image container (no hover handlers here) */}
+          <div
+            className="absolute inset-0 w-full h-full"
+            style={{ borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', zIndex: 1, position: 'absolute' }}
+          >
+            {featuredVideoUrl && isFeaturedHovered && (
+              <video
+                ref={featuredVideoRef}
+                src={featuredVideoUrl}
+                className="w-full h-full object-cover"
+                muted
+                loop
+                playsInline
+                onLoadedData={e => { handleFeaturedVideoLoad(); console.log('Featured video loaded:', e.currentTarget.src); }}
+                onError={e => { console.error('Featured video error:', e); }}
+              />
+            )}
+            {heroImageUrl && (!isFeaturedHovered || !featuredVideoUrl) && (
+              <div
+                className="w-full h-full bg-cover bg-center bg-no-repeat"
+                style={{
+                  backgroundImage: `url(${heroImageUrl})`,
+                  filter: 'blur(0px) brightness(0.7)',
+                  width: '100%',
+                  height: '100%',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  borderRadius: '8px',
+                  overflow: 'hidden'
+                }}
+              />
+            )}
+          </div>
+          {/* overlays, content, etc. */}
           
           {/* Horizontal Black Gradient Overlay */}
           <div className="absolute inset-0 h-full rounded-lg" style={{ 
             zIndex: 5, 
+            borderRadius: '8px',
             background: `linear-gradient(to right, var(--featured-overlay), var(--featured-overlay-light), var(--featured-overlay-transparent))`
           }} />
           
           {/* Gradient Overlay - Enhanced for header overlay effect */}
           <div className="absolute inset-0 h-full" style={{ 
+            borderRadius: '8px',
             background: 'linear-gradient(to bottom, var(--featured-overlay), var(--featured-overlay-light), transparent)'
           }} />
           
@@ -226,12 +301,12 @@ export default function Home() {
                   {featuredContent.exerciseId ? (
                     <>
                       <button 
-                        onClick={() => window.location.href = `/try/${featuredContent.exerciseId}`}
+                        onClick={() => window.location.href = `/exercises/${featuredContent.exerciseId}`}
                         className="px-6 py-3 rounded-lg font-medium transition-all duration-200 cursor-pointer"
                         style={{ 
                           backgroundColor: '#eef0f1', 
-                          color: '#353839',
-                          border: '1px solid #F3F3F4',
+                          color: '#353839', 
+                          border: '1px solid #F3F3F4', 
                           transform: 'scale(1)'
                         }}
                         onMouseEnter={(e) => {
@@ -242,28 +317,6 @@ export default function Home() {
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = '#eef0f1';
                           e.currentTarget.style.color = '#353839';
-                          e.currentTarget.style.transform = 'scale(1)';
-                        }}
-                      >
-                        {featuredContent.ctaText}
-                      </button>
-                      <button 
-                        onClick={() => window.location.href = `/exercises/${featuredContent.exerciseId}`}
-                        className="px-6 py-3 rounded-lg font-regular transition-all duration-200 cursor-pointer backdrop-blur-sm"
-                        style={{ 
-                          backgroundColor: 'rgba(53, 56, 57, 0)', 
-                          color: 'rgba(245, 246, 247, 1)',
-                          border: '1px solid #c0c9cc',
-                          transform: 'scale(1)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#181a1a';
-                          e.currentTarget.style.color = '#D7D8D9';
-                          e.currentTarget.style.transform = 'scale(1.03)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(53, 56, 57, 0)';
-                          e.currentTarget.style.color = 'rgba(245, 246, 247, 1)';
                           e.currentTarget.style.transform = 'scale(1)';
                         }}
                       >

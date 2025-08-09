@@ -2,6 +2,7 @@
 import React, { useRef, useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import CoreVideoPlayer from './CoreVideoPlayer';
+import { getAngleWithConfidence } from '../lib/analysisUtils';
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -264,35 +265,20 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Calculate angle between three points
-  const calculateAngle = (p1: any, p2: any, p3: any): number | null => {
-    if (!p1 || !p2 || !p3 || p1.score < 0.3 || p2.score < 0.3 || p3.score < 0.3) {
-      return null;
-    }
-    
-    const angle = Math.atan2(p3.y - p2.y, p3.x - p2.x) - 
-                  Math.atan2(p1.y - p2.y, p1.x - p2.x);
-    let degrees = angle * 180 / Math.PI;
-    
-    // Normalize to 0-360
-    if (degrees < 0) degrees += 360;
-    return Math.round(degrees);
-  };
-
   // Calculate angles for current pose
   const calculatePoseAngles = (pose: any) => {
     if (!pose || !pose.keypoints) return {};
     
     const keypoints = pose.keypoints;
     return {
-      leftKnee: calculateAngle(keypoints[11], keypoints[13], keypoints[15]), // Left hip, knee, ankle
-      rightKnee: calculateAngle(keypoints[12], keypoints[14], keypoints[16]), // Right hip, knee, ankle
-      leftHip: calculateAngle(keypoints[5], keypoints[11], keypoints[13]), // Left shoulder, hip, knee
-      rightHip: calculateAngle(keypoints[6], keypoints[12], keypoints[14]), // Right shoulder, hip, knee
-      leftElbow: calculateAngle(keypoints[5], keypoints[7], keypoints[9]), // Left shoulder, elbow, wrist
-      rightElbow: calculateAngle(keypoints[6], keypoints[8], keypoints[10]), // Right shoulder, elbow, wrist
-      leftShoulder: calculateAngle(keypoints[7], keypoints[5], keypoints[11]), // Left elbow, shoulder, hip
-      rightShoulder: calculateAngle(keypoints[8], keypoints[6], keypoints[12]), // Right elbow, shoulder, hip
+      leftKnee: getAngleWithConfidence(keypoints[11], keypoints[13], keypoints[15]).angle, // Left hip, knee, ankle
+      rightKnee: getAngleWithConfidence(keypoints[12], keypoints[14], keypoints[16]).angle, // Right hip, knee, ankle
+      leftHip: getAngleWithConfidence(keypoints[5], keypoints[11], keypoints[13]).angle, // Left shoulder, hip, knee
+      rightHip: getAngleWithConfidence(keypoints[6], keypoints[12], keypoints[14]).angle, // Right shoulder, hip, knee
+      leftElbow: getAngleWithConfidence(keypoints[5], keypoints[7], keypoints[9]).angle, // Left shoulder, elbow, wrist
+      rightElbow: getAngleWithConfidence(keypoints[6], keypoints[8], keypoints[10]).angle, // Right shoulder, elbow, wrist
+      leftShoulder: getAngleWithConfidence(keypoints[11], keypoints[5], keypoints[7]).angle, // Left elbow, shoulder, hip
+      rightShoulder: getAngleWithConfidence(keypoints[12], keypoints[6], keypoints[8]).angle, // Right elbow, shoulder, hip
     };
   };
 
@@ -437,7 +423,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
                 const x = keypoint.x * scaleX + offsetX;
                 const y = keypoint.y * scaleY + offsetY;
                 // --- Custom Angle Reading Styling ---
-                const text = `${angle}°`;
+                const text = `${Math.round(angle)}°`;
                 const textWidth = ctx.measureText(text).width;
                 // Adjust these values for padding, corner radius, and text color:
                 const horizontalPadding = 10; // px

@@ -156,11 +156,20 @@ export default function ThumbnailGenerator() {
   return (
     <main className="bg-onyx-100">
       {/* Spacer for sticky header */}
-      <div style={{ height: '60px', marginTop: '30px' }}></div>
-      <div className="pt-32">
-        <div className="mx-auto py-12" style={{ maxWidth: '2560px', marginLeft: '45px', marginRight: '45px' }}>
+      <div style={{ height: '24px', marginTop: '0' }}></div>
+      <div className="pt-8">
+        <div className="mx-auto py-4" style={{ maxWidth: '2560px', marginLeft: '45px', marginRight: '45px' }}>
+          {/* Back Button */}
+          <div className="px-4 mb-4">
+            <button
+              onClick={() => window.location.href = '/admin/upload'}
+              className="px-4 py-2 bg-blue-100 text-white rounded-lg font-bold hover:bg-blue-90 transition"
+            >
+              ← Back to Admin Panel
+            </button>
+          </div>
           {/* Header */}
-          <div className="px-4 mb-8">
+          <div className="px-4 mb-4">
             <h1 className="text-3xl font-bold text-onyx-10 mb-2">Thumbnail Generator</h1>
             <p className="text-onyx-30 text-lg">
               Generate video thumbnails for exercises automatically

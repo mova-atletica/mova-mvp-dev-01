@@ -13,29 +13,8 @@ import {
   Legend,
 } from "recharts";
 import { Exercise } from '../../../data/exercises';
-import { generateAndUploadThumbnail } from '@/lib/thumbnailGenerator';
-
-// Utility to calculate angle at point b (in degrees)
-function getAngle(a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) {
-  const ab = { x: a.x - b.x, y: a.y - b.y };
-  const cb = { x: c.x - b.x, y: c.y - b.y };
-  const dot = ab.x * cb.x + ab.y * cb.y;
-  const magAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
-  const magCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
-  const angleRad = Math.acos(dot / (magAB * magCB));
-  return (angleRad * 180) / Math.PI;
-}
-
-// Utility to calculate trunk angle (shoulder-hip line vs. vertical)
-function getTrunkAngle(shoulder: { x: number; y: number }, hip: { x: number; y: number }) {
-  const dx = hip.x - shoulder.x;
-  const dy = hip.y - shoulder.y;
-  const mag = Math.sqrt(dx * dx + dy * dy);
-  if (mag === 0) return null;
-  const cosTheta = dy / mag;
-  const angleRad = Math.acos(cosTheta);
-  return (angleRad * 180) / Math.PI;
-}
+// Removed automatic thumbnail generation - using manual image uploads instead
+import { getAngleWithConfidence, getTrunkAngleWithConfidence } from '../../../lib/analysisUtils';
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "letmein";
 
@@ -45,8 +24,6 @@ export default function AdminUpload() {
   const [input, setInput] = useState("");
 
   // Video/keypoints
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [keypoints, setKeypoints] = useState<any[]>([]);
   const [processing, setProcessing] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState(0);
   const [showMetadataForm, setShowMetadataForm] = useState(false);
@@ -133,7 +110,7 @@ export default function AdminUpload() {
   const [tagInput, setTagInput] = useState("");
   const [equipmentInput, setEquipmentInput] = useState("");
   const [muscleGroupInput, setMuscleGroupInput] = useState("");
-  const [jointInput, setJointInput] = useState("");
+
   const [relatedExerciseInput, setRelatedExerciseInput] = useState("");
 
   // Add state for original referenceVideoUrl
@@ -146,6 +123,9 @@ export default function AdminUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Restore keypoints state
+  const [keypoints, setKeypoints] = useState<any[]>([]);
 
   // Load exercises from database
   const loadExercises = async () => {
@@ -527,16 +507,15 @@ export default function AdminUpload() {
   // Pre-populate joints of interest based on available angle data
   const prePopulateJoints = () => {
     const availableJoints: string[] = [];
-    if (leftKneeAngles.some(angle => angle !== null)) availableJoints.push("leftKnee");
-    if (rightKneeAngles.some(angle => angle !== null)) availableJoints.push("rightKnee");
-    if (leftHipAngles.some(angle => angle !== null)) availableJoints.push("leftHip");
-    if (rightHipAngles.some(angle => angle !== null)) availableJoints.push("rightHip");
-    if (leftElbowAngles.some(angle => angle !== null)) availableJoints.push("leftElbow");
-    if (rightElbowAngles.some(angle => angle !== null)) availableJoints.push("rightElbow");
-    if (leftShoulderAbdAngles.some(angle => angle !== null)) availableJoints.push("leftShoulder");
-    if (rightShoulderAbdAngles.some(angle => angle !== null)) availableJoints.push("rightShoulder");
-    if (trunkAngles.some(angle => angle !== null)) availableJoints.push("trunk");
-    
+    if (leftKneeAngles.some((angle: number | null) => angle !== null)) availableJoints.push("leftKnee");
+    if (rightKneeAngles.some((angle: number | null) => angle !== null)) availableJoints.push("rightKnee");
+    if (leftHipAngles.some((angle: number | null) => angle !== null)) availableJoints.push("leftHip");
+    if (rightHipAngles.some((angle: number | null) => angle !== null)) availableJoints.push("rightHip");
+    if (leftElbowAngles.some((angle: number | null) => angle !== null)) availableJoints.push("leftElbow");
+    if (rightElbowAngles.some((angle: number | null) => angle !== null)) availableJoints.push("rightElbow");
+    if (leftShoulderAbdAngles.some((angle: number | null) => angle !== null)) availableJoints.push("leftShoulder");
+    if (rightShoulderAbdAngles.some((angle: number | null) => angle !== null)) availableJoints.push("rightShoulder");
+    if (trunkAngles.some((angle: number | null) => angle !== null)) availableJoints.push("trunk");
     setMetadata(prev => ({
       ...prev,
       jointsOfInterest: availableJoints
@@ -550,14 +529,14 @@ export default function AdminUpload() {
       return;
     }
 
-    let finalVideoUrl = videoUrl || originalReferenceVideoUrl;
+    let finalVideoUrl = metadata.referenceVideoUrl;
     let finalKeypointsUrl = "";
     let finalImageUrl = metadata.image;
 
     // Upload video if we have one and it's a blob URL (not already uploaded)
-    if (videoUrl && videoUrl.startsWith('blob:')) {
+    if (metadata.referenceVideoUrl && metadata.referenceVideoUrl.startsWith('blob:')) {
       try {
-        const response = await fetch(videoUrl);
+        const response = await fetch(metadata.referenceVideoUrl);
         const videoBlob = await response.blob();
         const formData = new FormData();
         formData.append('video', videoBlob, 'exercise-video.mp4');
@@ -571,16 +550,9 @@ export default function AdminUpload() {
           const { videoUrl: uploadedVideoUrl } = await uploadResponse.json();
           finalVideoUrl = uploadedVideoUrl;
           
-          // Generate thumbnail from the uploaded video
-          try {
-            const thumbnailFileName = `${metadata.title.toLowerCase().replace(/\s+/g, "-")}-thumbnail.jpg`;
-            const thumbnailUrl = await generateAndUploadThumbnail(uploadedVideoUrl, thumbnailFileName, 2);
-            finalImageUrl = thumbnailUrl;
-            console.log('Thumbnail generated successfully:', thumbnailUrl);
-          } catch (thumbnailError) {
-            console.error('Error generating thumbnail:', thumbnailError);
-            // Continue without thumbnail - use default image
-          }
+          // REMOVED: Automatic thumbnail generation
+          // Keep the manually uploaded image or use default
+          console.log('Video uploaded successfully, using manual image upload');
         }
       } catch (error) {
         console.error('Error uploading video:', error);
@@ -682,7 +654,7 @@ export default function AdminUpload() {
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setVideoUrl(URL.createObjectURL(file));
+      setMetadata(prev => ({ ...prev, referenceVideoUrl: URL.createObjectURL(file) }));
       setKeypoints([]);
       setSelectedFrame(0);
     }
@@ -797,7 +769,7 @@ export default function AdminUpload() {
     const knee = pose.keypoints[indices.leftKnee];
     const ankle = pose.keypoints[indices.leftAnkle];
     if (hip?.score > 0.4 && knee?.score > 0.4 && ankle?.score > 0.4) {
-      return getAngle(hip, knee, ankle);
+      return getAngleWithConfidence(hip, knee, ankle).angle;
     }
     return null;
   });
@@ -808,7 +780,7 @@ export default function AdminUpload() {
     const knee = pose.keypoints[indices.rightKnee];
     const ankle = pose.keypoints[indices.rightAnkle];
     if (hip?.score > 0.4 && knee?.score > 0.4 && ankle?.score > 0.4) {
-      return getAngle(hip, knee, ankle);
+      return getAngleWithConfidence(hip, knee, ankle).angle;
     }
     return null;
   });
@@ -819,7 +791,7 @@ export default function AdminUpload() {
     const hip = pose.keypoints[indices.leftHip];
     const knee = pose.keypoints[indices.leftKnee];
     if (shoulder?.score > 0.4 && hip?.score > 0.4 && knee?.score > 0.4) {
-      return getAngle(shoulder, hip, knee);
+      return getAngleWithConfidence(shoulder, hip, knee).angle;
     }
     return null;
   });
@@ -830,7 +802,7 @@ export default function AdminUpload() {
     const hip = pose.keypoints[indices.rightHip];
     const knee = pose.keypoints[indices.rightKnee];
     if (shoulder?.score > 0.4 && hip?.score > 0.4 && knee?.score > 0.4) {
-      return getAngle(shoulder, hip, knee);
+      return getAngleWithConfidence(shoulder, hip, knee).angle;
     }
     return null;
   });
@@ -841,7 +813,7 @@ export default function AdminUpload() {
     const elbow = pose.keypoints[indices.leftElbow];
     const wrist = pose.keypoints[indices.leftWrist];
     if (shoulder?.score > 0.4 && elbow?.score > 0.4 && wrist?.score > 0.4) {
-      return getAngle(shoulder, elbow, wrist);
+      return getAngleWithConfidence(shoulder, elbow, wrist).angle;
     }
     return null;
   });
@@ -852,7 +824,7 @@ export default function AdminUpload() {
     const elbow = pose.keypoints[indices.rightElbow];
     const wrist = pose.keypoints[indices.rightWrist];
     if (shoulder?.score > 0.4 && elbow?.score > 0.4 && wrist?.score > 0.4) {
-      return getAngle(shoulder, elbow, wrist);
+      return getAngleWithConfidence(shoulder, elbow, wrist).angle;
     }
     return null;
   });
@@ -863,7 +835,7 @@ export default function AdminUpload() {
     const shoulder = pose.keypoints[indices.leftShoulder];
     const hip = pose.keypoints[indices.leftHip];
     if (elbow?.score > 0.4 && shoulder?.score > 0.4 && hip?.score > 0.4) {
-      return getAngle(elbow, shoulder, hip);
+      return getAngleWithConfidence(hip, shoulder, elbow).angle;
     }
     return null;
   });
@@ -874,7 +846,7 @@ export default function AdminUpload() {
     const shoulder = pose.keypoints[indices.rightShoulder];
     const hip = pose.keypoints[indices.rightHip];
     if (elbow?.score > 0.4 && shoulder?.score > 0.4 && hip?.score > 0.4) {
-      return getAngle(elbow, shoulder, hip);
+      return getAngleWithConfidence(hip, shoulder, elbow).angle;
     }
     return null;
   });
@@ -889,7 +861,7 @@ export default function AdminUpload() {
         x: (leftHip.x + rightHip.x) / 2,
         y: (leftHip.y + rightHip.y) / 2,
       };
-      return getTrunkAngle(leftShoulder, midHip);
+      return getTrunkAngleWithConfidence(leftShoulder, midHip).angle;
     }
     return null;
   });
@@ -1001,7 +973,7 @@ export default function AdminUpload() {
       video.addEventListener("loadedmetadata", updateCanvasSize);
       return () => video.removeEventListener("loadedmetadata", updateCanvasSize);
     }
-  }, [videoUrl]);
+  }, [metadata.referenceVideoUrl]);
 
   function getStats(arr: (number | null)[]) {
     const valid = arr.filter((v): v is number => v !== null);
@@ -1109,11 +1081,11 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
     return (
     <main className="bg-onyx-100">
       {/* Spacer for sticky header */}
-      <div style={{ height: '60px', marginTop: '30px' }}></div>
-      <div className="pt-32">
-        <div className="mx-auto py-12" style={{ maxWidth: '2560px', marginLeft: '45px', marginRight: '45px' }}>
+      <div style={{ height: '24px', marginTop: '0' }}></div>
+      <div className="pt-8">
+        <div className="mx-auto py-4" style={{ maxWidth: '2560px', marginLeft: '45px', marginRight: '45px' }}>
           {/* Header */}
-          <div className="px-4 mb-8">
+          <div className="px-4 mb-4">
             <h1 className="text-3xl font-bold text-onyx-10 mb-2">Admin Panel</h1>
             <p className="text-onyx-30 text-lg">
               Upload and manage exercises, curated sections, and featured content
@@ -1214,11 +1186,11 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                         >
                           Choose Video File
                         </button>
-          {videoUrl && (
+          {metadata.referenceVideoUrl && (
                           <div className="mt-4">
             <video
               ref={videoRef}
-              src={videoUrl}
+              src={metadata.referenceVideoUrl}
               controls
                               className="w-full max-w-md rounded-lg"
             />
@@ -1228,7 +1200,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                     </div>
 
                     {/* Keypoints Extraction */}
-          {videoUrl && (
+          {metadata.referenceVideoUrl && (
                       <div className="mb-8">
                         <h3 className="text-lg font-semibold text-onyx-10 mb-4">Pose Analysis</h3>
                         <div className="bg-white rounded-lg p-6">
@@ -1294,7 +1266,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                         <div className="mt-6">
               <button
                             onClick={saveExercise}
-                            disabled={!metadata.title || !videoUrl}
+                            disabled={!metadata.title || !metadata.referenceVideoUrl}
                             className="bg-blue-100 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-90 transition disabled:opacity-50"
               >
                             Save Exercise
@@ -1477,7 +1449,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                       <div key={key}>
                         <label className="block text-sm font-medium text-onyx-20 mb-1">Level</label>
                         <select
-                          value={metadata.level}
+                          value={metadata.level || 'beginner'}
                           onChange={e => setMetadata(prev => ({ ...prev, level: e.target.value }))}
                       className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
                         >
@@ -1493,7 +1465,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                       <div key={key} className="md:col-span-2">
                         <label className="block text-sm font-medium text-onyx-20 mb-1">Description</label>
                     <textarea
-                      value={metadata.description}
+                      value={metadata.description || ''}
                           onChange={e => setMetadata(prev => ({ ...prev, description: e.target.value }))}
                       className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
                       rows={3}
@@ -1509,7 +1481,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                         <label className="block text-sm font-medium text-onyx-20 mb-1">Exercise Title *</label>
                         <input
                           type="text"
-                          value={metadata.title}
+                          value={metadata.title || ''}
                           onChange={e => setMetadata(prev => ({ ...prev, title: e.target.value }))}
                       className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
                           placeholder="e.g., Barbell Squat"
@@ -1524,7 +1496,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                         <label className="block text-sm font-medium text-onyx-20 mb-1">Author Name</label>
                     <input
                       type="text"
-                      value={metadata.authorName}
+                      value={metadata.authorName || ''}
                           onChange={e => setMetadata(prev => ({ ...prev, authorName: e.target.value }))}
                       className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
                       placeholder="e.g., Coach Jane Doe"
@@ -1538,7 +1510,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                         <label className="block text-sm font-medium text-onyx-20 mb-1">Author Profile URL</label>
                     <input
                       type="url"
-                      value={metadata.authorProfileUrl}
+                      value={metadata.authorProfileUrl || ''}
                           onChange={e => setMetadata(prev => ({ ...prev, authorProfileUrl: e.target.value }))}
                       className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
                       placeholder="https://example.com/profile"
@@ -1648,33 +1620,63 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                       ))}
                     </div>
                   </div>
-                  {/* Joints of Interest */}
+                  {/* Joints of Interest - Checkbox Interface */}
                   <div>
                   <label className="block text-sm font-medium text-onyx-20 mb-1">Joints of Interest</label>
-                    <div className="flex gap-2 mb-2">
+                    <p className="text-xs text-onyx-30 mb-3">Select the joints that should be analyzed for this exercise:</p>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {[
+                        { key: 'leftShoulder', label: 'Left Shoulder' },
+                        { key: 'rightShoulder', label: 'Right Shoulder' },
+                        { key: 'leftElbow', label: 'Left Elbow' },
+                        { key: 'rightElbow', label: 'Right Elbow' },
+                        { key: 'leftWrist', label: 'Left Wrist' },
+                        { key: 'rightWrist', label: 'Right Wrist' },
+                        { key: 'leftHip', label: 'Left Hip' },
+                        { key: 'rightHip', label: 'Right Hip' },
+                        { key: 'leftKnee', label: 'Left Knee' },
+                        { key: 'rightKnee', label: 'Right Knee' },
+                        { key: 'leftAnkle', label: 'Left Ankle' },
+                        { key: 'rightAnkle', label: 'Right Ankle' },
+                        { key: 'trunk', label: 'Trunk' }
+                      ].map(joint => (
+                        <label key={joint.key} className="flex items-center text-sm cursor-pointer p-2 rounded border border-onyx-30 hover:bg-onyx-20 transition-colors">
                       <input
-                        type="text"
-                        value={jointInput}
-                      onChange={e => setJointInput(e.target.value)}
-                      onKeyPress={e => e.key === 'Enter' && addToArray(metadata.jointsOfInterest, jointInput, arr => setMetadata(prev => ({ ...prev, jointsOfInterest: arr })), setJointInput)}
-                        className="flex-1 px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
-                        placeholder="Add joint and press Enter"
-                      />
-                      <button
-                      onClick={() => addToArray(metadata.jointsOfInterest, jointInput, arr => setMetadata(prev => ({ ...prev, jointsOfInterest: arr })), setJointInput)}
-                        className="px-3 py-2 bg-blue-100 text-white rounded hover:bg-blue-90"
-                      >
-                        Add
-                      </button>
+                            type="checkbox"
+                            checked={metadata.jointsOfInterest.includes(joint.key)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setMetadata(prev => ({
+                                  ...prev,
+                                  jointsOfInterest: [...prev.jointsOfInterest, joint.key]
+                                }));
+                              } else {
+                                setMetadata(prev => ({
+                                  ...prev,
+                                  jointsOfInterest: prev.jointsOfInterest.filter(j => j !== joint.key)
+                                }));
+                              }
+                            }}
+                            className="mr-2"
+                          />
+                          <span className="text-onyx-10">{joint.label}</span>
+                        </label>
+                      ))}
                     </div>
+                    
+                    {metadata.jointsOfInterest.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-xs text-onyx-30 mb-2">Selected joints:</p>
                     <div className="flex flex-wrap gap-2">
                       {metadata.jointsOfInterest.map((joint, index) => (
-                        <span key={index} className="bg-onyx-20 text-onyx-10 px-2 py-1 rounded text-sm flex items-center gap-1">
+                            <span key={index} className="bg-blue-100 text-blue-900 px-2 py-1 rounded text-xs font-medium">
                           {joint}
-                        <button onClick={() => removeFromArray(metadata.jointsOfInterest, index, arr => setMetadata(prev => ({ ...prev, jointsOfInterest: arr })))}>×</button>
                         </span>
                       ))}
                   </div>
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -1687,7 +1689,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                       <span className="text-sm font-medium text-onyx-20 mt-2">{index + 1}.</span>
                       <input
                         type="text"
-                        value={instruction}
+                        value={instruction || ''}
                         onChange={e => updateInstruction(index, e.target.value)}
                         className="flex-1 px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
                         placeholder={`Step ${index + 1}...`}
@@ -1786,6 +1788,298 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                 >
                   Delete
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Curated Section Form Modal */}
+      {showCuratedSectionForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-onyx-10">
+                  {editingCuratedSection ? 'Edit Curated Section' : 'Create Curated Section'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowCuratedSectionForm(false);
+                    setEditingCuratedSection(null);
+                    setCuratedSectionData({ title: '', description: '', order: 0, exercises: [] });
+                  }}
+                  className="text-onyx-30 hover:text-onyx-10 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-onyx-20 mb-1">Section Title *</label>
+                  <input
+                    type="text"
+                    value={curatedSectionData.title}
+                    onChange={e => setCuratedSectionData(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="e.g., Lower Body Strength"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-onyx-20 mb-1">Description</label>
+                  <textarea
+                    value={curatedSectionData.description}
+                    onChange={e => setCuratedSectionData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    rows={2}
+                    placeholder="Describe this section..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-onyx-20 mb-1">Order</label>
+                  <input
+                    type="number"
+                    value={curatedSectionData.order}
+                    onChange={e => setCuratedSectionData(prev => ({ ...prev, order: parseInt(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    min={0}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-onyx-20 mb-1">Exercises in Section</label>
+                  <div className="space-y-2">
+                    {selectedExercises.length === 0 && (
+                      <div className="text-onyx-30 text-sm italic">No exercises selected. Add from the list below.</div>
+                    )}
+                    {selectedExercises.map((ex, idx) => (
+                      <div key={ex.id} className="flex items-center gap-2 bg-onyx-20 rounded px-2 py-1">
+                        <span className="flex-1">{ex.title}</span>
+                        <button
+                          onClick={() => moveExercise(idx, idx - 1)}
+                          disabled={idx === 0}
+                          className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+                        >↑</button>
+                        <button
+                          onClick={() => moveExercise(idx, idx + 1)}
+                          disabled={idx === selectedExercises.length - 1}
+                          className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+                        >↓</button>
+                        <button
+                          onClick={() => {
+                            setCuratedSectionData(prev => ({
+                              ...prev,
+                              exercises: prev.exercises.filter((_, i) => i !== idx)
+                            }));
+                          }}
+                          className="px-2 py-1 text-xs text-red-600 hover:text-red-800"
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-onyx-20 mb-1">Add Exercise to Section</label>
+                  <select
+                    value=""
+                    onChange={e => {
+                      const id = e.target.value;
+                      if (id && !curatedSectionData.exercises.includes(id)) {
+                        setCuratedSectionData(prev => ({ ...prev, exercises: [...prev.exercises, id] }));
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">Select exercise...</option>
+                    {exercises
+                      .filter(ex => !curatedSectionData.exercises.includes(ex.id))
+                      .map(ex => (
+                        <option key={ex.id} value={ex.id}>{ex.title}</option>
+                      ))}
+                  </select>
+                </div>
+                <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-onyx-30">
+                  <button
+                    onClick={() => {
+                      setShowCuratedSectionForm(false);
+                      setEditingCuratedSection(null);
+                      setCuratedSectionData({ title: '', description: '', order: 0, exercises: [] });
+                    }}
+                    className="px-6 py-2 border border-onyx-30 text-onyx-20 rounded hover:bg-onyx-20 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveCuratedSection}
+                    className="px-6 py-2 bg-blue-100 text-white rounded font-medium hover:bg-blue-90 transition"
+                  >
+                    {editingCuratedSection ? 'Update Section' : 'Save Section'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Featured Content Form Modal */}
+      {showFeaturedForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-onyx-10">
+                  {editingFeatured ? 'Edit Featured Content' : 'Create Featured Content'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowFeaturedForm(false);
+                    setEditingFeatured(null);
+                    setFeaturedData({
+                      title: '',
+                      description: '',
+                      heroImage: '',
+                      exerciseId: '',
+                      ctaText: 'Try Now',
+                      ctaUrl: '',
+                      badgeText: 'Featured Exercise',
+                      isActive: true,
+                      order: 0
+                    });
+                    setImagePreview(null);
+                  }}
+                  className="text-onyx-30 hover:text-onyx-10 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-onyx-20 mb-1">Title *</label>
+                  <input
+                    type="text"
+                    value={featuredData.title}
+                    onChange={e => setFeaturedData(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="e.g., Squat Challenge"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-onyx-20 mb-1">Description</label>
+                  <textarea
+                    value={featuredData.description}
+                    onChange={e => setFeaturedData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    rows={2}
+                    placeholder="Describe this featured content..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-onyx-20 mb-1">Hero Image *</label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFeaturedImageUpload}
+                      className="block"
+                    />
+                    {imagePreview && (
+                      <img src={imagePreview} alt="Preview" className="w-24 h-24 object-cover rounded border" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-onyx-20 mb-1">Exercise ID</label>
+                  <input
+                    type="text"
+                    value={featuredData.exerciseId}
+                    onChange={e => setFeaturedData(prev => ({ ...prev, exerciseId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="e.g., squat"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-onyx-20 mb-1">CTA Text</label>
+                    <input
+                      type="text"
+                      value={featuredData.ctaText}
+                      onChange={e => setFeaturedData(prev => ({ ...prev, ctaText: e.target.value }))}
+                      className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      placeholder="e.g., Try Now"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-onyx-20 mb-1">CTA URL</label>
+                    <input
+                      type="text"
+                      value={featuredData.ctaUrl}
+                      onChange={e => setFeaturedData(prev => ({ ...prev, ctaUrl: e.target.value }))}
+                      className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      placeholder="e.g., /try/squat"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-onyx-20 mb-1">Badge Text</label>
+                    <input
+                      type="text"
+                      value={featuredData.badgeText}
+                      onChange={e => setFeaturedData(prev => ({ ...prev, badgeText: e.target.value }))}
+                      className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      placeholder="e.g., Featured Exercise"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-onyx-20 mb-1">Order</label>
+                    <input
+                      type="number"
+                      value={featuredData.order}
+                      onChange={e => setFeaturedData(prev => ({ ...prev, order: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      min={0}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="checkbox"
+                    checked={featuredData.isActive}
+                    onChange={e => setFeaturedData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    className="rounded"
+                    id="isActive"
+                  />
+                  <label htmlFor="isActive" className="text-sm font-medium text-onyx-20">Active</label>
+                </div>
+                <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-onyx-30">
+                  <button
+                    onClick={() => {
+                      setShowFeaturedForm(false);
+                      setEditingFeatured(null);
+                      setFeaturedData({
+                        title: '',
+                        description: '',
+                        heroImage: '',
+                        exerciseId: '',
+                        ctaText: 'Try Now',
+                        ctaUrl: '',
+                        badgeText: 'Featured Exercise',
+                        isActive: true,
+                        order: 0
+                      });
+                      setImagePreview(null);
+                    }}
+                    className="px-6 py-2 border border-onyx-30 text-onyx-20 rounded hover:bg-onyx-20 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveFeaturedContent}
+                    className="px-6 py-2 bg-blue-100 text-white rounded font-medium hover:bg-blue-90 transition"
+                  >
+                    {editingFeatured ? 'Update Featured Content' : 'Save Featured Content'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

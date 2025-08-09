@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSignedUrl } from '@/lib/gcs';
+import { Storage } from '@google-cloud/storage';
+
+// Initialize Google Cloud Storage
+const storage = new Storage({
+  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+  keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE,
+});
+
+const bucketName = process.env.GOOGLE_CLOUD_BUCKET_NAME || 'mova-exercise-library';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,24 +18,29 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'File name is required' }, { status: 400 });
     }
 
-    // Get signed URL for the image
-    const signedUrl = await getSignedUrl(fileName);
+    // Directly access Google Cloud Storage
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(fileName);
     
-    // Fetch the image from GCS
-    const imageResponse = await fetch(signedUrl);
-    
-    if (!imageResponse.ok) {
-      return NextResponse.json({ error: 'Image not found' }, { status: 404 });
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      return NextResponse.json({ error: 'Image file not found' }, { status: 404 });
     }
     
-    // Get image data
-    const imageBuffer = await imageResponse.arrayBuffer();
-    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    // Get file metadata
+    const [metadata] = await file.getMetadata();
     
-    // Return the image with proper headers
-    return new NextResponse(imageBuffer, {
+    // Create a readable stream
+    const fileStream = file.createReadStream();
+    
+    // Return the image stream with appropriate headers
+    return new NextResponse(fileStream as any, {
+      status: 200,
       headers: {
-        'Content-Type': contentType,
+        'Content-Type': metadata.contentType || 'image/jpeg',
+        'Content-Length': String(metadata.size || ''),
+        'Cache-Control': 'public, max-age=3600',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
         'Access-Control-Allow-Headers': 'Content-Type',

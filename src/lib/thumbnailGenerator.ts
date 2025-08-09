@@ -26,22 +26,22 @@ async function getVideoUrlForThumbnail(videoUrl: string): Promise<string> {
 }
 
 /**
- * Generates a thumbnail from a video using Canvas API
+ * Generates a high-quality thumbnail from a video using Canvas API
  * @param videoUrl - URL of the video file
  * @param timeInSeconds - Time in seconds to extract frame from (default: 2)
- * @param width - Width of thumbnail (default: 200)
- * @param height - Height of thumbnail (default: 355 for 9:16 aspect ratio)
+ * @param width - Width of thumbnail (default: 400 - 2x larger)
+ * @param height - Height of thumbnail (default: 600 - better aspect ratio)
  * @returns Promise<string> - Data URL of the thumbnail
  */
 export async function generateVideoThumbnail(
   videoUrl: string, 
   timeInSeconds: number = 2,
-  width: number = 200,
-  height: number = 355
+  width: number = 400,    // Increased from 200 (2x larger)
+  height: number = 600    // Increased from 355, better aspect ratio (2:3)
 ): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
-      console.log('Starting thumbnail generation for:', videoUrl);
+      console.log('Starting high-quality thumbnail generation for:', videoUrl);
       
       // Check if this is a blob URL (browser recording) - these often fail
       if (videoUrl.startsWith('blob:')) {
@@ -71,13 +71,39 @@ export async function generateVideoThumbnail(
       
       video.onseeked = () => {
         try {
-          console.log('Video seeked, drawing frame to canvas');
-          // Draw the video frame to canvas
-          ctx.drawImage(video, 0, 0, width, height);
+          console.log('Video seeked, drawing frame to canvas with aspect ratio preservation');
           
-          // Convert to data URL
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          console.log('Thumbnail generated successfully');
+          // Calculate aspect ratio preserving dimensions
+          const videoAspect = video.videoWidth / video.videoHeight;
+          const canvasAspect = width / height;
+          
+          let drawWidth = width;
+          let drawHeight = height;
+          let offsetX = 0;
+          let offsetY = 0;
+          
+          if (videoAspect > canvasAspect) {
+            // Video is wider than canvas - fit to height
+            drawHeight = height;
+            drawWidth = height * videoAspect;
+            offsetX = (width - drawWidth) / 2;
+          } else {
+            // Video is taller than canvas - fit to width
+            drawWidth = width;
+            drawHeight = width / videoAspect;
+            offsetY = (height - drawHeight) / 2;
+          }
+          
+          // Clear canvas with black background
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, width, height);
+          
+          // Draw the video frame to canvas with aspect ratio preservation
+          ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+          
+          // Convert to data URL with higher quality
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.95); // Increased from 0.8
+          console.log('High-quality thumbnail generated successfully');
           resolve(dataUrl);
           
           // Clean up
@@ -164,10 +190,12 @@ export async function generateVideoThumbnail(
 export async function uploadThumbnail(thumbnailDataUrl: string, fileName: string): Promise<string> {
   try {
     console.log('Uploading thumbnail:', fileName);
+    console.log('Thumbnail data URL length:', thumbnailDataUrl.length);
     
     // Convert data URL to blob
     const response = await fetch(thumbnailDataUrl);
     const blob = await response.blob();
+    console.log('Blob size:', blob.size, 'Blob type:', blob.type);
     
     // Create form data
     const formData = new FormData();
@@ -180,9 +208,16 @@ export async function uploadThumbnail(thumbnailDataUrl: string, fileName: string
     });
     
     if (!uploadResponse.ok) {
+      let errorMessage = 'Unknown error';
+      try {
       const errorData = await uploadResponse.json();
-      console.error('Upload failed:', errorData);
-      throw new Error(`Failed to upload thumbnail: ${errorData.error || 'Unknown error'}`);
+        console.error('Upload failed with response:', errorData);
+        errorMessage = errorData.error || errorData.details || JSON.stringify(errorData);
+      } catch (parseError) {
+        console.error('Upload failed with status:', uploadResponse.status, uploadResponse.statusText);
+        errorMessage = `HTTP ${uploadResponse.status}: ${uploadResponse.statusText}`;
+      }
+      throw new Error(`Failed to upload thumbnail: ${errorMessage}`);
     }
     
     const { imageUrl } = await uploadResponse.json();

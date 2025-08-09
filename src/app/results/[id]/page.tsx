@@ -87,6 +87,7 @@ import React from "react"; // Added missing import for React
 import InfoTooltip from "../../../components/InfoTooltip";
 import * as Select from '@radix-ui/react-select';
 import { ChevronDown } from 'lucide-react';
+import { getAngleWithConfidence, getTrunkAngleWithConfidence } from '../../../lib/analysisUtils';
 
 // Utility to calculate angle at point b (in degrees)
 function getAngle(a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) {
@@ -308,7 +309,7 @@ function ResultsTabs({
 
   // Chart render functions
   const renderAngleComparisonChart = () => (
-    <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+    <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
         <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Angle Comparison Over Time</h3>
         <InfoTooltip content="Shows how your joint angles compare to the reference video over time. Click on the chart to jump to that moment in your video. The vertical line shows your current video position.">
@@ -427,7 +428,7 @@ function ResultsTabs({
   }
 
   const renderRadarChart = () => (
-    <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+    <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
         <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Performance Radar</h3>
         <InfoTooltip content="Overall performance metrics across different analysis methods. Larger areas indicate better performance. This gives you a quick visual overview of your movement quality.">
@@ -478,7 +479,7 @@ function ResultsTabs({
   );
 
   const renderJointAnalysisChart = () => (
-    <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+    <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
         <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Advanced Joint Analysis</h3>
         <InfoTooltip content="Detailed analysis of each joint using multiple metrics: DTW Pattern (movement similarity), Cosine Similarity (angle patterns), Range of Motion (flexibility), and Basic Score (overall accuracy).">
@@ -529,7 +530,7 @@ function ResultsTabs({
       );
     }
     return (
-      <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+      <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
           <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Balance & Stability</h3>
           <InfoTooltip content="Measures your balance and stability during the exercise. Higher scores indicate better control and less sway. Most relevant for exercises requiring balance like squats or single-leg movements.">
@@ -590,12 +591,12 @@ function ResultsTabs({
   return (
     <div className="w-full h-full flex flex-col">
       <div
-        className="flex flex-row flex-wrap items-center justify-start mb-2"
+        className="flex flex-row flex-wrap items-center justify-start ml-4 mr-2 mb-0"
         style={{
           padding: 6,
           gap: 6,
           background: 'transparent',
-          border: '1.5px solid var(--results-tabs-border-color)',
+          border: '1px solid var(--results-tabs-border-color)',
           borderRadius: 6,
         }}
       >
@@ -705,11 +706,11 @@ function ResultsTabs({
           Advanced Feedback
         </button>
       </div>
-      <div className="flex-1 p-4 bg-transparent overflow-y-auto">
+      <div className="space-y-4 p-0 mt-2 ml-2 w-full">
         {activeTab === 'charts' && (
-          <div className="space-y-6">
+          <div className="space-y-4 p-2">
             {/* Chart Selection Controls */}
-            <div className="bg-transparent rounded-lg shadow p-4 border border-gray-200">
+            <div className="bg-transparent w-full rounded-lg shadow p-4 border border-gray-200">
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Chart Dropdown */}
                 <div className="flex-1" style={{ position: 'relative', minWidth: '160px' }}>
@@ -767,9 +768,9 @@ function ResultsTabs({
           </div>
         )}
         {activeTab === 'feedback' && (
-          <div className="space-y-6">
+          <div className="space-y-4 p-2 ml-0 mr-0 w-full">
             {/* Overall Feedback */}
-            <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+            <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                 <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Overall Feedback</h3>
                 <InfoTooltip content="Your overall performance score and grade based on how well your joint angles matched the reference video. The advanced score uses more sophisticated analysis methods.">
@@ -843,7 +844,7 @@ function ResultsTabs({
               </div>
             </div>
             {/* Joint-by-Joint Feedback */}
-            <div className="bg-var(--results-summary-bg) rounded-lg shadow p-6" style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}
+            <div className="bg-var(--results-summary-bg) rounded-lg shadow p-6" style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}
             >
               <div className="flex items-center gap-2 mb-4">
                 <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Joint-by-Joint Feedback</h3>
@@ -934,7 +935,7 @@ function ResultsTabs({
                             
                             {/* Joint-specific feedback suggestions */}
                             {jointSuggestions.length > 0 && (
-                              <div className="mt-4 border-t" style={{ paddingTop: 12, borderColor: 'var(--results-summary-border)' }}>
+                              <div className="mt-4" style={{ padding: 6, borderWidth: '1px', borderRadius: 6, borderColor: 'var(--results-summary-border)' }}>
                                 <div className="flex items-center gap-1 mb-2">
                                   <span className="text-sm font-medium" style={{ color: 'var(--results-chart-series-1)' }}>Suggestions:</span>
                                 </div>
@@ -1110,12 +1111,12 @@ function SessionSummaryTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-2 ml-0 mr-0 w-full">
       {/* Session Summary Card */}
-      <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+      <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-          <h3 style={{ fontSize: 21, fontWeight: 500, marginBottom: 0, color: 'var(--results-summary-title)' }}>Session Summary</h3>
-          <InfoTooltip content="Overview of your workout session with key performance metrics and highlights.">
+          <h3 style={{ fontSize: 21, fontWeight: 500, marginBottom: 0, color: 'var(--results-summary-title)' }}>Motion Summary</h3>
+          <InfoTooltip content="Overview analysis of your body's movements, with key performance metrics and highlights.">
             <span
               style={{
                 color: 'var(--results-info-icon)',
@@ -1164,7 +1165,7 @@ function SessionSummaryTab({
         </div>
       </div>
       {/* Quick Actions */}
-      <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1.5px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
+      <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
           <h3 style={{ fontSize: 21, fontWeight: 500, marginBottom: '6px', color: 'var(--results-summary-title)' }}>Quick Actions</h3>
           <InfoTooltip content="Quick actions to download, share, or retry your workout session.">
@@ -1198,6 +1199,13 @@ function SessionSummaryTab({
           >
             Download Motion Data
           </button>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 border-2 rounded-md font-medium text-sm hover:bg-blue-600 transition"
+            style={{ background: 'transparent', borderColor: '#5B05FF', color: '--primary-button-text' , cursor: 'pointer' }}
+          >
+            Try Again
+          </button>
         </div>
       </div>
       
@@ -1208,6 +1216,7 @@ function SessionSummaryTab({
         videoUrl={videoUrl}
         poses={poses}
         exerciseTitle={exerciseTitle}
+
       />
     </div>
   );
@@ -1394,15 +1403,15 @@ export default function ResultsPage() {
             const leftWrist = keypoints[9];
             const rightWrist = keypoints[10];
 
-            refAngles.leftKneeAngles.push(leftHip && leftKnee && leftAnkle ? getAngle(leftHip, leftKnee, leftAnkle) : null);
-            refAngles.rightKneeAngles.push(rightHip && rightKnee && rightAnkle ? getAngle(rightHip, rightKnee, rightAnkle) : null);
-            refAngles.leftHipAngles.push(leftShoulder && leftHip && leftKnee ? getAngle(leftShoulder, leftHip, leftKnee) : null);
-            refAngles.rightHipAngles.push(rightShoulder && rightHip && rightKnee ? getAngle(rightShoulder, rightHip, rightKnee) : null);
-            refAngles.leftElbowAngles.push(leftShoulder && leftElbow && leftWrist ? getAngle(leftShoulder, leftElbow, leftWrist) : null);
-            refAngles.rightElbowAngles.push(rightShoulder && rightElbow && rightWrist ? getAngle(rightShoulder, rightElbow, rightWrist) : null);
-            refAngles.leftShoulderAbdAngles.push(leftHip && leftShoulder && leftElbow ? getAngle(leftHip, leftShoulder, leftElbow) : null);
-            refAngles.rightShoulderAbdAngles.push(rightHip && rightShoulder && rightElbow ? getAngle(rightHip, rightShoulder, rightElbow) : null);
-            refAngles.trunkAngles.push(leftShoulder && leftHip ? getTrunkAngle(leftShoulder, leftHip) : null);
+            refAngles.leftKneeAngles.push(leftHip && leftKnee && leftAnkle ? getAngleWithConfidence(leftHip, leftKnee, leftAnkle).angle : null);
+            refAngles.rightKneeAngles.push(rightHip && rightKnee && rightAnkle ? getAngleWithConfidence(rightHip, rightKnee, rightAnkle).angle : null);
+            refAngles.leftHipAngles.push(leftShoulder && leftHip && leftKnee ? getAngleWithConfidence(leftShoulder, leftHip, leftKnee).angle : null);
+            refAngles.rightHipAngles.push(rightShoulder && rightHip && rightKnee ? getAngleWithConfidence(rightShoulder, rightHip, rightKnee).angle : null);
+            refAngles.leftElbowAngles.push(leftShoulder && leftElbow && leftWrist ? getAngleWithConfidence(leftShoulder, leftElbow, leftWrist).angle : null);
+            refAngles.rightElbowAngles.push(rightShoulder && rightElbow && rightWrist ? getAngleWithConfidence(rightShoulder, rightElbow, rightWrist).angle : null);
+            refAngles.leftShoulderAbdAngles.push(leftHip && leftShoulder && leftElbow ? getAngleWithConfidence(leftHip, leftShoulder, leftElbow).angle : null);
+            refAngles.rightShoulderAbdAngles.push(rightHip && rightShoulder && rightElbow ? getAngleWithConfidence(rightHip, rightShoulder, rightElbow).angle : null);
+            refAngles.trunkAngles.push(leftShoulder && leftHip ? getTrunkAngleWithConfidence(leftShoulder, leftHip).angle : null);
           });
           
           setReferenceAngles(refAngles);
@@ -1553,7 +1562,7 @@ export default function ResultsPage() {
     return (
       <main className="min-h-screen bg-onyx-100 flex flex-col items-center justify-center px-4 py-8">
         <div className="text-red-600 text-xl mb-4">{error || 'Exercise not found'}</div>
-        <Link href="/" className="text-blue-70 underline">
+        <Link href="/" className="text-blue-70">
           ← Back to Library
         </Link>
       </main>
@@ -1669,6 +1678,7 @@ export default function ResultsPage() {
             videoUrl={videoUrl}
             currentFrame={currentFrame}
             onSeekFrame={setSeekFrame}
+
           />
           </div>
         </div>
@@ -1677,7 +1687,7 @@ export default function ResultsPage() {
       </div>
       {/* Navigation */}
       <div className="mt-8 mb-6 text-center" style={{ border: 'transparent' }}>
-        <Link href={`/exercises/${exercise.id}`} className="text-blue-70 underline">
+        <Link href={`/exercises/${exercise.id}`} className="text-sm font-regular text-blue-70">
           ← Back to {exercise.title} details
         </Link>
       </div>
