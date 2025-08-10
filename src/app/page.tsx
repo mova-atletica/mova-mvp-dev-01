@@ -176,7 +176,7 @@ export default function Home() {
     <main style={{ backgroundColor: 'var(--background)' }}>
       {/* Page Header */}
       <div
-        className="px-0 mb-8 pt-24"
+        className="px-0 mb-8 pt-2"
         style={{
           marginLeft: '3%',
           marginRight: '3%',
@@ -221,7 +221,7 @@ export default function Home() {
                 muted
                 loop
                 playsInline
-                onLoadedData={e => { handleFeaturedVideoLoad(); console.log('Featured video loaded:', e.currentTarget.src); }}
+                onLoadedData={e => { handleFeaturedVideoLoad(); }}
                 onError={e => { console.error('Featured video error:', e); }}
               />
             )}

@@ -17,6 +17,7 @@ interface SideBySideVideoPlayerProps {
   maxHeight?: string;
   seekFrame?: number | null;
   onSeekFrameHandled?: () => void;
+  userVideoDuration?: number;
 }
 
 export default function SideBySideVideoPlayer({
@@ -32,7 +33,8 @@ export default function SideBySideVideoPlayer({
   height = "500px",
   maxHeight,
   seekFrame,
-  onSeekFrameHandled
+  onSeekFrameHandled,
+  userVideoDuration
 }: SideBySideVideoPlayerProps) {
   const [viewMode, setViewMode] = useState<'single' | 'side-by-side'>('single');
   const [activeVideo, setActiveVideo] = useState<'user' | 'reference'>('user');
@@ -98,6 +100,7 @@ export default function SideBySideVideoPlayer({
             keypointData={currentPoses}
             onFrameChange={currentOnFrameChange}
             onTimeUpdate={currentOnTimeUpdate}
+            duration={activeVideo === 'user' ? userVideoDuration : undefined}
           />
         </div>
       </div>
@@ -135,6 +138,7 @@ export default function SideBySideVideoPlayer({
                 keypointData={userPoses}
                 onFrameChange={onUserFrameChange}
                 onTimeUpdate={onUserTimeUpdate}
+                duration={userVideoDuration}
               />
             </div>
           </div>

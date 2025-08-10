@@ -11,6 +11,7 @@ interface VideoPlayerProps {
   onTimeUpdate?: (time: number) => void;
   className?: string;
   keypointData?: any[];
+  duration?: number;
 }
 
 interface VideoMetadata {
@@ -72,9 +73,12 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   onFrameChange,
   onTimeUpdate,
   className = '',
-  keypointData = []
+  keypointData = [],
+  duration: propDuration
 }, ref) {
   
+  console.log('VideoPlayer - propDuration:', propDuration);
+  console.log('VideoPlayer - videoUrl:', videoUrl);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { theme } = useTheme();
@@ -128,16 +132,17 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     const detectedAspectRatio = video.videoWidth > video.videoHeight ? 'landscape' : 'portrait';
     
     setMetadata({
-      duration: video.duration,
+      duration: propDuration || video.duration,
       frameRate: 30, // Default, will be refined
       width: video.videoWidth,
       height: video.videoHeight,
       aspectRatio: detectedAspectRatio
     });
     
-    setDuration(video.duration);
+    setDuration(propDuration || video.duration);
+    console.log('VideoPlayer - Setting duration:', propDuration || video.duration, 'propDuration:', propDuration, 'video.duration:', video.duration);
     setIsLoading(false);
-  }, []);
+  }, [propDuration]);
 
   // Handle video time updates
   const handleTimeUpdate = useCallback(() => {

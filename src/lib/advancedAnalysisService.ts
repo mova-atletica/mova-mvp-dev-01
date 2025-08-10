@@ -77,7 +77,7 @@ class AdvancedAnalysisService {
 
   async analyzeExercise(request: AdvancedAnalysisRequest): Promise<AdvancedAnalysisResult> {
     try {
-      console.log('Sending analysis request to Python backend:', request);
+
 
       const response = await fetch(`${this.baseUrl}/analyze`, {
         method: 'POST',
@@ -98,7 +98,6 @@ class AdvancedAnalysisService {
       }
 
       const result = await response.json();
-      console.log('Advanced analysis result:', result);
       return result;
     } catch (error) {
       console.error('Advanced analysis error:', error);
@@ -156,7 +155,6 @@ class AdvancedAnalysisService {
     metadata?: any
   ): AdvancedAnalysisRequest | null {
     if (!referenceAngles) {
-      console.log('No reference angles available for advanced analysis');
       return null;
     }
 

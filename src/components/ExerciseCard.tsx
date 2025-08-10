@@ -11,12 +11,6 @@ export default function ExerciseCard({ exercise }: { exercise: Exercise }) {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Exercise data:', exercise);
-    console.log('Exercise level:', exercise.level);
-  }, [exercise]);
-
   useEffect(() => {
     // If the image is a Google Cloud Storage path, get a signed URL
     if (exercise.image && !exercise.image.startsWith('http') && !exercise.image.startsWith('/')) {

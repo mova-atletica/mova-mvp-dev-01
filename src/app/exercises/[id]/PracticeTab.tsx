@@ -202,6 +202,11 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
   const [showLiveModal, setShowLiveModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
+  // Add new state for live recording flow
+  const [showLiveRecordingPreview, setShowLiveRecordingPreview] = useState(false);
+  const [liveRecordingUrl, setLiveRecordingUrl] = useState<string | null>(null);
+  const [liveRecordingDuration, setLiveRecordingDuration] = useState<number | null>(null);
+
   // Angle tracking
   const [leftKneeAngles, setLeftKneeAngles] = useState<(number | null)[]>([]);
   const [rightKneeAngles, setRightKneeAngles] = useState<(number | null)[]>([]);
@@ -798,27 +803,353 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
   }, [cameraActive, detector, exercise, referenceAngles]);
 
   // Handle recording completion from LiveVideoPlayer
-  const handleRecordingComplete = (videoUrl: string) => {
-    setVideoUrl(videoUrl);
-    setIsRecordedVideo(true);
-    console.log('handleRecordingComplete called, videoUrl:', videoUrl);
-    // Wait for the video element to load metadata before processing
-    const checkAndProcess = () => {
-      if (videoRef.current && videoRef.current.readyState >= 1) {
-        processRecordedVideo(videoUrl);
-      } else if (videoRef.current) {
-        videoRef.current.onloadedmetadata = () => {
-          console.log('video onLoadedMetadata fired');
-          processRecordedVideo(videoUrl);
+  const handleRecordingComplete = (videoUrl: string, duration: number) => {
+    console.log('🎬 handleRecordingComplete called with:', videoUrl, duration);
+    
+    setLiveRecordingUrl(videoUrl);
+    setLiveRecordingDuration(duration);
+    setShowLiveRecordingPreview(true);
+    setShowLiveModal(false); // Close the live recording modal
+  };
+
+  // Handle analyzing the live recording
+  const handleAnalyzeLiveRecording = async () => {
+    if (!liveRecordingUrl) {
+      console.error('No live recording URL available');
+      return;
+    }
+
+    console.log('🔍 Starting analysis of live recording:', liveRecordingUrl);
+    console.log('🔍 Detector available:', !!detector);
+    
+    // Clear previous analysis data
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("lastAngles");
+      localStorage.removeItem("lastComparison");
+      localStorage.removeItem("lastPoses");
+    }
+    
+    setIsAnalyzing(true);
+    setAnalysisProgress(0);
+    
+    try {
+      // Create a temporary video element to process the recorded video
+      const tempVideo = document.createElement('video');
+      tempVideo.src = liveRecordingUrl;
+      tempVideo.muted = true;
+      
+      // Wait for video to be ready
+      await new Promise((resolve, reject) => {
+        const checkReady = () => {
+          console.log('🔍 Checking video readiness:', {
+            readyState: tempVideo.readyState,
+            duration: tempVideo.duration,
+            videoWidth: tempVideo.videoWidth,
+            videoHeight: tempVideo.videoHeight,
+            src: tempVideo.src
+          });
+          
+          // Check if video is ready to process
+          // readyState 4 means HAVE_ENOUGH_DATA, which is sufficient for processing
+          // We'll handle duration calculation differently
+          if (tempVideo.readyState >= 4 && tempVideo.videoWidth > 0 && tempVideo.videoHeight > 0) {
+            console.log('✅ Video ready for processing:', {
+              duration: tempVideo.duration,
+              width: tempVideo.videoWidth,
+              height: tempVideo.videoHeight
+            });
+            resolve(true);
+          } else {
+            console.log('⏳ Video not ready yet, retrying...');
+            setTimeout(checkReady, 100);
+          }
         };
-      } else {
-        setTimeout(checkAndProcess, 100);
+        
+        tempVideo.addEventListener('loadedmetadata', () => {
+          console.log('📹 Video metadata loaded');
+          setTimeout(checkReady, 50);
+        });
+        
+        tempVideo.addEventListener('loadeddata', () => {
+          console.log('📹 Video data loaded');
+          setTimeout(checkReady, 50);
+        });
+        
+        tempVideo.addEventListener('canplay', () => {
+          console.log('📹 Video can play');
+          setTimeout(checkReady, 50);
+        });
+        
+        tempVideo.addEventListener('error', (error) => {
+          console.error('❌ Error loading video:', error);
+          reject(error);
+        });
+        
+        console.log('🔄 Starting video load...');
+        tempVideo.load();
+        checkReady();
+      });
+      
+      // Process the video frames
+      const poses: any[] = [];
+      const angles = {
+        leftKneeAngles: [] as (number | null)[],
+        rightKneeAngles: [] as (number | null)[],
+        leftHipAngles: [] as (number | null)[],
+        rightHipAngles: [] as (number | null)[],
+        leftElbowAngles: [] as (number | null)[],
+        rightElbowAngles: [] as (number | null)[],
+        leftShoulderAbdAngles: [] as (number | null)[],
+        rightShoulderAbdAngles: [] as (number | null)[],
+        trunkAngles: [] as (number | null)[]
+      };
+      
+      // Get video duration, with fallback if it's Infinity
+      let duration = tempVideo.duration;
+      if (duration === Infinity || duration <= 0) {
+        console.log('⚠️ Video duration is Infinity, using actual recording duration');
+        // Use the actual recording duration we tracked
+        duration = liveRecordingDuration || 60; // Fallback to 60 seconds if not available
+        console.log('📏 Using actual recording duration:', duration);
       }
-    };
-    setTimeout(checkAndProcess, 100);
+      
+      const frameRate = 30;
+      const step = 3; // Process every 3rd frame (10fps) for efficiency
+      const totalFrames = Math.floor(duration * frameRate / step);
+      let processedFrames = 0;
+      
+      console.log('🎬 Processing video frames:', { duration, totalFrames });
+      
+      for (let t = 0; t < duration; t += step / frameRate) {
+        console.log(`🎬 Processing frame at time ${t}s (${processedFrames + 1}/${totalFrames})`);
+        
+        tempVideo.currentTime = t;
+        await new Promise((resolve) => (tempVideo.onseeked = resolve));
+        
+        // Check if we've reached the end of the video
+        if (tempVideo.ended) {
+          console.log('🎬 Reached end of video, stopping processing');
+          break;
+        }
+        
+        console.log(`🎬 Seeking to time ${t}s complete, estimating poses...`);
+        const pose = await detector!.estimatePoses(tempVideo);
+        console.log(`🎬 Pose estimation complete, found ${pose ? pose.length : 0} poses`);
+        
+        if (pose && pose.length > 0) {
+          poses.push(pose[0]);
+          setCurrentAnalysisPose(pose[0]);
+          
+          const keypoints = pose[0].keypoints;
+          const leftHip = keypoints[11];
+          const rightHip = keypoints[12];
+          const leftKnee = keypoints[13];
+          const rightKnee = keypoints[14];
+          const leftAnkle = keypoints[15];
+          const rightAnkle = keypoints[16];
+          const leftShoulder = keypoints[5];
+          const rightShoulder = keypoints[6];
+          const leftElbow = keypoints[7];
+          const rightElbow = keypoints[8];
+          const leftWrist = keypoints[9];
+          const rightWrist = keypoints[10];
+          
+          angles.leftKneeAngles.push(leftHip && leftKnee && leftAnkle ? getAngleWithConfidence(leftHip, leftKnee, leftAnkle).angle : null);
+          angles.rightKneeAngles.push(rightHip && rightKnee && rightAnkle ? getAngleWithConfidence(rightHip, rightKnee, rightAnkle).angle : null);
+          angles.leftHipAngles.push(leftShoulder && leftHip && leftKnee ? getAngleWithConfidence(leftShoulder, leftHip, leftKnee).angle : null);
+          angles.rightHipAngles.push(rightShoulder && rightHip && rightKnee ? getAngleWithConfidence(rightShoulder, rightHip, rightKnee).angle : null);
+          angles.leftElbowAngles.push(leftShoulder && leftElbow && leftWrist ? getAngleWithConfidence(leftShoulder, leftElbow, leftWrist).angle : null);
+          angles.rightElbowAngles.push(rightShoulder && rightElbow && rightWrist ? getAngleWithConfidence(rightShoulder, rightElbow, rightWrist).angle : null);
+          angles.leftShoulderAbdAngles.push(leftHip && leftShoulder && leftElbow ? getAngleWithConfidence(leftHip, leftShoulder, leftElbow).angle : null);
+          angles.rightShoulderAbdAngles.push(rightHip && rightShoulder && rightElbow ? getAngleWithConfidence(rightHip, rightShoulder, rightElbow).angle : null);
+          angles.trunkAngles.push(leftShoulder && leftHip ? getTrunkAngleWithConfidence(leftShoulder, leftHip).angle : null);
+        } else {
+          poses.push(null);
+          angles.leftKneeAngles.push(null);
+          angles.rightKneeAngles.push(null);
+          angles.leftHipAngles.push(null);
+          angles.rightHipAngles.push(null);
+          angles.leftElbowAngles.push(null);
+          angles.rightElbowAngles.push(null);
+          angles.leftShoulderAbdAngles.push(null);
+          angles.rightShoulderAbdAngles.push(null);
+          angles.trunkAngles.push(null);
+        }
+        
+        processedFrames++;
+        const progress = Math.round((processedFrames / totalFrames) * 100);
+        setAnalysisProgress(progress);
+        console.log('🎬 Progress:', progress + '%');
+      }
+      
+      // Store results
+      setAllPoses(poses);
+      setLeftKneeAngles(angles.leftKneeAngles);
+      setRightKneeAngles(angles.rightKneeAngles);
+      setLeftHipAngles(angles.leftHipAngles);
+      setRightHipAngles(angles.rightHipAngles);
+      setLeftElbowAngles(angles.leftElbowAngles);
+      setRightElbowAngles(angles.rightElbowAngles);
+      setLeftShoulderAbdAngles(angles.leftShoulderAbdAngles);
+      setRightShoulderAbdAngles(angles.rightShoulderAbdAngles);
+      setTrunkAngles(angles.trunkAngles);
+      
+      // Save to localStorage
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("lastPoses", JSON.stringify(poses));
+          localStorage.setItem("lastAngles", JSON.stringify(angles));
+          localStorage.setItem("lastAnalysisTimestamp", Date.now().toString());
+          
+          if (referenceAngles && exercise && exercise.jointsOfInterest && exercise.jointsOfInterest.length > 0) {
+            const comparison = calculateComparison(angles, referenceAngles, exercise.jointsOfInterest);
+            localStorage.setItem("lastComparison", JSON.stringify(comparison));
+          }
+        } catch (error) {
+          console.error('Failed to save to localStorage:', error);
+        }
+      }
+      
+      // Navigate to results
+      if (exercise && exercise.id && liveRecordingUrl) {
+        console.log('✅ Analysis complete, navigating to results');
+        const urlParams = new URLSearchParams();
+        urlParams.set('video', liveRecordingUrl);
+        if (liveRecordingDuration) {
+          urlParams.set('duration', liveRecordingDuration.toString());
+        }
+        router.push(`/results/${exercise.id}?${urlParams.toString()}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error processing live recording:', error);
+      alert('Error processing video. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+      setAnalysisProgress(0);
+      console.log('🎬 Live recording analysis complete');
+    }
+  };
+
+  // Handle retaking the live recording
+  const handleRetakeLiveRecording = () => {
+    setShowLiveRecordingPreview(false);
+    setLiveRecordingUrl(null);
+    setShowLiveModal(true);
+  };
+
+  // Handle canceling the live recording
+  const handleCancelLiveRecording = () => {
+    setShowLiveRecordingPreview(false);
+    setLiveRecordingUrl(null);
+    resetAllState();
   };
 
   // --- UI ---
+  // Custom video component that displays correct duration for live recordings
+  const LiveRecordingVideo = ({ src, duration }: { src: string; duration: number }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    useEffect(() => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      const handleTimeUpdate = () => setCurrentTime(video.currentTime);
+      const handlePlay = () => setIsPlaying(true);
+      const handlePause = () => setIsPlaying(false);
+
+      video.addEventListener('timeupdate', handleTimeUpdate);
+      video.addEventListener('play', handlePlay);
+      video.addEventListener('pause', handlePause);
+
+      return () => {
+        video.removeEventListener('timeupdate', handleTimeUpdate);
+        video.removeEventListener('play', handlePlay);
+        video.removeEventListener('pause', handlePause);
+      };
+    }, []);
+
+    const formatTime = (time: number) => {
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const video = videoRef.current;
+      if (video) {
+        const newTime = (parseFloat(e.target.value) / 100) * duration;
+        video.currentTime = newTime;
+      }
+    };
+
+    const togglePlay = () => {
+      const video = videoRef.current;
+      if (video) {
+        if (isPlaying) {
+          video.pause();
+        } else {
+          video.play();
+        }
+      }
+    };
+
+    const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+    return (
+      <div className="relative w-full">
+        <video
+          ref={videoRef}
+          src={src}
+          className="w-full rounded-lg"
+          style={{ maxHeight: '60vh', objectFit: 'contain' }}
+          muted
+        />
+        
+        {/* Custom controls */}
+        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2 rounded-b-lg">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={togglePlay}
+              className="w-8 h-8 rounded-full bg-white flex items-center justify-center"
+            >
+              {isPlaying ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" />
+                  <rect x="14" y="4" width="4" height="16" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5,3 19,12 5,21" />
+                </svg>
+              )}
+            </button>
+            
+            <div className="flex-1">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={progress}
+                onChange={handleSeek}
+                className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${progress}%, #6B7280 ${progress}%, #6B7280 100%)`
+                }}
+              />
+            </div>
+            
+            <span className="text-white text-sm min-w-[80px] text-right">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Tooltip.Provider>
       <div className="p-0 border-0 border-red-500">
@@ -903,8 +1234,9 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
                     </svg>
                   </button>
                   <div className="flex flex-col items-center justify-center w-full h-full relative">
-                    <Dialog.Title className="text-sm font-regular text-white pt-6 pb-2">Live Record Method</Dialog.Title>
-                    <div className="flex-1 flex items-center justify-center w-full">
+                    <Dialog.Title className="text-sm font-regular text-white pt-2 pb-2" style={{ maxWidth: '400px', textAlign: 'center' }}>Live Method</Dialog.Title>
+                    <Dialog.Description className="text-xs font-regular text-white pb-4" style={{ maxWidth: '400px', textAlign: 'center' }}>For best results, connect your phone to your browser as a webcam (Apple's Continuity Camera feature is recommended) and use a tripod. Ensure that your body is in frame and you are in a well-lit environment.</Dialog.Description>
+                    <div className="flex items-center justify-center w-full">
                       <LiveVideoPlayer
                         onRecordingComplete={handleRecordingComplete}
                         onMethodChange={() => setShowLiveModal(false)}
@@ -969,7 +1301,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
                 </svg>
               </button>
               <div className="flex flex-col items-center w-full h-full relative overflow-hidden">
-                <Dialog.Title className="text-sm font-normal pt-6 pb-4 text-white">Upload a video to analyze</Dialog.Title>
+                <Dialog.Title className="text-sm font-normal pt-6 pb-4 text-white" style={{ maxWidth: '400px', textAlign: 'center' }}>Click below to analyze your video. Ensure your body is in frame and you are in a well-light environment for best results.</Dialog.Title>
                 <div className="flex-1 flex flex-col items-center w-full max-w-4xl px-4 min-h-0">
                   
                   {/* Video Player Section */}
@@ -1063,6 +1395,159 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
                             }}
                           >
                             Upload New Video
+                          </button>
+                        </>
+                      ) : (
+                        <div className="text-sm text-center text-white">
+                          Please wait while we analyze your video...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+        
+        {/* Live Recording Preview Modal */}
+        <Dialog.Root open={showLiveRecordingPreview} onOpenChange={setShowLiveRecordingPreview}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+            <Dialog.Content
+              className="fixed inset-0 z-50 flex flex-col"
+              style={{ width: '100vw', height: '100vh', padding: 0, background: 'rgba(24,24,27,0.92)' }}
+            >
+              <button
+                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/80 hover:bg-black focus:outline-none"
+                aria-label="Close"
+                type="button"
+                onClick={handleCancelLiveRecording}
+              >
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+              
+              <div className="flex flex-col items-center justify-center w-full h-full relative">
+                <Dialog.Title className="text-sm font-normal pt-6 pb-4 text-white">
+                  Review Your Recording
+                </Dialog.Title>
+                
+                <div className="flex-1 flex flex-col items-center w-full max-w-2xl px-4 min-h-0">
+                  
+                  {/* Video Preview */}
+                  <div className="flex flex-col w-full flex-shrink-0">
+                    <div className="relative w-full" style={{ maxHeight: '60vh' }}>
+                    {!isAnalyzing ? (
+                      // Show video when not analyzing
+                      liveRecordingDuration ? (
+                        <LiveRecordingVideo 
+                          src={liveRecordingUrl || ''} 
+                          duration={liveRecordingDuration} 
+                        />
+                      ) : (
+                        <video
+                          src={liveRecordingUrl || undefined}
+                          controls
+                          controlsList="nodownload nofullscreen noremoteplayback"
+                          disablePictureInPicture
+                          className="rounded w-full h-auto"
+                          style={{ maxHeight: '60vh', objectFit: 'contain' }}
+                          autoPlay
+                          muted
+                        />
+                      )
+                    ) : (
+                      // Show loading placeholder during analysis
+                      <div className="w-full h-64 bg-gray-800 rounded-lg flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                          <p className="text-white text-lg">Processing your recording...</p>
+                        </div>
+                      </div>
+                    )}
+                    </div>
+                    
+                    {/* Analysis Progress */}
+                    {isAnalyzing && (
+                      <div className="w-full my-4 flex-shrink-0">
+                        <div className="bg-gray-800 rounded-lg p-4">
+                          <h3 className="font-semibold text-white mb-2">Processing Video...</h3>
+                          <div className="w-full bg-gray-600 rounded-full h-2 mb-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${analysisProgress}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-sm text-white">{analysisProgress}% complete</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Action Buttons */}
+                    <div className="flex flex-row flex-wrap gap-4 mt-4 mb-6 justify-center flex-shrink-0">
+                      {!isAnalyzing ? (
+                        <>
+                          <button
+                            className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                            style={{
+                              background: 'var(--primary-button-bg)',
+                              color: 'var(--primary-button-text)',
+                              border: '2px solid var(--primary-button-border)'
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = 'var(--primary-button-hover-bg)';
+                              e.currentTarget.style.color = 'var(--primary-button-hover-text)';
+                              e.currentTarget.style.borderColor = 'var(--primary-button-hover-border)';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = 'var(--primary-button-bg)';
+                              e.currentTarget.style.color = 'var(--primary-button-text)';
+                              e.currentTarget.style.borderColor = 'var(--primary-button-border)';
+                            }}
+                            onClick={handleAnalyzeLiveRecording}
+                          >
+                            Analyze Video
+                          </button>
+                          <button
+                            className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                            style={{
+                              background: 'var(--secondary-button-bg)',
+                              color: 'var(--secondary-button-text)',
+                              border: '2px solid var(--secondary-button-border)'
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = 'var(--secondary-button-hover-bg)';
+                              e.currentTarget.style.color = 'var(--secondary-button-hover-text)';
+                              e.currentTarget.style.borderColor = 'var(--secondary-button-hover-border)';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = 'var(--secondary-button-bg)';
+                              e.currentTarget.style.color = 'var(--secondary-button-text)';
+                              e.currentTarget.style.borderColor = 'var(--secondary-button-border)';
+                            }}
+                            onClick={handleRetakeLiveRecording}
+                          >
+                            Re-Take
+                          </button>
+                          <button
+                            className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                            style={{
+                              background: 'transparent',
+                              color: 'white',
+                              border: '2px solid #6B7280'
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = '#6B7280';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                            onClick={handleCancelLiveRecording}
+                          >
+                            Cancel
                           </button>
                         </>
                       ) : (

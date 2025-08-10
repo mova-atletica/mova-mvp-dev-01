@@ -482,11 +482,11 @@ export default function AssetGenerationModal({
             ...prev,
             format: 'png'
           }));
-          console.log('🔄 Auto-switched to PNG format due to Muybridge + Motion Trails combination');
+  
         }
         
         // Remove the frame rate auto-detection since we're disabling video exports
-        console.log('⚠️ Video and GIF exports disabled for Muybridge + Motion Trails combination');
+
       }
     }
   };
@@ -537,7 +537,7 @@ export default function AssetGenerationModal({
     setIsExporting(true);
     
     try {
-      console.log('Starting export with config:', { activeEffects, exportConfig: finalExportConfig });
+  
       
       const result = await exportAsset(video, poses, activeEffects, {
         ...finalExportConfig,
@@ -547,7 +547,7 @@ export default function AssetGenerationModal({
       if (result.success && result.data instanceof Blob && result.filename) {
         // Download the exported file
         downloadBlob(result.data, result.filename);
-        console.log('Export successful:', result.filename);
+
         
         // Show success feedback
         setExportSuccess(true);

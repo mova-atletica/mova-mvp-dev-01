@@ -8,7 +8,7 @@ import CoreVideoPlayer from "./CoreVideoPlayer";
 import { getAngleWithConfidence } from '../lib/analysisUtils';
 
 interface LiveVideoPlayerProps {
-  onRecordingComplete: (videoUrl: string) => void;
+  onRecordingComplete: (videoUrl: string, duration: number) => void;
   onMethodChange: () => void;
   referenceAngles?: any;
   exercise: any;
@@ -64,6 +64,10 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [allPoses, setAllPoses] = useState<any[]>([]);
   const [cameraActive, setCameraActive] = useState(true);
+
+  // Add recording duration tracking
+  const [recordingStartTime, setRecordingStartTime] = useState<number | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState<number | null>(null);
 
   // Advanced panel state
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(true);
@@ -362,6 +366,8 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
     if (webcamRef.current && webcamRef.current.stream) {
       const recorder = new MediaRecorder(webcamRef.current.stream, { mimeType: "video/webm" });
       const chunks: Blob[] = [];
+      const startTime = Date.now(); // Store start time in a local variable
+      
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunks.push(e.data);
@@ -369,14 +375,24 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       };
       recorder.onstop = () => {
         const blob = new Blob(chunks, { type: "video/webm" });
+        console.log('Recording stopped, blob size:', blob.size);
+        
+        // Calculate actual recording duration using the local startTime variable
+        const endTime = Date.now();
+        const actualDuration = (endTime - startTime) / 1000; // Convert to seconds
+        console.log('Actual recording duration:', actualDuration, 'seconds');
+        
         const url = URL.createObjectURL(blob);
-        console.log('Recording stopped, blob size:', blob.size, 'url:', url);
-        setVideoUrl(url);
-        onRecordingComplete(url);
+        console.log('LiveVideoPlayer: calling onRecordingComplete with URL:', url, 'duration:', actualDuration);
+        onRecordingComplete(url, actualDuration);
+        setRecording(false);
+        setRecordingStartTime(null);
+        setRecordingDuration(actualDuration);
       };
       recorder.start();
       setMediaRecorder(recorder);
       setRecording(true);
+      setRecordingStartTime(startTime);
     }
   };
 
@@ -384,7 +400,6 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
     if (mediaRecorder) {
       mediaRecorder.stop();
       setMediaRecorder(null);
-      setRecording(false);
     }
   };
 
@@ -444,7 +459,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
         {!recording ? (
           <button
-            className="px-6 py-3 rounded text-xs font-medium transition cursor-pointer"
+            className="px-6 py-3 rounded text-xs font-medium transition cursor-pointer flex items-center gap-2"
             style={{
               background: '#1AAA00',
               color: '#f3f3f4',
@@ -462,13 +477,20 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
             }}
             onClick={startRecording}
           >
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" />
+              <circle cx="12" cy="12" r="3" fill="currentColor" />
+            </svg>
             Start Recording
           </button>
         ) : (
           <button
-            className="bg-red-600 text-white px-6 py-3 rounded text-xs font-medium hover:bg-red-700 transition"
+            className="bg-red-600 text-white px-6 py-3 rounded text-xs font-medium hover:bg-red-700 transition flex items-center gap-2"
             onClick={stopRecording}
           >
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+              <rect x="6" y="6" width="12" height="12" />
+            </svg>
             Stop Recording
           </button>
         )}
@@ -730,6 +752,14 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+      {/* Recording Indicator */}
+      {recording && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg animate-pulse">
+          <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
+          <span className="text-sm font-medium">Recording...</span>
+        </div>
+      )}
+      
       {/* Main video container */}
       <div style={{ position: 'relative', display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
         {/* Video player */}

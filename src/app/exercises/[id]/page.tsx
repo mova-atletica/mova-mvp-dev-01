@@ -131,7 +131,7 @@ export default function ExerciseDetail({ params }: Props) {
         // Load reference keypoints if available
         if (formattedExercise.referenceKeypointsUrl) {
           try {
-            console.log('Loading keypoints from:', formattedExercise.referenceKeypointsUrl);
+
             fetch('/api/storage/proxy', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -142,7 +142,6 @@ export default function ExerciseDetail({ params }: Props) {
                 return res.json();
               })
               .then(data => {
-                console.log('Loaded keypoints:', data);
                 setReferenceKeypoints(data);
               })
               .catch((error) => {

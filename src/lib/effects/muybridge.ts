@@ -45,16 +45,7 @@ export async function renderMuybridgeFromCanvas(
   const cellW = (width - totalPadX) / cols;
   const cellH = (height - totalPadY) / rows;
 
-  // Debug logging for Muybridge rendering
-  if (isExport) {
-    console.log('🎬 Muybridge Canvas Render Debug:', {
-      canvasDimensions: { width, height },
-      gridConfig: { rows, cols, padding },
-      cellDimensions: { width: cellW, height: cellH },
-      totalPadding: { x: totalPadX, y: totalPadY },
-      videoDimensions: { width: sourceVideo.videoWidth, height: sourceVideo.videoHeight }
-    });
-  }
+
 
   // Clear the entire canvas
   ctx.clearRect(0, 0, width, height);
@@ -310,11 +301,9 @@ export async function preExtractKeyFrames(
   }
 
   const videoId = video.src;
-  console.log('Starting pre-extraction for video:', videoId, 'Duration:', video.duration);
   
   // Check if extraction is already in progress
   if (extractionInProgress.has(videoId)) {
-    console.log('Extraction already in progress for this video');
     return;
   }
   
@@ -330,7 +319,7 @@ export async function preExtractKeyFrames(
       frameTimes.push(time);
     }
     
-    console.log('Extracting frames at times:', frameTimes);
+
     
     // Extract each frame
     const extractionPromises = frameTimes.map(async (time, index) => {
@@ -338,16 +327,13 @@ export async function preExtractKeyFrames(
       
       // Skip if already cached
       if (frameCache.has(cacheKey)) {
-        console.log(`Frame ${index} already cached: ${cacheKey}`);
         return;
       }
       
       try {
-        console.log(`Extracting frame ${index} at ${time}s: ${cacheKey}`);
         const frameImage = await extractFrameAtTime(video, time);
         if (frameImage) {
           frameCache.set(cacheKey, frameImage);
-          console.log(`Successfully cached frame ${index}: ${cacheKey}`);
         } else {
           console.warn(`Failed to extract frame ${index} at ${time}s`);
         }
@@ -357,8 +343,6 @@ export async function preExtractKeyFrames(
     });
     
     await Promise.all(extractionPromises);
-    console.log(`Pre-extraction complete. Cache size: ${frameCache.size}`);
-    console.log('Cached keys:', Array.from(frameCache.keys()));
     
   } catch (error) {
     console.error('Failed to pre-extract frames:', error);
@@ -473,15 +457,7 @@ export function renderMuybridge(
   const cellH = (height - totalPadY) / rows;
 
   // Debug logging for Muybridge rendering (only during export)
-  if (isExport) {
-    console.log('🎬 Muybridge Render Debug:', {
-      canvasDimensions: { width, height },
-      gridConfig: { rows, cols, padding },
-      cellDimensions: { width: cellW, height: cellH },
-      totalPadding: { x: totalPadX, y: totalPadY },
-      videoDimensions: { width: video.videoWidth, height: video.videoHeight }
-    });
-  }
+
 
   // Clear the entire canvas
   ctx.clearRect(0, 0, width, height);
@@ -550,18 +526,7 @@ export function renderMuybridge(
       if (frameCache.has(cacheKey)) {
         const cachedFrame = frameCache.get(cacheKey)!;
         
-        // Debug logging for frame drawing (only during export and first few frames)
-        if (isExport && r === 0 && c === 0) {
-          console.log('🖼️ Frame Drawing Debug:', {
-            tilePosition: { row: r, col: c },
-            cellPosition: { x, y },
-            cellSize: { width: cellW, height: cellH },
-            drawPosition: { x: drawX, y: drawY },
-            drawSize: { width: drawWidth, height: drawHeight },
-            cachedFrameSize: { width: cachedFrame.width, height: cachedFrame.height },
-            cacheKey
-          });
-        }
+
         
         ctx.drawImage(cachedFrame, drawX, drawY, drawWidth, drawHeight);
       } else {

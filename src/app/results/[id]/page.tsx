@@ -1227,6 +1227,11 @@ export default function ResultsPage() {
   const searchParams = useSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const videoUrl = searchParams.get("video");
+  const videoDuration = searchParams.get("duration");
+
+  console.log('Results page - videoUrl:', videoUrl);
+  console.log('Results page - videoDuration:', videoDuration);
+  console.log('Results page - parsed duration:', videoDuration ? parseFloat(videoDuration) : undefined);
 
   // State
   const [exercise, setExercise] = useState<Exercise | null>(null);
@@ -1351,7 +1356,7 @@ export default function ResultsPage() {
         
         if (response.ok) {
           const keypointsData = await response.json();
-          console.log('Reference keypoints loaded:', keypointsData.length, 'frames');
+
           setReferencePoses(keypointsData);
           
           // Calculate reference angles
@@ -1530,13 +1535,11 @@ export default function ResultsPage() {
           // If we have angles but no comparison data, or if comparison data is missing joints, recalculate
         if (comparisonData && isRecent) {
             const parsedComparison = JSON.parse(comparisonData);
-            console.log('Results page - Setting comparison from localStorage:', parsedComparison);
+
             setComparisonResults(parsedComparison);
           } else if (referenceAngles && exercise?.jointsOfInterest) {
             // Recalculate comparison if we have the data
-            console.log('Recalculating comparison in results page...');
             const recalculatedComparison = calculateComparison(parsedAngles, referenceAngles, exercise.jointsOfInterest);
-            console.log('Recalculated comparison:', recalculatedComparison);
             setComparisonResults(recalculatedComparison);
           }
         }
@@ -1647,6 +1650,7 @@ export default function ResultsPage() {
             seekFrame={seekFrame}
             onSeekFrameHandled={() => setSeekFrame(null)}
             onReferenceFrameChange={setReferenceFrame}
+            userVideoDuration={videoDuration ? parseFloat(videoDuration) : undefined}
             //maxHeight="60vh"
           />
         </div>

@@ -62,14 +62,7 @@ async function renderEffectsToCanvas(
     outputWidth = video.videoWidth;
     outputHeight = video.videoHeight;
     
-    // Debug logging for export dimensions
-    console.log('🔍 Muybridge Export Debug:', {
-      videoDimensions: { width: video.videoWidth, height: video.videoHeight },
-      videoAspectRatio: (video.videoWidth / video.videoHeight).toFixed(3),
-      containerDimensions: { width: 400, height: 711 },
-      finalExportDimensions: { width: outputWidth, height: outputHeight },
-      note: 'Using preview canvas pixel dimensions (scaled by CSS in preview)'
-    });
+
   } else {
     // For other effects, use original video dimensions
     outputWidth = video.videoWidth;
