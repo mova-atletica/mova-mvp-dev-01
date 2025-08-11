@@ -24,6 +24,7 @@ interface CoreVideoPlayerProps {
   isPlaying?: boolean;
   onPlayPause?: () => void;
   onSeek?: (time: number) => void;
+  hidePlayBar?: boolean; // New prop to hide the play bar
 }
 
 // Custom SVG Icons
@@ -96,6 +97,7 @@ export default function CoreVideoPlayer({
   isPlaying = false,
   onPlayPause,
   onSeek,
+  hidePlayBar = false, // New prop to hide the play bar
 }: CoreVideoPlayerProps) {
   // If controlled props are provided, use them; otherwise, use local state (for backward compatibility)
   const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus'>(null);
@@ -220,28 +222,23 @@ export default function CoreVideoPlayer({
                   </div>
                 )}
                 {/* Playback Bar - Simplified and more visible */}
-                <div 
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    background: 'linear-gradient(transparent, rgba(0,0,0,0.5))',
-                    padding: '21px 15px 15px 15px',
-                    zIndex: 15,
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                  }}
-                >
+                {!hidePlayBar && (
                   <div 
-                    style={{ 
-                      width: '100%', 
+                    style={{
+                      width: '97%',
                       //maxWidth: '400px',
                       background: 'rgba(255, 255, 255, 0.3)',
                       borderRadius: '6px',
-                      padding: '9px',
+                      padding: '6px 12px 6px 12px',
+                      //margin: '15px 15px 15px 15px',
+                      justifyContent: 'center',
                       border: '1px solid rgba(255, 255, 255, 0.5)',
                       display: 'flex',
+                      zIndex: 20,
+                      position: 'absolute',
+                      bottom: 9,
+                      left: 6,
+                      right: 6,
                       alignItems: 'center',
                       gap: '12px'
                     }}
@@ -356,7 +353,7 @@ export default function CoreVideoPlayer({
                       {formatTime(currentTime)} / {formatTime(duration)}
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

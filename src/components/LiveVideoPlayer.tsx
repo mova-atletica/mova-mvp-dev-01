@@ -459,7 +459,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
         {!recording ? (
           <button
-            className="px-6 py-3 rounded text-xs font-medium transition cursor-pointer flex items-center gap-2"
+            className="px-4 py-2 rounded text-xs font-medium transition cursor-pointer flex items-center gap-2"
             style={{
               background: '#1AAA00',
               color: '#f3f3f4',
@@ -485,7 +485,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
           </button>
         ) : (
           <button
-            className="bg-red-600 text-white px-6 py-3 rounded text-xs font-medium hover:bg-red-700 transition flex items-center gap-2"
+            className="bg-red-600 text-white px-4 py-2 rounded text-xs font-medium hover:bg-red-700 transition flex items-center gap-2"
             onClick={stopRecording}
           >
             <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
@@ -495,7 +495,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
           </button>
         )}
         <button
-          className="px-6 py-3 rounded text-xs font-medium transition cursor-pointer"
+          className="px-4 py-2 rounded text-xs font-medium transition cursor-pointer"
           style={{
             background: 'rgba(0, 0, 0, 0.42)',
             color: '#f3f3f4',
@@ -761,7 +761,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       )}
       
       {/* Main video container */}
-      <div style={{ position: 'relative', display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
         {/* Video player */}
         <div style={{ position: 'relative' }}>
           <CoreVideoPlayer
@@ -782,14 +782,29 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
             }
             canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
             overlays={<></>}
-            controls={controls}
             panelContent={panelContent}
             openMenu={openMenu}
             setOpenMenu={setOpenMenu}
             showAdvancedPanel={showAdvancedPanel}
             onCloseAdvancedPanel={() => setShowAdvancedPanel(v => !v)}
+            hidePlayBar={true}
           />
+          
+          {/* Recording controls overlaid with absolute positioning */}
+          <div style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            gap: '12px',
+            zIndex: 20
+          }}>
+            {controls}
+          </div>
         </div>
+        
+        {/* Remove the controls from outside the video player */}
       </div>
     </div>
   );
