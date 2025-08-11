@@ -81,14 +81,14 @@ function getFeedbackMessage(joint: string, comparison: 'good' | 'warning' | 'poo
 
 // Calculate overall comparison results
 const calculateComparison = (userAngles: any, referenceAngles: any, jointsOfInterest: string[]) => {
-  console.log('calculateComparison called with:', { userAngles, referenceAngles, jointsOfInterest });
+  //console.log('calculateComparison called with:', { userAngles, referenceAngles, jointsOfInterest });
   
   const results: any = {};
   let totalScore = 0;
   let totalComparisons = 0;
   
   jointsOfInterest.forEach(joint => {
-    console.log(`Processing joint: ${joint}`);
+    //console.log(`Processing joint: ${joint}`);
     let userAngleArray: (number | null)[] = [];
     let refAngleArray: (number | null)[] = [];
     
@@ -131,9 +131,9 @@ const calculateComparison = (userAngles: any, referenceAngles: any, jointsOfInte
         break;
     }
     
-    console.log(`${joint} - User angles: ${userAngleArray.length} frames, Reference angles: ${refAngleArray.length} frames`);
-    console.log(`${joint} - Sample user angles:`, userAngleArray.slice(0, 5));
-    console.log(`${joint} - Sample reference angles:`, refAngleArray.slice(0, 5));
+    //console.log(`${joint} - User angles: ${userAngleArray.length} frames, Reference angles: ${refAngleArray.length} frames`);
+    //console.log(`${joint} - Sample user angles:`, userAngleArray.slice(0, 5));
+    //console.log(`${joint} - Sample reference angles:`, refAngleArray.slice(0, 5));
     
     // Calculate average difference with better handling of different lengths
     let totalDifference = 0;
@@ -157,7 +157,7 @@ const calculateComparison = (userAngles: any, referenceAngles: any, jointsOfInte
     // Adjust scoring: 15 degrees = 100%, 30 degrees = 70%, 45 degrees = 40%, 60+ degrees = 10%
     const score = validComparisons > 0 ? Math.max(0, Math.min(100, 100 - (avgDifference * 1.5))) : 0;
     
-    console.log(`${joint} - Valid comparisons: ${validComparisons}, Avg difference: ${avgDifference}, Score: ${score}`);
+    //console.log(`${joint} - Valid comparisons: ${validComparisons}, Avg difference: ${avgDifference}, Score: ${score}`);
     
     results[joint] = {
       avgDifference: Math.round(avgDifference * 10) / 10,
@@ -841,13 +841,13 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
       // Wait for video to be ready
       await new Promise((resolve, reject) => {
         const checkReady = () => {
-          console.log('🔍 Checking video readiness:', {
+          /* console.log('🔍 Checking video readiness:', {
             readyState: tempVideo.readyState,
             duration: tempVideo.duration,
             videoWidth: tempVideo.videoWidth,
             videoHeight: tempVideo.videoHeight,
             src: tempVideo.src
-          });
+          }) */;
           
           // Check if video is ready to process
           // readyState 4 means HAVE_ENOUGH_DATA, which is sufficient for processing
@@ -859,24 +859,24 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
               height: tempVideo.videoHeight
             });
             resolve(true);
-          } else {
-            console.log('⏳ Video not ready yet, retrying...');
+      } else {
+            //console.log('⏳ Video not ready yet, retrying...');
             setTimeout(checkReady, 100);
           }
         };
         
         tempVideo.addEventListener('loadedmetadata', () => {
-          console.log('📹 Video metadata loaded');
+          //console.log('📹 Video metadata loaded');
           setTimeout(checkReady, 50);
         });
         
         tempVideo.addEventListener('loadeddata', () => {
-          console.log('📹 Video data loaded');
+          //console.log('📹 Video data loaded');
           setTimeout(checkReady, 50);
         });
         
         tempVideo.addEventListener('canplay', () => {
-          console.log('📹 Video can play');
+          //console.log('📹 Video can play');
           setTimeout(checkReady, 50);
         });
         
@@ -885,7 +885,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
           reject(error);
         });
         
-        console.log('🔄 Starting video load...');
+        //console.log('🔄 Starting video load...');
         tempVideo.load();
         checkReady();
       });
@@ -907,10 +907,10 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
       // Get video duration, with fallback if it's Infinity
       let duration = tempVideo.duration;
       if (duration === Infinity || duration <= 0) {
-        console.log('⚠️ Video duration is Infinity, using actual recording duration');
+        //console.log('⚠️ Video duration is Infinity, using actual recording duration');
         // Use the actual recording duration we tracked
         duration = liveRecordingDuration || 60; // Fallback to 60 seconds if not available
-        console.log('📏 Using actual recording duration:', duration);
+        //console.log('📏 Using actual recording duration:', duration);
       }
       
       const frameRate = 30;
@@ -918,23 +918,23 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
       const totalFrames = Math.floor(duration * frameRate / step);
       let processedFrames = 0;
       
-      console.log('🎬 Processing video frames:', { duration, totalFrames });
+      //console.log('🎬 Processing video frames:', { duration, totalFrames });
       
       for (let t = 0; t < duration; t += step / frameRate) {
-        console.log(`🎬 Processing frame at time ${t}s (${processedFrames + 1}/${totalFrames})`);
+        //console.log(`🎬 Processing frame at time ${t}s (${processedFrames + 1}/${totalFrames})`);
         
         tempVideo.currentTime = t;
         await new Promise((resolve) => (tempVideo.onseeked = resolve));
         
         // Check if we've reached the end of the video
         if (tempVideo.ended) {
-          console.log('🎬 Reached end of video, stopping processing');
+          //console.log('🎬 Reached end of video, stopping processing');
           break;
         }
         
-        console.log(`🎬 Seeking to time ${t}s complete, estimating poses...`);
+        //console.log(`🎬 Seeking to time ${t}s complete, estimating poses...`);
         const pose = await detector!.estimatePoses(tempVideo);
-        console.log(`🎬 Pose estimation complete, found ${pose ? pose.length : 0} poses`);
+        //console.log(`🎬 Pose estimation complete, found ${pose ? pose.length : 0} poses`);
         
         if (pose && pose.length > 0) {
           poses.push(pose[0]);

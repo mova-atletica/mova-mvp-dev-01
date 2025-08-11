@@ -81,6 +81,7 @@ class AdvancedAnalysisService {
 
       const response = await fetch(`${this.baseUrl}/analyze`, {
         method: 'POST',
+        //mode: 'cors',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -100,7 +101,7 @@ class AdvancedAnalysisService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Advanced analysis error:', error);
+      //console.error('Advanced analysis error:', error);
       throw error;
     }
   }

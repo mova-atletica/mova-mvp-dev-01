@@ -71,7 +71,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
 
   // Advanced panel state
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(true);
-  const [advancedTab, setAdvancedTab] = useState<'selection' | 'style' | 'actions'>('selection');
+  const [advancedTab, setAdvancedTab] = useState<'focus' | 'style' | 'biomechanics'>('focus');
   const [openDropdown, setOpenDropdown] = useState<'angles' | 'joints' | 'bones' | 'focus' | null>(null);
   const [selectedAngles, setSelectedAngles] = useState<string[]>(ANGLE_OPTIONS.map(a => a.key));
   const [selectedJoints, setSelectedJoints] = useState<number[]>(JOINT_OPTIONS.map(j => j.key));
@@ -89,7 +89,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Controls for panel switching
-  const [openMenu, setOpenMenu] = useState<null | 'export' | 'selection' | 'style' | 'actions'>(null);
+  const [openMenu, setOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus'>(null);
 
   // Load pose detection model
   useEffect(() => {
@@ -375,15 +375,15 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       };
       recorder.onstop = () => {
         const blob = new Blob(chunks, { type: "video/webm" });
-        console.log('Recording stopped, blob size:', blob.size);
+        //console.log('Recording stopped, blob size:', blob.size);
         
         // Calculate actual recording duration using the local startTime variable
         const endTime = Date.now();
         const actualDuration = (endTime - startTime) / 1000; // Convert to seconds
-        console.log('Actual recording duration:', actualDuration, 'seconds');
+        //console.log('Actual recording duration:', actualDuration, 'seconds');
         
         const url = URL.createObjectURL(blob);
-        console.log('LiveVideoPlayer: calling onRecordingComplete with URL:', url, 'duration:', actualDuration);
+        //console.log('LiveVideoPlayer: calling onRecordingComplete with URL:', url, 'duration:', actualDuration);
         onRecordingComplete(url, actualDuration);
         setRecording(false);
         setRecordingStartTime(null);
@@ -694,7 +694,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
   );
   const actionsPanel = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Actions</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Biomechanics</div>
       {/* Skeleton Toggle (icon + text) */}
       <button
         onClick={() => setShowKeypoints(!showKeypoints)}
@@ -745,9 +745,9 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
 
   // --- Panel Content Switch ---
   let panelContent: React.ReactNode = null;
-  if (openMenu === 'selection') panelContent = selectionPanel;
+  if (openMenu === 'focus') panelContent = selectionPanel; // Changed from 'selection'
   else if (openMenu === 'style') panelContent = stylePanel;
-  else if (openMenu === 'actions') panelContent = actionsPanel;
+  else if (openMenu === 'biomechanics') panelContent = actionsPanel; // Changed from 'actions'
   else if (openMenu === 'export') panelContent = exportPanel;
 
   return (

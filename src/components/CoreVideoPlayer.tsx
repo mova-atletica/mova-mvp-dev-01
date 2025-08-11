@@ -1,13 +1,12 @@
 "use client";
 import { ReactNode } from 'react';
-import { Download, Settings, Sun, BarChart2 } from 'lucide-react';
 import React, { useState } from 'react';
 
 interface CoreVideoPlayerProps {
   videoElement: ReactNode; // <video> or <Webcam>
   canvasRef: React.RefObject<HTMLCanvasElement>;
   overlays: ReactNode; // overlays (e.g., skeleton, angles)
-  controls: ReactNode; // playback or live controls
+  controls?: ReactNode; // playback or live controls (optional now)
   advancedPanel?: ReactNode; // advanced panel UI (optional)
   containerClassName?: string;
   loading?: boolean;
@@ -16,10 +15,65 @@ interface CoreVideoPlayerProps {
   onCloseAdvancedPanel?: () => void;
   style?: React.CSSProperties;
   height?: string;
-  openMenu?: null | 'export' | 'selection' | 'style' | 'actions';
-  setOpenMenu?: (menu: null | 'export' | 'selection' | 'style' | 'actions') => void;
+  openMenu?: null | 'export' | 'biomechanics' | 'style' | 'focus';
+  setOpenMenu?: (menu: null | 'export' | 'biomechanics' | 'style' | 'focus') => void;
   panelContent?: React.ReactNode;
+  // New props for the custom play bar
+  currentTime?: number;
+  duration?: number;
+  isPlaying?: boolean;
+  onPlayPause?: () => void;
+  onSeek?: (time: number) => void;
 }
+
+// Custom SVG Icons
+const DownloadIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M12 15V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const BiomechanicsIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const StyleIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+    <path d="M12 1V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M12 21V23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M4.22 4.22L5.64 5.64" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M18.36 18.36L19.78 19.78" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M1 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M21 12H23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M4.22 19.78L5.64 18.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M18.36 5.64L19.78 4.22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
+const FocusIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+    <path d="M12 2V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M12 20V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M2 12H4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M20 12H22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
+// Helper function to format time
+const formatTime = (time: number): string => {
+  const minutes = Math.floor(time / 60);
+  const seconds = Math.floor(time % 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
 
 export default function CoreVideoPlayer({
   videoElement,
@@ -37,9 +91,14 @@ export default function CoreVideoPlayer({
   openMenu: controlledOpenMenu,
   setOpenMenu: controlledSetOpenMenu,
   panelContent,
+  currentTime = 0,
+  duration = 0,
+  isPlaying = false,
+  onPlayPause,
+  onSeek,
 }: CoreVideoPlayerProps) {
   // If controlled props are provided, use them; otherwise, use local state (for backward compatibility)
-  const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<null | 'export' | 'selection' | 'style' | 'actions'>(null);
+  const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus'>(null);
   const openMenu = controlledOpenMenu !== undefined ? controlledOpenMenu : uncontrolledOpenMenu;
   const setOpenMenu = controlledSetOpenMenu !== undefined ? controlledSetOpenMenu : setUncontrolledOpenMenu;
 
@@ -68,64 +127,71 @@ export default function CoreVideoPlayer({
                 {/* --- New Vertical Controls Overlay (moved here) --- */}
                 <div style={{
                   position: 'absolute',
-                  top: 24,
-                  right: 24,
+                  top: 12,
+                  right: 12,
                   zIndex: 40,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '12px',
+                  gap: '6px', // Reduced gap for smaller buttons
                 }}>
+                  {/* Download Button */}
                   <button
                     style={{
-                      width: 48, height: 48, borderRadius: '50%', background: openMenu === 'export' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'export' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
+                      width: 30, height: 30, borderRadius: '50%', background: openMenu === 'export' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'export' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
                     }}
                     onClick={() => setOpenMenu(openMenu === 'export' ? null : 'export')}
                     aria-label="Export"
                   >
-                    <Download size={24} />
+                    <DownloadIcon />
                   </button>
+                  
+                  {/* Biomechanics Button (formerly Actions) */}
                   <button
                     style={{
-                      width: 48, height: 48, borderRadius: '50%', background: openMenu === 'selection' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'selection' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
+                      width: 30, height: 30, borderRadius: '50%', background: openMenu === 'biomechanics' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'biomechanics' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
                     }}
-                    onClick={() => setOpenMenu(openMenu === 'selection' ? null : 'selection')}
-                    aria-label="Selection"
+                    onClick={() => setOpenMenu(openMenu === 'biomechanics' ? null : 'biomechanics')}
+                    aria-label="Biomechanics"
                   >
-                    <Settings size={24} />
+                    <BiomechanicsIcon />
                   </button>
+                  
+                  {/* Style Button */}
                   <button
                     style={{
-                      width: 48, height: 48, borderRadius: '50%', background: openMenu === 'style' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'style' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
+                      width: 30, height: 30, borderRadius: '50%', background: openMenu === 'style' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'style' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
                     }}
                     onClick={() => setOpenMenu(openMenu === 'style' ? null : 'style')}
                     aria-label="Style"
                   >
-                    <Sun size={24} />
+                    <StyleIcon />
                   </button>
+                  
+                  {/* Focus Selection Button (formerly Selection) */}
                   <button
                     style={{
-                      width: 48, height: 48, borderRadius: '50%', background: openMenu === 'actions' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'actions' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)',
+                      width: 30, height: 30, borderRadius: '50%', background: openMenu === 'focus' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'focus' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)',
                     }}
-                    onClick={() => setOpenMenu(openMenu === 'actions' ? null : 'actions')}
-                    aria-label="Actions"
+                    onClick={() => setOpenMenu(openMenu === 'focus' ? null : 'focus')}
+                    aria-label="Focus Selection"
                   >
-                    <BarChart2 size={24} />
+                    <FocusIcon />
                   </button>
                 </div>
                 {/* --- Floating Panel for Open Menu (moved here) --- */}
                 {openMenu && (
                   <div style={{
                     position: 'absolute',
-                    top: 24,
-                    right: 88,
+                    top: 12,
+                    right: 51, // Adjusted for smaller buttons
                     background: 'var(--vp-panel-bg)',
-                    borderRadius: 18,
+                    borderRadius: 9,
                     boxShadow: 'var(--vp-panel-shadow)',
-                    padding: '18px 14px',
+                    padding: '12px 12px',
                     zIndex: 41,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 16,
+                    gap: 15,
                     alignItems: 'flex-start',
                     fontSize: 16,
                     fontWeight: 500,
@@ -153,22 +219,142 @@ export default function CoreVideoPlayer({
                     </div>
                   </div>
                 )}
-                {/* Playback Bar (remains at bottom) */}
+                {/* Playback Bar - Simplified and more visible */}
                 <div 
                   style={{
                     width: '100%',
                     display: 'flex',
                     justifyContent: 'center',
-                    background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
-                    padding: '20px 16px 16px 16px',
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.5))',
+                    padding: '21px 15px 15px 15px',
                     zIndex: 15,
                     position: 'absolute',
                     bottom: 0,
                     left: 0,
                   }}
                 >
-                  <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-                    {controls}
+                  <div 
+                    style={{ 
+                      width: '100%', 
+                      //maxWidth: '400px',
+                      background: 'rgba(255, 255, 255, 0.3)',
+                      borderRadius: '6px',
+                      padding: '9px',
+                      border: '1px solid rgba(255, 255, 255, 0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                  >
+                    {/* Play Button */}
+                    <button
+                      onClick={onPlayPause}
+                      style={{
+                        background: '#ffffff',
+                        border: 'none',
+                        borderRadius: '3px',
+                        padding: '3px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minWidth: '15px',
+                        minHeight: '15px'
+                      }}
+                    >
+                      {isPlaying ? (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M6 4H10V20H6V4ZM14 4H18V20H14V4Z" fill="#181A1A"/>
+                        </svg>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M8 5V19L19 12L8 5Z" fill="#181A1A"/>
+                        </svg>
+                      )}
+                    </button>
+                    
+                    {/* Progress Bar */}
+                    <div 
+                      style={{
+                        flex: 1,
+                        height: '6px',
+                        background: '#f5f6f7',
+                        borderRadius: '3px',
+                        position: 'relative',
+                        cursor: 'pointer'
+                      }}
+                      className="progress-bar-container"
+                      onMouseDown={(e) => {
+                        if (onSeek && duration > 0) {
+                          const progressBar = e.currentTarget;
+                          const rect = progressBar.getBoundingClientRect();
+                          const startX = e.clientX - rect.left;
+                          const startPercentage = Math.max(0, Math.min(1, startX / rect.width));
+                          const startTime = startPercentage * duration;
+                          
+                          // Handle the initial click immediately
+                          onSeek(startTime);
+                          
+                          const handleMouseMove = (moveEvent: MouseEvent) => {
+                            // Calculate position relative to the original rect for better performance
+                            const clickX = moveEvent.clientX - rect.left;
+                            const rawPercentage = clickX / rect.width;
+                            const percentage = Math.max(0, Math.min(1, rawPercentage));
+                            const newTime = percentage * duration;
+                            
+                            // Debug logging (you can remove this later)
+                            console.log('Scrub:', {
+                              clickX,
+                              width: rect.width,
+                              rawPercentage: rawPercentage.toFixed(4),
+                              percentage: percentage.toFixed(4),
+                              newTime: newTime.toFixed(2),
+                              duration
+                            });
+                            
+                            onSeek(newTime);
+                          };
+
+                          const handleMouseUp = () => {
+                            document.removeEventListener('mousemove', handleMouseMove);
+                            document.removeEventListener('mouseup', handleMouseUp);
+                          };
+
+                          // Use standard event listeners for better cross-browser compatibility
+                          document.addEventListener('mousemove', handleMouseMove);
+                          document.addEventListener('mouseup', handleMouseUp);
+                        }
+                      }}
+                    >
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          height: '100%',
+                          background: '#CCC19E',
+                          borderRadius: '3px',
+                          width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Time Display */}
+                    <div 
+                      style={{
+                        fontFamily: 'Roboto, sans-serif',
+                        fontWeight: 'bold',
+                        fontSize: '9px',
+                        color: 'white',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.9px',
+                        whiteSpace: 'nowrap',
+                        minWidth: '60px',
+                        textAlign: 'right'
+                      }}
+                    >
+                      {formatTime(currentTime)} / {formatTime(duration)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -181,11 +367,13 @@ export default function CoreVideoPlayer({
           --vp-panel-green: #22c55e;
           --vp-tab-active: #22c55e;
           --vp-tab-inactive: #222;
+          --vp-panel-icon-active-bg: #c0c9cc;
         }
         [data-theme='dark'] {
           --vp-panel-green: #22c55e;
           --vp-tab-active: #22c55e;
           --vp-tab-inactive: #eee;
+          --vp-panel-icon-active-bg: #c0c9cc;
         }
         .vp-btn {
           background: var(--vp-button-bg);
@@ -206,6 +394,17 @@ export default function CoreVideoPlayer({
           scrollbar-width: none;
           -ms-overflow-style: none;
         }
+        .progress-bar-container::before {
+          content: '';
+          position: absolute;
+          top: -8px;
+          bottom: -8px;
+          left: -8px;
+          right: -8px;
+          cursor: pointer;
+          z-index: 1;
+        }
+        
         .vp-dropdown-anim {
           opacity: 0;
           transform: translateY(-8px);

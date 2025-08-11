@@ -310,7 +310,7 @@ function ResultsTabs({
   const renderAngleComparisonChart = () => (
     <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Angle Comparison Over Time</h3>
+        <h3 style={{ fontSize: 18, paddingBottom: '6px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Angle Comparison Over Time</h3>
         <InfoTooltip content="Shows how your joint angles compare to the reference video over time. Click on the chart to jump to that moment in your video. The vertical line shows your current video position.">
           <span
             style={{
@@ -388,7 +388,7 @@ function ResultsTabs({
       <div style={{ background: 'var(--results-chart-tooltip-bg)', color: 'var(--results-chart-tooltip-text)', borderRadius: 8, padding: 10, fontSize: 13, fontWeight: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}>
         <div style={{ fontWeight: 700, fontSize: 13 }}>{info.label}</div>
         <div style={{ fontSize: 12, color: 'var(--results-chart-tooltip-text)', marginBottom: 4 }}>{info.desc}</div>
-        <div style={{ fontWeight: 500, fontSize: 15 }}>Score: {typeof score === 'number' ? score.toFixed(2) : score}</div>
+        <div style={{ fontWeight: 700, fontSize: 12 }}>Score: {typeof score === 'number' ? score.toFixed(2) : score}</div>
       </div>
     );
   }
@@ -396,7 +396,7 @@ function ResultsTabs({
   // Add near radarMetricDescriptions:
   const radarShortLabels: Record<string, string> = {
     dtw_score: 'DTW',
-    cosine_score: 'Cosine',
+    cosine_score: 'Cos',
     rom_score: 'ROM',
     basic_score: 'Score',
   };
@@ -405,7 +405,7 @@ function ResultsTabs({
     const shortLabel = radarShortLabels[payload.value] || payload.value.replace(/_/g, ' ');
     let dx = 0, dy = 0;
     // Padding logic for each axis
-    if (payload.value === 'cosine_score') dx = 22; // right axis, move right
+    if (payload.value === 'cosine_score') dx = 16; // right axis, move right
     if (payload.value === 'basic_score') dx = -20; // left axis, move left
     if (payload.value === 'rom_score') dy = 16; // bottom axis, move up
     if (payload.value === 'dtw_score') dy = -16; // top axis, move down
@@ -429,7 +429,7 @@ function ResultsTabs({
   const renderRadarChart = () => (
     <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Performance Radar</h3>
+        <h3 style={{ fontSize: 18, paddingBottom: '6px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Performance Radar</h3>
         <InfoTooltip content="Overall performance metrics across different analysis methods. Larger areas indicate better performance. This gives you a quick visual overview of your movement quality.">
           <span
             style={{
@@ -468,7 +468,7 @@ function ResultsTabs({
           <Tooltip 
             content={<RadarTooltipContent />}
             contentStyle={{ background: 'var(--results-chart-tooltip-bg)', color: 'var(--results-chart-tooltip-text)', border: 'none', borderRadius: 8, fontSize: '13px', fontWeight: 400 }}
-            itemStyle={{ fontSize: '13px', fontWeight: 400 }}
+            itemStyle={{ fontSize: '12px', fontWeight: 400 }}
             labelStyle={{ color: 'var(--results-chart-tooltip-text)', fontSize: '11px', fontWeight: 700 }}
             cursor={{ stroke: 'var(--results-chart-cursor)', strokeWidth: 2 }}
           />
@@ -480,7 +480,7 @@ function ResultsTabs({
   const renderJointAnalysisChart = () => (
     <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Advanced Joint Analysis</h3>
+        <h3 style={{ fontSize: 18, paddingBottom: '6px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Advanced Joint Analysis</h3>
         <InfoTooltip content="Detailed analysis of each joint using multiple metrics: DTW Pattern (movement similarity), Cosine Similarity (angle patterns), Range of Motion (flexibility), and Basic Score (overall accuracy).">
           <span
             style={{
@@ -531,7 +531,7 @@ function ResultsTabs({
     return (
       <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-          <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Balance & Stability</h3>
+          <h3 style={{ fontSize: 18, paddingBottom: '6px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Balance & Stability</h3>
           <InfoTooltip content="Measures your balance and stability during the exercise. Higher scores indicate better control and less sway. Most relevant for exercises requiring balance like squats or single-leg movements.">
             <span
               style={{
@@ -551,10 +551,10 @@ function ResultsTabs({
             </span>
           </InfoTooltip>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <span className="text-onyx-30">Stability Score:</span>
+              <span className="text-onyx-30 text-xs font-medium">Stability Score:</span>
               <InfoTooltip content="How steady you maintained your position throughout the exercise. Higher scores mean less unwanted movement.">
                 <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
               </InfoTooltip>
@@ -563,7 +563,7 @@ function ResultsTabs({
           </div>
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <span className="text-onyx-30">Symmetry Score:</span>
+              <span className="text-onyx-30 text-xs font-medium">Symmetry Score:</span>
               <InfoTooltip content="How balanced your movement was between left and right sides. Higher scores indicate more symmetrical movement.">
                 <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
               </InfoTooltip>
@@ -572,12 +572,12 @@ function ResultsTabs({
           </div>
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <span className="text-onyx-30">Sway Variance:</span>
+              <span className="text-onyx-30 text-xs font-medium">Sway Variance:</span>
               <InfoTooltip content="A measure of how much your center of mass moved during the exercise. Lower values indicate better balance control.">
                 <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
               </InfoTooltip>
             </div>
-            <span className="font-medium">{advancedAnalysis.balance_metrics.sway_metrics?.variance ? advancedAnalysis.balance_metrics.sway_metrics.variance.toFixed(2) : '0.00'}</span>
+            <span className="font-bold">{advancedAnalysis.balance_metrics.sway_metrics?.variance ? advancedAnalysis.balance_metrics.sway_metrics.variance.toFixed(2) : '0.00'}</span>
           </div>
         </div>
       </div>
@@ -771,7 +771,7 @@ function ResultsTabs({
             {/* Overall Feedback */}
             <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Overall Feedback</h3>
+                <h3 style={{ fontSize: 21, fontWeight: 300, color: 'var(--results-summary-title)' }}>Overall Feedback</h3>
                 <InfoTooltip content="Your overall performance score and grade based on how well your joint angles matched the reference video. The advanced score uses more sophisticated analysis methods.">
                   <span
                     style={{
@@ -846,7 +846,7 @@ function ResultsTabs({
             <div className="bg-var(--results-summary-bg) rounded-lg shadow p-6" style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}
             >
               <div className="flex items-center gap-2 mb-4">
-                <h3 style={{ fontSize: 21, fontWeight: 500, color: 'var(--results-summary-title)' }}>Joint-by-Joint Feedback</h3>
+                <h3 style={{ fontSize: 21, fontWeight: 300, color: 'var(--results-summary-title)' }}>Joint-by-Joint Feedback</h3>
                 <InfoTooltip content="Detailed feedback for each joint showing your score and average angle difference from the reference. Green scores (80%+) are excellent, yellow (60-79%) need improvement, red (below 60%) need significant work.">
                   <span
                     style={{
@@ -1114,7 +1114,7 @@ function SessionSummaryTab({
       {/* Session Summary Card */}
       <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-          <h3 style={{ fontSize: 21, fontWeight: 500, marginBottom: 0, color: 'var(--results-summary-title)' }}>Motion Summary</h3>
+          <h3 style={{ fontSize: 21, fontWeight: 300, marginBottom: 0, color: 'var(--results-summary-title)' }}>Motion Summary</h3>
           <InfoTooltip content="Overview analysis of your body's movements, with key performance metrics and highlights.">
             <span
               style={{
@@ -1134,39 +1134,39 @@ function SessionSummaryTab({
             </span>
           </InfoTooltip>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 6 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 27, fontWeight: 700 }}>{sessionStats.overallScore}%</div>
+            <div style={{ fontSize: 18, fontWeight: 500 }}>{sessionStats.overallScore}%</div>
             <div style={{ fontSize: 12, opacity: 0.9 }}>Overall Score</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 27, fontWeight: 700 }}>{sessionStats.grade}</div>
+            <div style={{ fontSize: 18, fontWeight: 500 }}>{sessionStats.grade}</div>
             <div style={{ fontSize: 12, opacity: 0.9 }}>Grade</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 27, fontWeight: 700 }}>{sessionStats.repCount}</div>
+            <div style={{ fontSize: 18, fontWeight: 500 }}>{sessionStats.repCount}</div>
             <div style={{ fontSize: 12, opacity: 0.9 }}>Repetitions</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 27, fontWeight: 700 }}>{typeof sessionStats.balanceScore === 'number' ? sessionStats.balanceScore.toFixed(2) : sessionStats.balanceScore}%</div>
+            <div style={{ fontSize: 18, fontWeight: 500 }}>{typeof sessionStats.balanceScore === 'number' ? sessionStats.balanceScore.toFixed(2) : sessionStats.balanceScore}%</div>
             <div style={{ fontSize: 12, opacity: 0.9 }}>Balance</div>
           </div>
         </div>
-        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
-          <div style={{ background: 'var(--results-summary-info-bg)', color: 'var(--results-summary-info-text)', borderRadius: 8, padding: 12 }}>
-            <div className="text-sm opacity-90">Best Joint</div>
-            <div className="font-semibold">{sessionStats.bestJoint?.replace(/([A-Z])/g, ' $1').trim()}</div>
+        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+          <div style={{ background: 'var(--results-summary-info-bg)', color: 'var(--results-summary-info-text)', borderRadius: 6, padding: 12 }}>
+            <div className="text-xs opacity-90">Best Joint</div>
+            <div className="text-sm font-semibold">{sessionStats.bestJoint?.replace(/([A-Z])/g, ' $1').trim()}</div>
           </div>
-          <div style={{ background: 'var(--results-summary-info-bg)', color: 'var(--results-summary-info-text)', borderRadius: 8, padding: 12 }}>
-            <div className="text-sm opacity-90">Needs Work</div>
-            <div className="font-semibold">{sessionStats.worstJoint?.replace(/([A-Z])/g, ' $1').trim()}</div>
+          <div style={{ background: 'var(--results-summary-info-bg)', color: 'var(--results-summary-info-text)', borderRadius: 6, padding: 12 }}>
+            <div className="text-xs opacity-90">Needs Work</div>
+            <div className="text-sm font-semibold">{sessionStats.worstJoint?.replace(/([A-Z])/g, ' $1').trim()}</div>
           </div>
         </div>
       </div>
       {/* Quick Actions */}
       <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-          <h3 style={{ fontSize: 21, fontWeight: 500, marginBottom: '6px', color: 'var(--results-summary-title)' }}>Quick Actions</h3>
+          <h3 style={{ fontSize: 21, fontWeight: 300, marginBottom: '6px', color: 'var(--results-summary-title)' }}>Quick Actions</h3>
           <InfoTooltip content="Quick actions to download, share, or retry your workout session.">
             <span className="text-onyx-30 hover:text-onyx-20 cursor-help"
                           style={{
@@ -1185,14 +1185,14 @@ function SessionSummaryTab({
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
           <button 
             onClick={() => setIsAssetModalOpen(true)}
-            className="px-4 py-2 border-2 rounded-md font-medium text-sm hover:bg-purple-600 transition"
+            className="px-2 py-2 border-2 rounded-md font-medium text-xs hover:bg-purple-600 transition"
             style={{ background: 'transparent', borderColor: '#2CFF05', color: '--primary-button-text' , cursor: 'pointer' }}
           >
-            Create Shareable Asset
+            Shareable Graphic
           </button>
           <button
             onClick={downloadMotionData}
-            className={`px-4 py-2 border-2 rounded-md font-medium text-sm hover:bg-green-600 transition${!poses || poses.length === 0 ? ' opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-2 py-2 border-2 rounded-md font-medium text-xs hover:bg-green-600 transition${!poses || poses.length === 0 ? ' opacity-50 cursor-not-allowed' : ''}`}
             style={{ background: 'transparent', borderColor: '#D805FF', color: '--primary-button-text' , cursor: 'pointer' }}
             disabled={!poses || poses.length === 0}
           >
@@ -1200,7 +1200,7 @@ function SessionSummaryTab({
           </button>
           <button 
             onClick={() => window.location.reload()}
-            className="px-4 py-2 border-2 rounded-md font-medium text-sm hover:bg-blue-600 transition"
+            className="px-2 py-2 border-2 rounded-md font-medium text-xs hover:bg-blue-600 transition"
             style={{ background: 'transparent', borderColor: '#5B05FF', color: '--primary-button-text' , cursor: 'pointer' }}
           >
             Try Again
@@ -1229,9 +1229,9 @@ export default function ResultsPage() {
   const videoUrl = searchParams.get("video");
   const videoDuration = searchParams.get("duration");
 
-  console.log('Results page - videoUrl:', videoUrl);
-  console.log('Results page - videoDuration:', videoDuration);
-  console.log('Results page - parsed duration:', videoDuration ? parseFloat(videoDuration) : undefined);
+//  console.log('Results page - videoUrl:', videoUrl);
+//  console.log('Results page - videoDuration:', videoDuration);
+//  console.log('Results page - parsed duration:', videoDuration ? parseFloat(videoDuration) : undefined);
 
   // State
   const [exercise, setExercise] = useState<Exercise | null>(null);
@@ -1500,7 +1500,6 @@ export default function ResultsPage() {
       setAdvancedAnalysis(result);
       
     } catch (error) {
-      console.error('Advanced analysis failed:', error);
       setAdvancedAnalysisError(error instanceof Error ? error.message : 'Analysis failed');
     } finally {
       setIsLoadingAdvanced(false);

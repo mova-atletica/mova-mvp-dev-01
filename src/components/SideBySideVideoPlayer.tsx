@@ -68,7 +68,7 @@ export default function SideBySideVideoPlayer({
     return (
       <div className={`w-full ${className}`} style={maxHeight ? { maxHeight } : {}}>
         {/* Toggle Controls */}
-        <div className="flex items-center space-x-2 mb-4 px-2">
+        <div className="flex items-center space-x-2 mb-4 px-0">
           <ToggleGroup.Root
             type="single"
             value={viewMode}
@@ -112,12 +112,12 @@ export default function SideBySideVideoPlayer({
     <div className={`w-full ${className}`} style={maxHeight ? { maxHeight } : undefined}>
       {/* Toggle Controls */}
       <div 
-        className="flex items-center justify-between mb-4 px-2"
+        className="flex items-center justify-between mb-4 px-0"
       >
         <div className="flex items-center space-x-4">
           <button
             onClick={toggleViewMode}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            className="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors text-sm"
           >
             Switch to Single View
           </button>
@@ -130,7 +130,7 @@ export default function SideBySideVideoPlayer({
         <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
           {/* User Video */}
           <div className="w-full flex flex-col">
-            <div className="text-sm font-semibold text-gray-700 mb-2 px-2">Your Video</div>
+            <div className="text-xs font-medium color: 'var(--results-summary-title)' mb-2 px-0">Your Video</div>
             <div>
               <VideoPlayer
                 ref={userVideoRef}
@@ -145,7 +145,7 @@ export default function SideBySideVideoPlayer({
 
           {/* Reference Video */}
           <div className="w-full flex flex-col">
-            <div className="text-sm font-semibold text-gray-700 mb-2 px-2">Reference Video</div>
+            <div className="text-xs font-medium color: 'var(--results-summary-title)' mb-2 px-0">Reference Video</div>
             <div>
               <VideoPlayer
                 videoUrl={referenceVideoUrl || ""}

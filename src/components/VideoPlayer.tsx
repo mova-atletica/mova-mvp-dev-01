@@ -77,8 +77,6 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   duration: propDuration
 }, ref) {
   
-  console.log('VideoPlayer - propDuration:', propDuration);
-  console.log('VideoPlayer - videoUrl:', videoUrl);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { theme } = useTheme();
@@ -111,8 +109,8 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   const [jointSize, setJointSize] = useState<number>(4);
   const [videoVisible, setVideoVisible] = useState(true);
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
-  const [advancedTab, setAdvancedTab] = useState<'selection' | 'style' | 'actions'>('selection');
-  const [openMenu, setOpenMenu] = useState<null | 'export' | 'selection' | 'style' | 'actions'>(null);
+  const [advancedTab, setAdvancedTab] = useState<'focus' | 'style' | 'biomechanics'>('focus');
+  const [openMenu, setOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus'>(null);
 
   // Detect mobile
   useEffect(() => {
@@ -140,7 +138,6 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     });
     
     setDuration(propDuration || video.duration);
-    console.log('VideoPlayer - Setting duration:', propDuration || video.duration, 'propDuration:', propDuration, 'video.duration:', video.duration);
     setIsLoading(false);
   }, [propDuration]);
 
@@ -639,51 +636,8 @@ const videoElement = (
   // Overlays (e.g., feedback, angles) - currently handled by canvas drawing, so pass null
   const overlays = null;
 
-  // Controls bar (playback controls only - removed advanced panel trigger)
-  const controls = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 0', minWidth: '260px' }}>
-      {/* Play/Pause Button */}
-      <button
-        onClick={togglePlay}
-        className="text-white hover:text-gray-300 transition-colors"
-        aria-label={isPlaying ? 'Pause' : 'Play'}
-      >
-        {isPlaying ? (
-          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-          </svg>
-        )}
-      </button>
-      {/* Progress Bar */}
-      <div className="flex-1" style={{ minWidth: '120px' }}>
-        <input
-          type="range"
-          min="0"
-          max={duration || 0}
-          value={currentTime}
-          step="0.1"
-          onChange={(e) => seekTo(parseFloat((e.target as HTMLInputElement).value))}
-          className="w-full h-2 rounded-lg appearance-none cursor-pointer slider"
-          style={{
-            background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${(currentTime / (duration || 1)) * 100}%, var(--vp-slider-bg, #353839) ${(currentTime / (duration || 1)) * 100}%, var(--vp-slider-bg, #353839) 100%)`,
-            border: 'none',
-            outline: 'none',
-            height: '6px',
-            margin: 0,
-            padding: 0,
-          }}
-        />
-      </div>
-      {/* Time Display */}
-      <div className="text-white text-sm whitespace-nowrap" style={{ minWidth: '80px', textAlign: 'right' }}>
-        {formatTime(currentTime)} / {formatTime(duration)}
-      </div>
-    </div>
-  );
+  // Controls are now handled by CoreVideoPlayer's built-in play bar
+  const controls = null;
 
   // --- Panel Content for Each Menu ---
       const selectionPanel = (
@@ -920,7 +874,7 @@ const videoElement = (
   );
       const actionsPanel = (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '0px' }}>Actions</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '0px' }}>Biomechanics</div>
       {/* Skeleton Toggle, Angles Toggle, Video Toggle */}
       <button
         onClick={() => setShowKeypoints(!showKeypoints)}
@@ -961,9 +915,9 @@ const videoElement = (
 
   // --- Panel Content Switch ---
   let panelContent: React.ReactNode = null;
-  if (openMenu === 'selection') panelContent = selectionPanel;
+  if (openMenu === 'focus') panelContent = selectionPanel; // Changed from 'selection'
   else if (openMenu === 'style') panelContent = stylePanel;
-  else if (openMenu === 'actions') panelContent = actionsPanel;
+  else if (openMenu === 'biomechanics') panelContent = actionsPanel; // Changed from 'actions'
   else if (openMenu === 'export') panelContent = exportPanel;
 
   return (
@@ -982,6 +936,11 @@ const videoElement = (
       openMenu={openMenu}
       setOpenMenu={setOpenMenu}
       panelContent={panelContent}
+      currentTime={currentTime}
+      duration={duration}
+      isPlaying={isPlaying}
+      onPlayPause={togglePlay}
+      onSeek={seekTo}
     />
   );
 });

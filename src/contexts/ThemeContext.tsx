@@ -151,7 +151,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--vp-panel-border', '#353839');
       root.style.setProperty('--vp-panel-divider', '#353839');
       root.style.setProperty('--vp-panel-icon-bg', '#353839');
-      root.style.setProperty('--vp-panel-icon-active-bg', '#F97316');
+      root.style.setProperty('--vp-panel-icon-active-bg', '#c0c9cc');
       root.style.setProperty('--vp-panel-icon', '#eef0f1');
       root.style.setProperty('--vp-panel-icon-active', '#fff');
       root.style.setProperty('--vp-panel-icon-border', '#C0C9CC');
@@ -334,7 +334,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--vp-panel-border', '#c0c9cc');
       root.style.setProperty('--vp-panel-divider', '#e5e7eb');
       root.style.setProperty('--vp-panel-icon-bg', '#F3F4F5');
-      root.style.setProperty('--vp-panel-icon-active-bg', '#F97316');
+      root.style.setProperty('--vp-panel-icon-active-bg', '#c0c9cc');
       root.style.setProperty('--vp-panel-icon', '#353839');
       root.style.setProperty('--vp-panel-icon-active', '#fff');
       root.style.setProperty('--vp-panel-icon-border', '#c0c9cc');
