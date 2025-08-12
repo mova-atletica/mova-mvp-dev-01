@@ -165,9 +165,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--accordion-shadow', '0 1px 3px 0 rgba(0, 0, 0, 0.3)');
       root.style.setProperty('--accordion-shadow-hover', '0 0px 0px 0px rgba(0, 0, 0, 0.4)');
       // Tooltip (Dark Mode)
-      root.style.setProperty('--tooltip-bg', '#23272e'); // dark background
+      root.style.setProperty('--tooltip-bg', '#353839'); // dark background
       root.style.setProperty('--tooltip-text', '#eef0f1'); // light text
-      root.style.setProperty('--tooltip-border', '#55595b'); // subtle border
+      root.style.setProperty('--tooltip-border', '#D7D8D9'); // subtle border
       root.style.setProperty('--tooltip-shadow', '0 4px 24px 0 rgba(0,0,0,0.45)');
       // Results Page Tabs (Dark)
       root.style.setProperty('--results-tab-bg-active', '#353839');
@@ -248,7 +248,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--secondary-button-text', '#181a1a'); // ap-100
       root.style.setProperty('--secondary-button-hover-bg', '#c0c9cc'); // onyx-50
       root.style.setProperty('--secondary-button-hover-text', '#353839');
-      root.style.setProperty('--primary-button-border', '#transparent'); // onyx-90
+      root.style.setProperty('--primary-button-border', 'transparent'); // onyx-90
       root.style.setProperty('--primary-button-hover-border', 'transparent'); // ap-100
       root.style.setProperty('--secondary-button-border', '#353839'); // onyx-60
       root.style.setProperty('--secondary-button-hover-border', '#777d7f'); // onyx-70

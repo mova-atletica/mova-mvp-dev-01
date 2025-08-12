@@ -9,7 +9,7 @@ import LiveVideoPlayer from '../../../components/LiveVideoPlayer';
 import { Exercise } from '../../../data/exercises';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import * as Dialog from '@radix-ui/react-dialog';
-import * as Tooltip from '@radix-ui/react-tooltip';
+import InfoTooltip from '../../../components/InfoTooltip';
 
 export type PracticeTabProps = { 
   exercise: Exercise; 
@@ -1065,9 +1065,17 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
       video.addEventListener('pause', handlePause);
 
       return () => {
-        video.removeEventListener('timeupdate', handleTimeUpdate);
-        video.removeEventListener('play', handlePlay);
-        video.removeEventListener('pause', handlePause);
+        // Add null check to prevent errors during cleanup
+        const videoElement = videoRef.current;
+        if (videoElement) {
+          try {
+            videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+            videoElement.removeEventListener('play', handlePlay);
+            videoElement.removeEventListener('pause', handlePause);
+          } catch (error) {
+            // Silently handle any cleanup errors
+          }
+        }
       };
     }, []);
 
@@ -1151,43 +1159,17 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
   };
 
   return (
-    <Tooltip.Provider>
       <div className="p-0 border-0 border-red-500">
         
         <div className="text-left border-0 pt-4">
           <div className="flex items-center gap-2 mb-2">
             <h2 className="text-xl font-medium">Test Your Form</h2>
-            <Tooltip.Root delayDuration={150}>
-              <Tooltip.Trigger asChild>
-                <button
-                  aria-label="Recording Guidelines"
-                  className="ml-1 p-1 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  style={{ verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" />
-                    <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" />
-                    <circle cx="12" cy="16" r="1" fill="currentColor" />
-                  </svg>
-                </button>
-              </Tooltip.Trigger>
-              <Tooltip.Portal>
-                <Tooltip.Content
-                  side="top"
-                  align="center"
-                  className="z-50 max-w-[180px] break-words rounded-lg bg-white dark:bg-gray-900 p-4 shadow-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200"
-                  style={{ fontSize: 12, maxWidth: '201px' }}
-                >
-                  <div className="font-semibold mb-2">Recording Guidelines</div>
-                  <ul className="list-disc pl-4 space-y-1" style={{ paddingLeft: '12px' }}>
-                    <li>Make sure your <b>full body is in frame</b> – especially ensuring that the joints of interest are clearly visible and in frame.</li>
-                    <li><b>Good lighting</b></li>
-                    <li><b>Good color contrast</b> between clothes and background</li>
-                  </ul>
-                  <Tooltip.Arrow className="fill-white" />
-                </Tooltip.Content>
-              </Tooltip.Portal>
-            </Tooltip.Root>
+            <InfoTooltip 
+              content="Recording Guidelines: Make sure your full body is in frame – especially ensuring that the joints of interest are clearly visible and in frame. Good lighting and good color contrast between clothes and background."
+              side="top"
+              align="center"
+              maxWidth="280px"
+            />
           </div>
           <p className="text-onyx-30 text-sm  mb-4">
             Compare and analyze your form to the reference video by either uploading a video or live-recording a video of yourself performing the movement(s).
@@ -1196,7 +1178,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
             <Dialog.Root open={showLiveModal} onOpenChange={setShowLiveModal}>
               <Dialog.Trigger asChild>
                 <button
-                  className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                  className="px-2 py-2 rounded-md font-medium text-xs transition cursor-pointer"
                   style={{
                     background: 'var(--secondary-button-bg)',
                     color: 'var(--secondary-button-text)',
@@ -1249,7 +1231,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
               </Dialog.Portal>
             </Dialog.Root>
             <label
-              className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+              className="px-2 py-2 rounded-md font-medium text-xs transition cursor-pointer"
               style={{
                 background: 'var(--primary-button-bg)',
                 color: 'var(--primary-button-text)',
@@ -1442,9 +1424,9 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
                     <div className="relative w-full" style={{ maxHeight: '60vh' }}>
                     {!isAnalyzing ? (
                       // Show video when not analyzing
-                      liveRecordingDuration ? (
+                      liveRecordingDuration && liveRecordingUrl ? (
                         <LiveRecordingVideo 
-                          src={liveRecordingUrl || ''} 
+                          src={liveRecordingUrl} 
                           duration={liveRecordingDuration} 
                         />
                       ) : (
@@ -1563,7 +1545,6 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
           </Dialog.Portal>
         </Dialog.Root>
       </div>
-    </Tooltip.Provider>
   );
 } 
 

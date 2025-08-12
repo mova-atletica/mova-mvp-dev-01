@@ -364,35 +364,74 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
   // Recording functions
   const startRecording = () => {
     if (webcamRef.current && webcamRef.current.stream) {
-      const recorder = new MediaRecorder(webcamRef.current.stream, { mimeType: "video/webm" });
-      const chunks: Blob[] = [];
-      const startTime = Date.now(); // Store start time in a local variable
+      // Safari-compatible MIME type detection
+      const mimeType = MediaRecorder.isTypeSupported('video/webm') 
+        ? 'video/webm' 
+        : MediaRecorder.isTypeSupported('video/mp4') 
+        ? 'video/mp4' 
+        : 'video/webm'; // fallback
       
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
+      try {
+        const recorder = new MediaRecorder(webcamRef.current.stream, { mimeType });
+        const chunks: Blob[] = [];
+        const startTime = Date.now(); // Store start time in a local variable
+        
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            chunks.push(e.data);
+          }
+        };
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: mimeType });
+          //console.log('Recording stopped, blob size:', blob.size);
+          
+          // Calculate actual recording duration using the local startTime variable
+          const endTime = Date.now();
+          const actualDuration = (endTime - startTime) / 1000; // Convert to seconds
+          //console.log('Actual recording duration:', actualDuration, 'seconds');
+          
+          const url = URL.createObjectURL(blob);
+          //console.log('LiveVideoPlayer: calling onRecordingComplete with URL:', url, 'duration:', actualDuration);
+          onRecordingComplete(url, actualDuration);
+          setRecording(false);
+          setRecordingStartTime(null);
+          setRecordingDuration(actualDuration);
+        };
+        recorder.start();
+        setMediaRecorder(recorder);
+        setRecording(true);
+        setRecordingStartTime(startTime);
+      } catch (error) {
+        console.error('Failed to start recording:', error);
+        // Fallback: try without specifying MIME type
+        try {
+          const recorder = new MediaRecorder(webcamRef.current.stream);
+          const chunks: Blob[] = [];
+          const startTime = Date.now();
+          
+          recorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+              chunks.push(e.data);
+            }
+          };
+          recorder.onstop = () => {
+            const blob = new Blob(chunks);
+            const endTime = Date.now();
+            const actualDuration = (endTime - startTime) / 1000;
+            const url = URL.createObjectURL(blob);
+            onRecordingComplete(url, actualDuration);
+            setRecording(false);
+            setRecordingStartTime(null);
+            setRecordingDuration(actualDuration);
+          };
+          recorder.start();
+          setMediaRecorder(recorder);
+          setRecording(true);
+          setRecordingStartTime(startTime);
+        } catch (fallbackError) {
+          console.error('Recording not supported in this browser:', fallbackError);
         }
-      };
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "video/webm" });
-        //console.log('Recording stopped, blob size:', blob.size);
-        
-        // Calculate actual recording duration using the local startTime variable
-        const endTime = Date.now();
-        const actualDuration = (endTime - startTime) / 1000; // Convert to seconds
-        //console.log('Actual recording duration:', actualDuration, 'seconds');
-        
-        const url = URL.createObjectURL(blob);
-        //console.log('LiveVideoPlayer: calling onRecordingComplete with URL:', url, 'duration:', actualDuration);
-        onRecordingComplete(url, actualDuration);
-        setRecording(false);
-        setRecordingStartTime(null);
-        setRecordingDuration(actualDuration);
-      };
-      recorder.start();
-      setMediaRecorder(recorder);
-      setRecording(true);
-      setRecordingStartTime(startTime);
+      }
     }
   };
 

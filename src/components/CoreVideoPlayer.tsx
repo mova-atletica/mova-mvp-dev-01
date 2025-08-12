@@ -139,7 +139,7 @@ export default function CoreVideoPlayer({
                   {/* Download Button */}
                   <button
                     style={{
-                      width: 30, height: 30, borderRadius: '50%', background: openMenu === 'export' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'export' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
+                      width: 30, height: 30, borderRadius: 6, background: openMenu === 'export' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'export' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
                     }}
                     onClick={() => setOpenMenu(openMenu === 'export' ? null : 'export')}
                     aria-label="Export"
@@ -150,7 +150,7 @@ export default function CoreVideoPlayer({
                   {/* Biomechanics Button (formerly Actions) */}
                   <button
                     style={{
-                      width: 30, height: 30, borderRadius: '50%', background: openMenu === 'biomechanics' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'biomechanics' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
+                      width: 30, height: 30, borderRadius: 6, background: openMenu === 'biomechanics' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'biomechanics' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
                     }}
                     onClick={() => setOpenMenu(openMenu === 'biomechanics' ? null : 'biomechanics')}
                     aria-label="Biomechanics"
@@ -161,7 +161,7 @@ export default function CoreVideoPlayer({
                   {/* Style Button */}
                   <button
                     style={{
-                      width: 30, height: 30, borderRadius: '50%', background: openMenu === 'style' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'style' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
+                      width: 30, height: 30, borderRadius: 6, background: openMenu === 'style' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'style' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
                     }}
                     onClick={() => setOpenMenu(openMenu === 'style' ? null : 'style')}
                     aria-label="Style"
@@ -172,7 +172,7 @@ export default function CoreVideoPlayer({
                   {/* Focus Selection Button (formerly Selection) */}
                   <button
                     style={{
-                      width: 30, height: 30, borderRadius: '50%', background: openMenu === 'focus' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'focus' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)',
+                      width: 30, height: 30, borderRadius: 6, background: openMenu === 'focus' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'focus' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)',
                     }}
                     onClick={() => setOpenMenu(openMenu === 'focus' ? null : 'focus')}
                     aria-label="Focus Selection"

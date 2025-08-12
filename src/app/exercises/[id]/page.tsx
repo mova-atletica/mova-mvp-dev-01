@@ -239,7 +239,7 @@ export default function ExerciseDetail({ params }: Props) {
               <div className="pt-0" style={{ marginBottom: '12px' , padding: 0}}>
                 <span className="text-xs font-thin" style={{ color: 'var(--accordion-text)' }}>by: </span>
                 {exercise.author.profileUrl ? (
-                  <a href={exercise.author.profileUrl} target="_blank" rel="noopener noreferrer" className="text-onyx-30 hover:text-blue-800 underline text-xs font-medium">
+                  <a href={exercise.author.profileUrl} target="_blank" rel="noopener noreferrer" className="text-onyx-30 underline text-xs font-medium">
                     {exercise.author.name}
                   </a>
                 ) : (

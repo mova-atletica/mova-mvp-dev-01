@@ -310,27 +310,10 @@ function ResultsTabs({
   const renderAngleComparisonChart = () => (
     <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <h3 style={{ fontSize: 18, paddingBottom: '6px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Angle Comparison Over Time</h3>
-        <InfoTooltip content="Shows how your joint angles compare to the reference video over time. Click on the chart to jump to that moment in your video. The vertical line shows your current video position.">
-          <span
-            style={{
-              color: 'var(--results-info-icon)',
-              cursor: 'help',
-              transition: 'color 0.18s',
-              display: 'inline-flex',
-              alignItems: 'center',
-              marginLeft: 6,
-              fontSize: '1em',
-              verticalAlign: 'middle',
-            }}
-            onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
-            onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
-          >
-            ⓘ
-          </span>
-        </InfoTooltip>
+        <h3 style={{ fontSize: 18, paddingBottom: '0px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Angle Comparison Over Time</h3>
+        <InfoTooltip content="Shows how your joint angles compare to the reference video over time. Click on the chart to jump to that moment in your video. The vertical line shows your current video position." />
       </div>
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={400} style={{ paddingTop: 9, paddingBottom: 9 }}>
         <LineChart data={prepareAngleComparisonData()} onClick={handleChartClick} style={{ background: 'var(--results-chart-bg)' }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--results-chart-grid)" />
           <XAxis dataKey="frame" stroke="var(--results-chart-axis)" tick={{ fill: 'var(--results-chart-axis)', fontSize: '13px', fontWeight: 400 }} />
@@ -429,7 +412,7 @@ function ResultsTabs({
   const renderRadarChart = () => (
     <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <h3 style={{ fontSize: 18, paddingBottom: '6px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Performance Radar</h3>
+        <h3 style={{ fontSize: 18, paddingBottom: '0px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Performance Radar</h3>
         <InfoTooltip content="Overall performance metrics across different analysis methods. Larger areas indicate better performance. This gives you a quick visual overview of your movement quality.">
           <span
             style={{
@@ -449,7 +432,7 @@ function ResultsTabs({
           </span>
         </InfoTooltip>
       </div>
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={400} style={{ paddingTop: 9, paddingBottom: 9 }}>
         <RadarChart data={prepareRadarData()} style={{ background: 'var(--results-chart-bg)' }}>
           <PolarGrid stroke="var(--results-chart-grid)" />
           <PolarAngleAxis
@@ -480,27 +463,10 @@ function ResultsTabs({
   const renderJointAnalysisChart = () => (
     <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <h3 style={{ fontSize: 18, paddingBottom: '6px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Advanced Joint Analysis</h3>
-        <InfoTooltip content="Detailed analysis of each joint using multiple metrics: DTW Pattern (movement similarity), Cosine Similarity (angle patterns), Range of Motion (flexibility), and Basic Score (overall accuracy).">
-          <span
-            style={{
-              color: 'var(--results-info-icon)',
-              cursor: 'help',
-              transition: 'color 0.18s',
-              display: 'inline-flex',
-              alignItems: 'center',
-              marginLeft: 6,
-              fontSize: '1em',
-              verticalAlign: 'middle',
-            }}
-            onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
-            onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
-          >
-            ⓘ
-          </span>
-        </InfoTooltip>
+        <h3 style={{ fontSize: 18, paddingBottom: '0px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Advanced Joint Analysis</h3>
+        <InfoTooltip content="Detailed analysis of each joint using multiple metrics: DTW Pattern (movement similarity), Cosine Similarity (angle patterns), Range of Motion (flexibility), and Basic Score (overall accuracy)." />
       </div>
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={400} style={{ paddingTop: 9, paddingBottom: 9 }}>
         <BarChart data={prepareJointScoresData()} style={{ background: 'var(--results-chart-bg)' }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--results-chart-grid)" />
           <XAxis dataKey="joint" stroke="var(--results-chart-axis)" tick={{ fill: 'var(--results-chart-axis)', fontSize: '13px', fontWeight: 400 }} />
@@ -531,33 +497,14 @@ function ResultsTabs({
     return (
       <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-          <h3 style={{ fontSize: 18, paddingBottom: '6px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Balance & Stability</h3>
-          <InfoTooltip content="Measures your balance and stability during the exercise. Higher scores indicate better control and less sway. Most relevant for exercises requiring balance like squats or single-leg movements.">
-            <span
-              style={{
-                color: 'var(--results-info-icon)',
-                cursor: 'help',
-                transition: 'color 0.18s',
-                display: 'inline-flex',
-                alignItems: 'center',
-                marginLeft: 6,
-                fontSize: '1em',
-                verticalAlign: 'middle',
-              }}
-              onMouseOver={e => (e.currentTarget.style.color = 'var(--results-info-icon-hover)')}
-              onMouseOut={e => (e.currentTarget.style.color = 'var(--results-info-icon)')}
-            >
-              ⓘ
-            </span>
-          </InfoTooltip>
+          <h3 style={{ fontSize: 18, paddingBottom: '0px', fontWeight: 300, color: 'var(--results-summary-title)' }}>Balance & Stability</h3>
+          <InfoTooltip content="Measures your balance and stability during the exercise. Higher scores indicate better control and less sway. Most relevant for exercises requiring balance like squats or single-leg movements." />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2" style={{ paddingTop: 9, paddingBottom: 9 }}>
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <span className="text-onyx-30 text-xs font-medium">Stability Score:</span>
-              <InfoTooltip content="How steady you maintained your position throughout the exercise. Higher scores mean less unwanted movement.">
-                <span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span>
-              </InfoTooltip>
+              <InfoTooltip content="How steady you maintained your position throughout the exercise. Higher scores mean less unwanted movement." />
             </div>
             <span className="font-bold">{Math.round(advancedAnalysis.balance_metrics.stability_score || 0)}%</span>
           </div>
@@ -590,7 +537,7 @@ function ResultsTabs({
   return (
     <div className="w-full h-full flex flex-col">
       <div
-        className="flex flex-row flex-wrap items-center justify-start ml-4 mr-2 mb-0"
+        className="flex flex-row flex-wrap items-center justify-start ml-4 mr-0 mb-0"
         style={{
           padding: 6,
           gap: 6,
@@ -905,7 +852,7 @@ function ResultsTabs({
                             <div className="flex justify-between items-center">
                               <div className="flex items-center gap-1">
                                 <span className="text-sm text-onyx-30">Avg Difference:</span>
-                                <InfoTooltip content="Average difference in degrees between your joint angles and the reference video. Lower is better."><span className="text-onyx-30 hover:text-onyx-20 cursor-help text-xs">ⓘ</span></InfoTooltip>
+                                <InfoTooltip content="Average difference in degrees between your joint angles and the reference video. Lower is better." />
                               </div>
                               <span className="font-medium">{typeof avgDiff === 'number' ? avgDiff.toFixed(1) : '0.0'}°</span>
                             </div>
@@ -934,7 +881,7 @@ function ResultsTabs({
                             
                             {/* Joint-specific feedback suggestions */}
                             {jointSuggestions.length > 0 && (
-                              <div className="mt-4" style={{ padding: 6, borderWidth: '1px', borderRadius: 6, borderColor: 'var(--results-summary-border)' }}>
+                              <div className="mt-4" style={{ padding: 6, borderWidth: '0px', borderRadius: 6, borderColor: 'var(--results-summary-border)' }}>
                                 <div className="flex items-center gap-1 mb-2">
                                   <span className="text-sm font-medium" style={{ color: 'var(--results-chart-series-1)' }}>Suggestions:</span>
                                 </div>
@@ -1113,7 +1060,7 @@ function SessionSummaryTab({
     <div className="space-y-4 p-2 ml-0 mr-0 w-full">
       {/* Session Summary Card */}
       <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 0 }}>
           <h3 style={{ fontSize: 21, fontWeight: 300, marginBottom: 0, color: 'var(--results-summary-title)' }}>Motion Summary</h3>
           <InfoTooltip content="Overview analysis of your body's movements, with key performance metrics and highlights.">
             <span
@@ -1134,7 +1081,7 @@ function SessionSummaryTab({
             </span>
           </InfoTooltip>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 6, paddingTop: 9, paddingBottom: 9 }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 500 }}>{sessionStats.overallScore}%</div>
             <div style={{ fontSize: 12, opacity: 0.9 }}>Overall Score</div>
@@ -1166,7 +1113,7 @@ function SessionSummaryTab({
       {/* Quick Actions */}
       <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-          <h3 style={{ fontSize: 21, fontWeight: 300, marginBottom: '6px', color: 'var(--results-summary-title)' }}>Quick Actions</h3>
+          <h3 style={{ fontSize: 21, fontWeight: 300, marginBottom: '0px', color: 'var(--results-summary-title)' }}>Quick Actions</h3>
           <InfoTooltip content="Quick actions to download, share, or retry your workout session.">
             <span className="text-onyx-30 hover:text-onyx-20 cursor-help"
                           style={{
@@ -1182,17 +1129,17 @@ function SessionSummaryTab({
             >ⓘ</span>
           </InfoTooltip>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, paddingTop: 9, paddingBottom: 9 }}>
           <button 
             onClick={() => setIsAssetModalOpen(true)}
-            className="px-2 py-2 border-2 rounded-md font-medium text-xs hover:bg-purple-600 transition"
+            className="px-2 py-2 border-2 rounded-md font-medium text-xs"
             style={{ background: 'transparent', borderColor: '#2CFF05', color: '--primary-button-text' , cursor: 'pointer' }}
           >
             Shareable Graphic
           </button>
           <button
             onClick={downloadMotionData}
-            className={`px-2 py-2 border-2 rounded-md font-medium text-xs hover:bg-green-600 transition${!poses || poses.length === 0 ? ' opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-2 py-2 border-2 rounded-md font-medium text-xs${!poses || poses.length === 0 ? ' opacity-50 cursor-not-allowed' : ''}`}
             style={{ background: 'transparent', borderColor: '#D805FF', color: '--primary-button-text' , cursor: 'pointer' }}
             disabled={!poses || poses.length === 0}
           >
@@ -1200,7 +1147,7 @@ function SessionSummaryTab({
           </button>
           <button 
             onClick={() => window.location.reload()}
-            className="px-2 py-2 border-2 rounded-md font-medium text-xs hover:bg-blue-600 transition"
+            className="px-2 py-2 border-2 rounded-md font-medium text-xs"
             style={{ background: 'transparent', borderColor: '#5B05FF', color: '--primary-button-text' , cursor: 'pointer' }}
           >
             Try Again
