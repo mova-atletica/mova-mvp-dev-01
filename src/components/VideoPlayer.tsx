@@ -12,6 +12,7 @@ interface VideoPlayerProps {
   className?: string;
   keypointData?: any[];
   duration?: number;
+  exercise?: any; // Add exercise data prop
 }
 
 interface VideoMetadata {
@@ -74,7 +75,8 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   onTimeUpdate,
   className = '',
   keypointData = [],
-  duration: propDuration
+  duration: propDuration,
+  exercise // Add exercise prop
 }, ref) {
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -110,7 +112,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   const [videoVisible, setVideoVisible] = useState(true);
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
   const [advancedTab, setAdvancedTab] = useState<'focus' | 'style' | 'biomechanics'>('focus');
-  const [openMenu, setOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus'>(null);
+  const [openMenu, setOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus' | 'analysis'>(null);
 
   // Detect mobile
   useEffect(() => {
@@ -913,12 +915,165 @@ const videoElement = (
     </div>
   );
 
+  // Analysis Panel for recorded videos
+  const analysisPanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '250px' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Exercise Analysis</div>
+      
+      {/* Exercise Type and Classification */}
+      <div style={{ 
+        background: 'var(--vp-dropdown-bg)', 
+        border: '1px solid var(--vp-dropdown-border)', 
+        borderRadius: '4px', 
+        padding: '8px', 
+        marginBottom: '8px' 
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Exercise Classification:</div>
+        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+          Type: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise?.exerciseType || 'Unknown'}</span>
+        </div>
+        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+          Subtype: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise?.exerciseSubtype || 'Unknown'}</span>
+        </div>
+        <div style={{ fontSize: 10, color: '#6b7280' }}>
+          Confidence: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise?.classificationConfidence ? `${(exercise.classificationConfidence * 100).toFixed(1)}%` : 'N/A'}</span>
+        </div>
+      </div>
+
+      {/* Repetition Analysis */}
+      {exercise?.repAnalysis && (
+        <div style={{ 
+          background: 'var(--vp-dropdown-bg)', 
+          border: '1px solid var(--vp-dropdown-border)', 
+          borderRadius: '4px', 
+          padding: '8px', 
+          marginBottom: '8px' 
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Repetition Analysis:</div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Rep Count: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.repAnalysis.repBoundaries?.length || 'N/A'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Duration: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.repAnalysis.repBoundaries?.length ? `${Math.max(...exercise.repAnalysis.repBoundaries.map((r: any) => r.endTime || 0)).toFixed(1)}s` : 'N/A'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Rep Pattern: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.repAnalysis.repetitionPattern || 'N/A'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280' }}>
+            Tempo: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.repAnalysis.tempo || 'N/A'}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Pattern Analysis */}
+      {exercise?.patternAnalysis && (
+        <div style={{ 
+          background: 'var(--vp-dropdown-bg)', 
+          border: '1px solid var(--vp-dropdown-border)', 
+          borderRadius: '4px', 
+          padding: '8px', 
+          marginBottom: '8px' 
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Pattern Analysis:</div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Primary Joints: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.patternAnalysis.primaryJoints?.join(', ') || 'N/A'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Key Angles: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.patternAnalysis.keyAngles?.join(', ') || 'N/A'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Pattern Quality: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.patternAnalysis.patternQuality ? `${(exercise.patternAnalysis.patternQuality * 100).toFixed(1)}%` : 'N/A'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280' }}>
+            Complexity: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.patternAnalysis.complexity || 'N/A'}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Quality Assessment */}
+      {exercise?.analysisQuality && (
+        <div style={{ 
+          background: 'var(--vp-dropdown-bg)', 
+          border: '1px solid var(--vp-dropdown-border)', 
+          borderRadius: '4px', 
+          padding: '8px', 
+          marginBottom: '8px' 
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Quality Assessment:</div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Overall Quality: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.analysisQuality.overallQuality ? `${(exercise.analysisQuality.overallQuality * 100).toFixed(1)}%` : 'N/A'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Pose Confidence: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.analysisQuality.poseConfidence ? `${(exercise.analysisQuality.poseConfidence * 100).toFixed(1)}%` : 'N/A'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Data Completeness: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.analysisQuality.dataCompleteness ? `${(exercise.analysisQuality.dataCompleteness * 100).toFixed(1)}%` : 'N/A'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280' }}>
+            Reliability: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.analysisQuality.reliability ? `${(exercise.analysisQuality.reliability * 100).toFixed(1)}%` : 'N/A'}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Visualization Controls */}
+      <div style={{ 
+        background: 'var(--vp-dropdown-bg)', 
+        border: '1px solid var(--vp-dropdown-border)', 
+        borderRadius: '4px', 
+        padding: '8px', 
+        marginBottom: '8px' 
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Visualization:</div>
+        
+        {/* Keypoint Analysis Toggle */}
+        <button
+          onClick={() => setShowKeypoints(!showKeypoints)}
+          className={`px-3 py-2 rounded text-xs vp-btn flex items-center justify-between w-full ${
+            showKeypoints ? 'bg-blue-600 text-white' : ''
+          }`}
+          style={{ marginBottom: '4px' }}
+        >
+          <span>Keypoint Analysis</span>
+          <span>{showKeypoints ? '🟢' : '⚪'}</span>
+        </button>
+        
+        {/* Angle Analysis Toggle */}
+        <button
+          onClick={() => setShowAngles(!showAngles)}
+          className={`px-3 py-2 rounded text-xs vp-btn flex items-center justify-between w-full ${
+            showAngles ? 'bg-blue-600 text-white' : ''
+          }`}
+          style={{ marginBottom: '4px' }}
+        >
+          <span>Angle Analysis</span>
+          <span>{showAngles ? '🟢' : '⚪'}</span>
+        </button>
+      </div>
+
+      {/* Joints of Interest */}
+      {exercise?.jointsOfInterest && exercise.jointsOfInterest.length > 0 && (
+        <div style={{ 
+          background: 'var(--vp-dropdown-bg)', 
+          border: '1px solid var(--vp-dropdown-border)', 
+          borderRadius: '4px', 
+          padding: '8px' 
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Joints of Interest:</div>
+          <div style={{ fontSize: 10, color: '#6b7280' }}>
+            {exercise.jointsOfInterest.join(', ')}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   // --- Panel Content Switch ---
   let panelContent: React.ReactNode = null;
   if (openMenu === 'focus') panelContent = selectionPanel; // Changed from 'selection'
   else if (openMenu === 'style') panelContent = stylePanel;
   else if (openMenu === 'biomechanics') panelContent = actionsPanel; // Changed from 'actions'
   else if (openMenu === 'export') panelContent = exportPanel;
+  else if (openMenu === 'analysis') panelContent = analysisPanel; // Added analysis panel
 
   return (
     <CoreVideoPlayer

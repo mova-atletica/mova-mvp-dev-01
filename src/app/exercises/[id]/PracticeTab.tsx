@@ -803,11 +803,21 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
   }, [cameraActive, detector, exercise, referenceAngles]);
 
   // Handle recording completion from LiveVideoPlayer
-  const handleRecordingComplete = (videoUrl: string, duration: number) => {
-    console.log('🎬 handleRecordingComplete called with:', videoUrl, duration);
+  const handleRecordingComplete = (videoUrl: string, duration: number, realTimeAnalysisData?: any[]) => {
+    console.log('🎬 handleRecordingComplete called with:', videoUrl, duration, realTimeAnalysisData);
     
     setLiveRecordingUrl(videoUrl);
     setLiveRecordingDuration(duration);
+    
+    // Store real-time analysis data for use in results
+    if (realTimeAnalysisData && realTimeAnalysisData.length > 0) {
+      console.log('📊 Real-time analysis data collected:', realTimeAnalysisData.length, 'frames');
+      // Store in localStorage for access in results page
+      if (typeof window !== "undefined") {
+        localStorage.setItem("realTimeAnalysisData", JSON.stringify(realTimeAnalysisData));
+      }
+    }
+    
     setShowLiveRecordingPreview(true);
     setShowLiveModal(false); // Close the live recording modal
   };

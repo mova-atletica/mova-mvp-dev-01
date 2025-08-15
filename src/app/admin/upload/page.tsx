@@ -15,6 +15,8 @@ import {
 import { Exercise } from '../../../data/exercises';
 // Removed automatic thumbnail generation - using manual image uploads instead
 import { getAngleWithConfidence, getTrunkAngleWithConfidence } from '../../../lib/analysisUtils';
+import { runAnalysisPipeline } from '../../../lib/exerciseAnalysisPipeline';
+import UnifiedExerciseManager from '../../../components/admin/UnifiedExerciseManager';
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "letmein";
 
@@ -27,6 +29,7 @@ export default function AdminUpload() {
   const [processing, setProcessing] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState(0);
   const [showMetadataForm, setShowMetadataForm] = useState(false);
+  const [generatingAnalysis, setGeneratingAnalysis] = useState(false);
 
   // Exercise management state
   const [exercises, setExercises] = useState<any[]>([]);
@@ -46,7 +49,7 @@ export default function AdminUpload() {
     exercises: [] as string[]
   });
   const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
-  const [viewMode, setViewMode] = useState<'upload' | 'manage' | 'curate' | 'featured'>('upload');
+  const [viewMode, setViewMode] = useState<'upload' | 'exercises' | 'curate' | 'featured'>('upload');
 
   // Featured content state
   const [featuredContent, setFeaturedContent] = useState<any[]>([]);
@@ -116,6 +119,36 @@ export default function AdminUpload() {
   // Add state for original referenceVideoUrl
   const [originalReferenceVideoUrl, setOriginalReferenceVideoUrl] = useState<string | null>(null);
 
+  // Function to reset metadata to initial state
+  const resetMetadata = () => {
+    setMetadata({
+      title: "",
+      description: "",
+      level: "beginner",
+      tags: [],
+      equipment: [],
+      muscleGroups: [],
+      jointsOfInterest: [],
+      instructions: [""],
+      authorName: "",
+      authorProfileUrl: "",
+      relatedExercises: [],
+      image: "/images/squat.jpg",
+      referenceVideoUrl: "",
+      referenceKeypointsUrl: "",
+      id: "",
+      createdBy: "",
+      dateAdded: "",
+    });
+    setTagInput("");
+    setEquipmentInput("");
+    setMuscleGroupInput("");
+    setRelatedExerciseInput("");
+    setOriginalReferenceVideoUrl(null);
+    setOriginalExerciseData(null);
+    setKeypoints([]);
+  };
+
   // Add state for original exercise data
   const [originalExerciseData, setOriginalExerciseData] = useState<any>(null);
 
@@ -133,7 +166,27 @@ export default function AdminUpload() {
       const res = await fetch('/api/exercises');
       if (!res.ok) throw new Error('Failed to load exercises');
       const data = await res.json();
-      setExercises(data);
+      
+      // For exercises view, fetch analysis data for each exercise
+      if (viewMode === 'exercises') {
+        const exercisesWithAnalysis = await Promise.all(
+          data.map(async (exercise: any) => {
+            try {
+              const analysisRes = await fetch(`/api/exercises/${exercise.id}/analysis`);
+              if (analysisRes.ok) {
+                const analysisData = await analysisRes.json();
+                return { ...exercise, ...analysisData.exercise };
+              }
+            } catch (error) {
+              console.error(`Error loading analysis for ${exercise.id}:`, error);
+            }
+            return exercise;
+          })
+        );
+        setExercises(exercisesWithAnalysis);
+      } else {
+        setExercises(data);
+      }
     } catch (err) {
       console.error('Error loading exercises:', err);
     }
@@ -615,7 +668,40 @@ export default function AdminUpload() {
       
       if (!res.ok) throw new Error(`Failed to ${isEditMode ? 'update' : 'save'} exercise`);
       
-      alert(`Exercise ${isEditMode ? 'updated' : 'saved'} successfully!`);
+      const savedExercise = await res.json();
+      
+      // Generate analysis data if we have keypoints
+      if (keypoints.length > 0) {
+        setGeneratingAnalysis(true);
+        try {
+          console.log('Generating analysis data...');
+          const analysisResult = await runAnalysisPipeline(
+            keypoints,
+            metadata.title,
+            metadata.jointsOfInterest
+          );
+          
+          // Save analysis data to the database
+          const analysisResponse = await fetch(`/api/exercises/${savedExercise.id}/analysis`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(analysisResult),
+          });
+          
+          if (analysisResponse.ok) {
+            console.log('Analysis data saved successfully');
+          } else {
+            console.warn('Failed to save analysis data, but exercise was saved');
+          }
+        } catch (analysisError) {
+          console.error('Error generating analysis:', analysisError);
+          // Don't fail the exercise save if analysis fails
+        } finally {
+          setGeneratingAnalysis(false);
+        }
+      }
+      
+      alert(`Exercise ${isEditMode ? 'updated' : 'saved'} successfully!${keypoints.length > 0 ? ' Analysis data generated.' : ''}`);
       setShowMetadataForm(false);
       setIsEditMode(false);
       setEditingExercise(null);
@@ -641,8 +727,8 @@ export default function AdminUpload() {
         dateAdded: "",
       });
       
-      // Reload exercises list if in manage mode
-      if (viewMode === 'manage') {
+      // Reload exercises list if in exercises mode
+      if (viewMode === 'exercises') {
         loadExercises();
       }
     } catch (err) {
@@ -1048,6 +1134,10 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
     } else if (viewMode === 'featured') {
       loadExercises();
       loadFeaturedContent();
+    } else if (viewMode === 'exercises') {
+      loadExercises();
+    } else if (viewMode === 'upload') {
+      resetMetadata();
     }
   }, [viewMode]);
 
@@ -1126,15 +1216,15 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
         >
                     Upload Exercise
         </button>
-        <button
-                    onClick={() => setViewMode('manage')}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
-            viewMode === 'manage'
+                <button
+          onClick={() => setViewMode('exercises')}
+          className={`px-4 py-2 rounded-lg font-medium transition ${
+            viewMode === 'exercises'
               ? 'bg-blue-100 text-white'
               : 'bg-onyx-20 text-onyx-10 hover:bg-onyx-30'
           }`}
         >
-                    Manage Exercises
+          Exercise Management
         </button>
         <button
                     onClick={() => setViewMode('curate')}
@@ -1156,6 +1246,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
         >
                     Featured Content
         </button>
+        
         <button
           onClick={() => window.location.href = '/admin/thumbnails'}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition"
@@ -1266,10 +1357,17 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                         <div className="mt-6">
               <button
                             onClick={saveExercise}
-                            disabled={!metadata.title || !metadata.referenceVideoUrl}
-                            className="bg-blue-100 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-90 transition disabled:opacity-50"
+                            disabled={!metadata.title || !metadata.referenceVideoUrl || generatingAnalysis}
+                            className="bg-blue-100 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-90 transition disabled:opacity-50 flex items-center gap-2"
               >
-                            Save Exercise
+                            {generatingAnalysis ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                Generating Analysis...
+                              </>
+                            ) : (
+                              'Save Exercise'
+                            )}
               </button>
             </div>
               </div>
@@ -1277,50 +1375,14 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                   </div>
                 )}
 
-                {viewMode === 'manage' && (
+                {viewMode === 'exercises' && (
                   <div className="bg-onyx-20 rounded-lg p-6">
-                    <h2 className="text-2xl font-bold text-onyx-10 mb-6">Manage Exercises</h2>
-              <div className="grid gap-4">
-                {exercises.map((exercise) => (
-                        <div key={exercise.id} className="bg-white rounded-lg p-4 border border-onyx-30">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-4">
-                              <div className="w-16 h-16 bg-onyx-20 rounded flex items-center justify-center">
-                                {exercise.image && exercise.image !== '/images/squat.jpg' ? (
-                                  <img 
-                                    src={exercise.image} 
-                                    alt={exercise.title} 
-                                    className="w-full h-full object-cover rounded"
-                                  />
-                                ) : (
-                                  <span className="text-onyx-30 text-xs">No Image</span>
-                                )}
-                              </div>
-                              <div>
-                        <h3 className="text-lg font-semibold text-onyx-10">{exercise.title}</h3>
-                                <p className="text-sm text-onyx-30">{exercise.level}</p>
-                        </div>
-                      </div>
-                            <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEditExercise(exercise)}
-                                className="px-4 py-2 bg-blue-100 text-white rounded text-sm hover:bg-blue-90 transition"
-                        >
-                                Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteExercise(exercise.id)}
-                                className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition"
-                        >
-                                Delete
-                        </button>
-                      </div>
-                    </div>
+                    <UnifiedExerciseManager
+                      exercises={exercises}
+                      onExerciseUpdate={loadExercises}
+                    />
                   </div>
-                ))}
-          </div>
-        </div>
-      )}
+                )}
 
       {viewMode === 'curate' && (
                   <div className="bg-onyx-20 rounded-lg p-6">
@@ -1411,6 +1473,8 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
           </div>
         </div>
       )}
+
+
 
           {/* Exercise Metadata Form Modal */}
       {showMetadataForm && (
@@ -1556,7 +1620,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {metadata.tags.map((tag, index) => (
+                      {(Array.isArray(metadata.tags) ? metadata.tags : []).map((tag, index) => (
                         <span key={index} className="bg-onyx-20 text-onyx-10 px-2 py-1 rounded text-sm flex items-center gap-1">
                           {tag}
                         <button onClick={() => removeFromArray(metadata.tags, index, arr => setMetadata(prev => ({ ...prev, tags: arr })))}>×</button>
@@ -1584,7 +1648,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {metadata.equipment.map((item, index) => (
+                      {(Array.isArray(metadata.equipment) ? metadata.equipment : []).map((item, index) => (
                         <span key={index} className="bg-onyx-20 text-onyx-10 px-2 py-1 rounded text-sm flex items-center gap-1">
                           {item}
                         <button onClick={() => removeFromArray(metadata.equipment, index, arr => setMetadata(prev => ({ ...prev, equipment: arr })))}>×</button>
@@ -1612,7 +1676,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {metadata.muscleGroups.map((muscle, index) => (
+                      {(Array.isArray(metadata.muscleGroups) ? metadata.muscleGroups : []).map((muscle, index) => (
                         <span key={index} className="bg-onyx-20 text-onyx-10 px-2 py-1 rounded text-sm flex items-center gap-1">
                           {muscle}
                         <button onClick={() => removeFromArray(metadata.muscleGroups, index, arr => setMetadata(prev => ({ ...prev, muscleGroups: arr })))}>×</button>
@@ -1644,7 +1708,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                         <label key={joint.key} className="flex items-center text-sm cursor-pointer p-2 rounded border border-onyx-30 hover:bg-onyx-20 transition-colors">
                       <input
                             type="checkbox"
-                            checked={metadata.jointsOfInterest.includes(joint.key)}
+                            checked={Array.isArray(metadata.jointsOfInterest) && metadata.jointsOfInterest.includes(joint.key)}
                             onChange={(e) => {
                               if (e.target.checked) {
                                 setMetadata(prev => ({
@@ -1665,11 +1729,11 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                       ))}
                     </div>
                     
-                    {metadata.jointsOfInterest.length > 0 && (
+                    {Array.isArray(metadata.jointsOfInterest) && metadata.jointsOfInterest.length > 0 && (
                       <div className="mt-3">
                         <p className="text-xs text-onyx-30 mb-2">Selected joints:</p>
                     <div className="flex flex-wrap gap-2">
-                      {metadata.jointsOfInterest.map((joint, index) => (
+                      {(Array.isArray(metadata.jointsOfInterest) ? metadata.jointsOfInterest : []).map((joint, index) => (
                             <span key={index} className="bg-blue-100 text-blue-900 px-2 py-1 rounded text-xs font-medium">
                           {joint}
                         </span>
@@ -1684,7 +1748,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-onyx-10 mb-4">Instructions</h3>
                 <div className="space-y-3">
-                  {metadata.instructions.map((instruction, index) => (
+                  {(Array.isArray(metadata.instructions) ? metadata.instructions : []).map((instruction, index) => (
                     <div key={index} className="flex gap-2">
                       <span className="text-sm font-medium text-onyx-20 mt-2">{index + 1}.</span>
                       <input
@@ -1694,7 +1758,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                         className="flex-1 px-3 py-2 border border-onyx-30 rounded focus:outline-none focus:ring-2 focus:ring-blue-100"
                         placeholder={`Step ${index + 1}...`}
                       />
-                      {metadata.instructions.length > 1 && (
+                      {Array.isArray(metadata.instructions) && metadata.instructions.length > 1 && (
                         <button
                           onClick={() => removeInstruction(index)}
                           className="px-3 py-2 text-red-600 hover:text-red-800"
@@ -1734,7 +1798,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {metadata.relatedExercises.map((exercise, index) => (
+                  {(Array.isArray(metadata.relatedExercises) ? metadata.relatedExercises : []).map((exercise, index) => (
                     <span key={index} className="bg-onyx-20 text-onyx-10 px-2 py-1 rounded text-sm flex items-center gap-1">
                       {exercise}
                       <button onClick={() => removeFromArray(metadata.relatedExercises, index, arr => setMetadata(prev => ({ ...prev, relatedExercises: arr })))}>×</button>
@@ -1753,9 +1817,17 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                 </button>
                 <button
                   onClick={saveExercise}
-                  className="px-6 py-2 bg-blue-100 text-white rounded font-medium hover:bg-blue-90 transition"
+                  disabled={generatingAnalysis}
+                  className="px-6 py-2 bg-blue-100 text-white rounded font-medium hover:bg-blue-90 transition disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isEditMode ? 'Update Exercise' : 'Save Exercise'}
+                  {generatingAnalysis ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Generating Analysis...
+                    </>
+                  ) : (
+                    isEditMode ? 'Update Exercise' : 'Save Exercise'
+                  )}
                 </button>
               </div>
             </div>

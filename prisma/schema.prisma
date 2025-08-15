@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,23 +8,119 @@ datasource db {
 }
 
 model Exercise {
+  id                       String                    @id @default(cuid())
+  title                    String
+  description              String
+  image                    String
+  referenceVideoUrl        String?
+  referenceKeypointsUrl    String
+  tags                     String
+  equipment                String
+  level                    String
+  muscleGroups             String
+  jointsOfInterest         String
+  createdBy                String
+  dateAdded                DateTime                  @default(now())
+  instructions             String
+  authorName               String
+  authorProfileUrl         String?
+  relatedExercises         String
+  exerciseType             String                    @default("repetition")
+  exerciseSubtype          String?
+  classificationConfidence Float?
+  
+  // Enhanced analysis relations
+  repAnalysis              RepAnalysis?
+  patternAnalysis          PatternAnalysis?
+  analysisQuality          AnalysisQuality?
+  exerciseRules            ExerciseRules?
+}
+
+model RepAnalysis {
   id                    String   @id @default(cuid())
-  title                 String
-  description           String
-  image                 String
-  referenceVideoUrl     String?
-  referenceKeypointsUrl String
-  tags                  String
-  equipment             String
-  level                 String
-  muscleGroups          String
-  jointsOfInterest      String
-  createdBy             String
-  dateAdded             DateTime @default(now())
-  instructions          String
-  authorName            String
-  authorProfileUrl      String?
-  relatedExercises      String
+  exerciseId            String   @unique
+  exercise              Exercise @relation(fields: [exerciseId], references: [id])
+  
+  // focused fields for admin analysis
+  goldStandardRep       String?  // JSON: {startTime: 0, endTime: 5, bottomTime: 2.3, phases: [{name: "eccentric", startTime: 0, endTime: 2.3}, {name: "concentric", startTime: 2.3, endTime: 5}]}
+  repBoundaries         String?  // JSON: [{id: "rep-1", startTime: 0, endTime: 5, bottomTime: 2.3, phases: [{name: "eccentric", startTime: 0, endTime: 2.3}, {name: "concentric", startTime: 2.3, endTime: 5}]}]
+  adminNotes            String?  // Admin notes and validation comments
+  
+  // 🆕 PHASE-BASED JOINT ANGLE RULES
+  jointAngleRules       String?  // JSON: Phase-based joint angle thresholds for real-time feedback
+  repCountingRules      String?  // JSON: Rules specifically for accurate rep counting
+  
+  // Validation
+  validatedByAdmin      Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model PatternAnalysis {
+  id                    String   @id @default(cuid())
+  exerciseId            String   @unique
+  exercise              Exercise @relation(fields: [exerciseId], references: [id])
+  
+  // Reference patterns for real-time comparison
+  referencePatterns     String   // JSON: {joints: {leftKnee: [...], ...}}
+  
+  // Angle ranges for form validation
+  angleRanges           String   // JSON: {leftKnee: {min: 90, max: 180}, ...}
+  
+  // Exercise-type-specific patterns
+  posePatterns          String?  // JSON: for pose exercises
+  flowPatterns          String?  // JSON: for flow exercises
+  
+  // Enhanced fields for admin analysis
+  primaryJoints         String?  // JSON: ["leftKnee", "rightKnee"] - most important joints for this exercise
+  toleranceMultipliers  String?  // JSON: joint-specific tolerance adjustments
+  adminNotes            String?  // Admin notes and validation comments
+  
+  // Quality metrics
+  patternQuality        Float
+  validatedByAdmin      Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model AnalysisQuality {
+  id                    String   @id @default(cuid())
+  exerciseId            String   @unique
+  exercise              Exercise @relation(fields: [exerciseId], references: [id])
+  
+  // Quality scores
+  classificationQuality Float
+  repAnalysisQuality    Float
+  patternQuality        Float
+  overallQuality        Float
+  
+  // Issues and warnings
+  issues                String   // JSON: [{type: "low_confidence", message: "..."}]
+  
+  // Admin review status
+  reviewedByAdmin       Boolean  @default(false)
+  adminNotes            String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model ExerciseRules {
+  id                    String   @id @default(cuid())
+  exerciseId            String   @unique
+  exercise              Exercise @relation(fields: [exerciseId], references: [id])
+  
+  // Rule definitions for real-time analysis
+  rules                 String   // JSON: comprehensive rule set for real-time analysis
+  thresholds            String   // JSON: quality thresholds and tolerances
+  
+  // Validation
+  validatedByAdmin      Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model CuratedSection {
@@ -41,20 +131,22 @@ model CuratedSection {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  exercises   String   // JSON string: [{"id": "exerciseId", "order": 0}, ...]
+  exercises   String
 }
 
 model FeaturedContent {
   id          String   @id @default(cuid())
   title       String
   description String
-  heroImage   String   // URL to custom hero image
-  exerciseId  String?  // Optional link to specific exercise
+  heroImage   String
+  exerciseId  String?
   ctaText     String   @default("Try Now")
-  ctaUrl      String?  // Optional custom URL (if not linking to exercise)
+  ctaUrl      String?
   badgeText   String   @default("Featured Exercise")
   isActive    Boolean  @default(true)
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+

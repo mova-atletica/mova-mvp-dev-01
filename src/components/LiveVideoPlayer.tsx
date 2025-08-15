@@ -6,9 +6,11 @@ import "@tensorflow/tfjs-backend-webgl";
 import * as tf from "@tensorflow/tfjs-core";
 import CoreVideoPlayer from "./CoreVideoPlayer";
 import { getAngleWithConfidence } from '../lib/analysisUtils';
+import { useRealTimeAnalysis, RealTimeAnalysisConfig, DEFAULT_CONFIG } from '../hooks/useRealTimeAnalysis_01';
+import RealTimeFeedback from './RealTimeFeedback';
 
 interface LiveVideoPlayerProps {
-  onRecordingComplete: (videoUrl: string, duration: number) => void;
+  onRecordingComplete: (videoUrl: string, duration: number, realTimeAnalysisData?: any[]) => void;
   onMethodChange: () => void;
   referenceAngles?: any;
   exercise: any;
@@ -72,7 +74,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
   // Advanced panel state
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(true);
   const [advancedTab, setAdvancedTab] = useState<'focus' | 'style' | 'biomechanics'>('focus');
-  const [openDropdown, setOpenDropdown] = useState<'angles' | 'joints' | 'bones' | 'focus' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'angles' | 'joints' | 'bones' | 'focus' | 'exerciseType' | 'sensitivity' | 'feedbackLevel' | null>(null);
   const [selectedAngles, setSelectedAngles] = useState<string[]>(ANGLE_OPTIONS.map(a => a.key));
   const [selectedJoints, setSelectedJoints] = useState<number[]>(JOINT_OPTIONS.map(j => j.key));
   const [selectedBones, setSelectedBones] = useState<string[]>(BONE_OPTIONS.map(b => b.key));
@@ -89,7 +91,37 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Controls for panel switching
-  const [openMenu, setOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus'>(null);
+  const [openMenu, setOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus' | 'analysis'>(null);
+
+  // Enhanced real-time analysis state
+  const [currentPose, setCurrentPose] = useState<any>(null);
+  const [exerciseAnalysisData, setExerciseAnalysisData] = useState<any>(null);
+  const [showRealTimeFeedback, setShowRealTimeFeedback] = useState(true);
+  const [isRealTimeAnalysisActive, setIsRealTimeAnalysisActive] = useState(false);
+  
+  // Real-time analysis configuration
+  const [realTimeConfig, setRealTimeConfig] = useState<RealTimeAnalysisConfig>({
+    ...DEFAULT_CONFIG,
+    isActive: false,
+    dataCollection: false
+  });
+  
+  // Data collection during recording
+  const [realTimeAnalysisData, setRealTimeAnalysisData] = useState<any[]>([]);
+
+  // Enhanced real-time analysis hook with configuration
+  const realTimeAnalysis = useRealTimeAnalysis(currentPose, exerciseAnalysisData, realTimeConfig);
+
+  // Collect real-time analysis data when recording and shouldCollectData is true
+  useEffect(() => {
+    if (recording && realTimeAnalysis.shouldCollectData && realTimeAnalysis.rawData) {
+      setRealTimeAnalysisData(prev => [...prev, {
+        timestamp: realTimeAnalysis.timestamp,
+        analysis: realTimeAnalysis,
+        rawData: realTimeAnalysis.rawData
+      }]);
+    }
+  }, [recording, realTimeAnalysis.shouldCollectData, realTimeAnalysis.rawData, realTimeAnalysis.timestamp]);
 
   // Load pose detection model
   useEffect(() => {
@@ -104,6 +136,34 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
     }
     loadModel();
   }, []);
+
+  // Load exercise analysis data
+  useEffect(() => {
+    if (exercise?.id) {
+      fetch(`/api/exercises/${exercise.id}/analysis`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.exercise) {
+            setExerciseAnalysisData({
+              exerciseType: data.exercise.exerciseType || 'repetition',
+              repAnalysis: data.exercise.repAnalysis,
+              patternAnalysis: data.exercise.patternAnalysis,
+              quality: data.exercise.analysisQuality
+            });
+            
+            // Auto-configure real-time analysis based on exercise type
+            setRealTimeConfig(prev => ({
+              ...prev,
+              exerciseType: data.exercise.exerciseType || 'auto',
+              jointsOfInterest: exercise.jointsOfInterest || undefined
+            }));
+          }
+        })
+        .catch(error => {
+          console.error('Error loading exercise analysis data:', error);
+        });
+    }
+  }, [exercise?.id, exercise?.jointsOfInterest]);
 
   // Canvas/video scaling logic
   useEffect(() => {
@@ -137,6 +197,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       try {
         const poses = await detector.estimatePoses(video);
         const pose = poses[0] || null;
+        setCurrentPose(pose); // Set current pose for real-time analysis
         setAllPoses(prev => {
           const newPoses = [...prev, pose];
           // Keep only the last 10 poses to avoid memory issues
@@ -361,9 +422,18 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
     ctx.fill();
   }
 
-  // Recording functions
+  // Enhanced recording functions with real-time analysis data collection
   const startRecording = () => {
     if (webcamRef.current && webcamRef.current.stream) {
+      // Reset real-time analysis data collection
+      setRealTimeAnalysisData([]);
+      
+      // Enable data collection in real-time analysis
+      setRealTimeConfig(prev => ({
+        ...prev,
+        dataCollection: true
+      }));
+      
       // Safari-compatible MIME type detection
       const mimeType = MediaRecorder.isTypeSupported('video/webm') 
         ? 'video/webm' 
@@ -392,10 +462,19 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
           
           const url = URL.createObjectURL(blob);
           //console.log('LiveVideoPlayer: calling onRecordingComplete with URL:', url, 'duration:', actualDuration);
-          onRecordingComplete(url, actualDuration);
+          
+          // Pass real-time analysis data along with video
+          onRecordingComplete(url, actualDuration, realTimeAnalysisData);
+          
           setRecording(false);
           setRecordingStartTime(null);
           setRecordingDuration(actualDuration);
+          
+          // Disable data collection
+          setRealTimeConfig(prev => ({
+            ...prev,
+            dataCollection: false
+          }));
         };
         recorder.start();
         setMediaRecorder(recorder);
@@ -419,10 +498,19 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
             const endTime = Date.now();
             const actualDuration = (endTime - startTime) / 1000;
             const url = URL.createObjectURL(blob);
-            onRecordingComplete(url, actualDuration);
+            
+            // Pass real-time analysis data along with video
+            onRecordingComplete(url, actualDuration, realTimeAnalysisData);
+            
             setRecording(false);
             setRecordingStartTime(null);
             setRecordingDuration(actualDuration);
+            
+            // Disable data collection
+            setRealTimeConfig(prev => ({
+              ...prev,
+              dataCollection: false
+            }));
           };
           recorder.start();
           setMediaRecorder(recorder);
@@ -440,6 +528,24 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       mediaRecorder.stop();
       setMediaRecorder(null);
     }
+  };
+
+  // Enhanced real-time analysis toggle
+  const toggleRealTimeAnalysis = () => {
+    const newActive = !realTimeConfig.isActive;
+    setRealTimeConfig(prev => ({
+      ...prev,
+      isActive: newActive
+    }));
+    setIsRealTimeAnalysisActive(newActive);
+  };
+
+  // Real-time analysis configuration handlers
+  const updateRealTimeConfig = (updates: Partial<RealTimeAnalysisConfig>) => {
+    setRealTimeConfig(prev => ({
+      ...prev,
+      ...updates
+    }));
   };
 
   const setZoomPreset = (target: typeof zoomTarget) => {
@@ -758,6 +864,24 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       >
         {videoVisible ? EyeIcon : EyeOffIcon}Video
       </button>
+      {/* Live Analysis Toggle */}
+      <button
+        onClick={toggleRealTimeAnalysis}
+        className={`px-3 py-2 rounded text-xs vp-btn flex items-center ${
+          realTimeConfig.isActive ? 'bg-green-600 text-white' : ''
+        }`}
+        style={{ marginBottom: '4px' }}
+      >
+        {realTimeConfig.isActive ? '🟢' : '⚪'}Live Analysis
+      </button>
+      {/* Real-time Feedback Toggle */}
+      <button
+        onClick={() => setShowRealTimeFeedback(v => !v)}
+        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
+        style={{ marginBottom: '4px' }}
+      >
+        {showRealTimeFeedback ? EyeIcon : EyeOffIcon}Feedback
+      </button>
       {/* Export Frame Button */}
       <button
         onClick={exportCurrentFrame}
@@ -782,15 +906,232 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
     </div>
   );
 
+  // Analysis Configuration Panel
+  const analysisPanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '200px' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Real-time Analysis</div>
+      
+      {/* Live Analysis Toggle */}
+      <button
+        onClick={toggleRealTimeAnalysis}
+        className={`px-3 py-2 rounded text-xs vp-btn flex items-center justify-between ${
+          realTimeConfig.isActive ? 'bg-green-600 text-white' : ''
+        }`}
+        style={{ marginBottom: '4px' }}
+      >
+        <span>Live Analysis</span>
+        <span>{realTimeConfig.isActive ? '🟢' : '⚪'}</span>
+      </button>
+      
+      {/* Audio Feedback Toggle */}
+      <button
+        onClick={() => updateRealTimeConfig({ audioEnabled: !realTimeConfig.audioEnabled })}
+        className={`px-3 py-2 rounded text-xs vp-btn flex items-center justify-between ${
+          realTimeConfig.audioEnabled ? 'bg-blue-600 text-white' : ''
+        }`}
+        style={{ marginBottom: '4px' }}
+      >
+        <span>Audio Feedback</span>
+        <span>{realTimeConfig.audioEnabled ? '🔊' : '🔇'}</span>
+      </button>
+      
+      {/* Exercise Type Selection */}
+      <div className="flex flex-col" style={{ position: 'relative', marginBottom: '4px' }}>
+        <button
+          className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
+          style={{
+            border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
+            color: 'var(--vp-dropdown-label, #353839)',
+            fontWeight: 500,
+            transition: 'color 0.2s, border 0.2s',
+          }}
+          onClick={() => setOpenDropdown(openDropdown === 'exerciseType' ? null : 'exerciseType')}
+          type="button"
+        >
+          Exercise Type: {realTimeConfig.exerciseType}
+          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+        </button>
+        {openDropdown === 'exerciseType' &&
+          <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open">
+            {['auto', 'repetition', 'pose', 'flow'].map(type => (
+              <button
+                key={type}
+                className="w-full text-left text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
+                style={{ 
+                  background: realTimeConfig.exerciseType === type ? 'var(--vp-dropdown-item-selected-bg, #3b82f6)' : 'var(--vp-dropdown-item-bg)', 
+                  color: realTimeConfig.exerciseType === type ? 'white' : 'var(--vp-dropdown-item-text)',
+                  whiteSpace: 'nowrap' 
+                }}
+                onMouseOver={e => {
+                  if (realTimeConfig.exerciseType !== type) {
+                    e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)';
+                  }
+                }}
+                onMouseOut={e => {
+                  if (realTimeConfig.exerciseType !== type) {
+                    e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)';
+                  }
+                }}
+                onClick={() => {
+                  updateRealTimeConfig({ exerciseType: type as any });
+                  setOpenDropdown(null);
+                }}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </button>
+            ))}
+          </div>
+        }
+      </div>
+      
+      {/* Sensitivity Selection */}
+      <div className="flex flex-col" style={{ position: 'relative', marginBottom: '4px' }}>
+        <button
+          className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
+          style={{
+            border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
+            color: 'var(--vp-dropdown-label, #353839)',
+            fontWeight: 500,
+            transition: 'color 0.2s, border 0.2s',
+          }}
+          onClick={() => setOpenDropdown(openDropdown === 'sensitivity' ? null : 'sensitivity')}
+          type="button"
+        >
+          Sensitivity: {realTimeConfig.sensitivity}
+          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+        </button>
+        {openDropdown === 'sensitivity' &&
+          <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open">
+            {['low', 'medium', 'high'].map(sensitivity => (
+              <button
+                key={sensitivity}
+                className="w-full text-left text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
+                style={{ 
+                  background: realTimeConfig.sensitivity === sensitivity ? 'var(--vp-dropdown-item-selected-bg, #3b82f6)' : 'var(--vp-dropdown-item-bg)', 
+                  color: realTimeConfig.sensitivity === sensitivity ? 'white' : 'var(--vp-dropdown-item-text)',
+                  whiteSpace: 'nowrap' 
+                }}
+                onMouseOver={e => {
+                  if (realTimeConfig.sensitivity !== sensitivity) {
+                    e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)';
+                  }
+                }}
+                onMouseOut={e => {
+                  if (realTimeConfig.sensitivity !== sensitivity) {
+                    e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)';
+                  }
+                }}
+                onClick={() => {
+                  updateRealTimeConfig({ sensitivity: sensitivity as any });
+                  setOpenDropdown(null);
+                }}
+              >
+                {sensitivity.charAt(0).toUpperCase() + sensitivity.slice(1)}
+              </button>
+            ))}
+          </div>
+        }
+      </div>
+      
+      {/* Feedback Level Selection */}
+      <div className="flex flex-col" style={{ position: 'relative', marginBottom: '4px' }}>
+        <button
+          className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
+          style={{
+            border: '1px solid var(--vp-dropdown-border, #e5e7eb)',
+            color: 'var(--vp-dropdown-label, #353839)',
+            fontWeight: 500,
+            transition: 'color 0.2s, border 0.2s',
+          }}
+          onClick={() => setOpenDropdown(openDropdown === 'feedbackLevel' ? null : 'feedbackLevel')}
+          type="button"
+        >
+          Feedback: {realTimeConfig.feedbackLevel}
+          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+        </button>
+        {openDropdown === 'feedbackLevel' &&
+          <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open">
+            {['minimal', 'detailed', 'full'].map(level => (
+              <button
+                key={level}
+                className="w-full text-left text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
+                style={{ 
+                  background: realTimeConfig.feedbackLevel === level ? 'var(--vp-dropdown-item-selected-bg, #3b82f6)' : 'var(--vp-dropdown-item-bg)', 
+                  color: realTimeConfig.feedbackLevel === level ? 'white' : 'var(--vp-dropdown-item-text)',
+                  whiteSpace: 'nowrap' 
+                }}
+                onMouseOver={e => {
+                  if (realTimeConfig.feedbackLevel !== level) {
+                    e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)';
+                  }
+                }}
+                onMouseOut={e => {
+                  if (realTimeConfig.feedbackLevel !== level) {
+                    e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)';
+                  }
+                }}
+                onClick={() => {
+                  updateRealTimeConfig({ feedbackLevel: level as any });
+                  setOpenDropdown(null);
+                }}
+              >
+                {level.charAt(0).toUpperCase() + level.slice(1)}
+              </button>
+            ))}
+          </div>
+        }
+      </div>
+      
+      {/* Status Display */}
+      <div style={{ 
+        background: 'var(--vp-dropdown-bg)', 
+        border: '1px solid var(--vp-dropdown-border)', 
+        borderRadius: '4px', 
+        padding: '8px', 
+        marginTop: '4px' 
+      }}>
+        <div style={{ fontSize: 10, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Status:</div>
+        <div style={{ fontSize: 10, color: realTimeConfig.isActive ? '#10b981' : '#6b7280' }}>
+          {realTimeConfig.isActive ? 'Active' : 'Inactive'}
+        </div>
+        {realTimeConfig.isActive && (
+          <div style={{ fontSize: 10, color: '#6b7280', marginTop: '2px' }}>
+            {realTimeConfig.exerciseType} • {realTimeConfig.sensitivity} • {realTimeConfig.feedbackLevel}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   // --- Panel Content Switch ---
   let panelContent: React.ReactNode = null;
   if (openMenu === 'focus') panelContent = selectionPanel; // Changed from 'selection'
   else if (openMenu === 'style') panelContent = stylePanel;
   else if (openMenu === 'biomechanics') panelContent = actionsPanel; // Changed from 'actions'
   else if (openMenu === 'export') panelContent = exportPanel;
-
+  else if (openMenu === 'analysis') panelContent = analysisPanel;
+  
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+      {/* Real-time Feedback */}
+      <RealTimeFeedback
+        analysis={realTimeAnalysis}
+        exerciseType={exerciseAnalysisData?.exerciseType || 'repetition'}
+        isVisible={showRealTimeFeedback && isRealTimeAnalysisActive && !!currentPose && !!exerciseAnalysisData}
+      />
+      
       {/* Recording Indicator */}
       {recording && (
         <div className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg animate-pulse">

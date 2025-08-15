@@ -88,7 +88,14 @@ export default function ExerciseDetail({ params }: Props) {
           equipment: Array.isArray(exerciseData.equipment) ? exerciseData.equipment : (exerciseData.equipment ? exerciseData.equipment.split(',').filter(Boolean) : []),
           muscleGroups: Array.isArray(exerciseData.muscleGroups) ? exerciseData.muscleGroups : (exerciseData.muscleGroups ? exerciseData.muscleGroups.split(',').filter(Boolean) : []),
           jointsOfInterest: Array.isArray(exerciseData.jointsOfInterest) ? exerciseData.jointsOfInterest : (exerciseData.jointsOfInterest ? exerciseData.jointsOfInterest.split(',').filter(Boolean) : []),
-          instructions: Array.isArray(exerciseData.instructions) ? exerciseData.instructions : (exerciseData.instructions ? JSON.parse(exerciseData.instructions) : []),
+          instructions: Array.isArray(exerciseData.instructions) ? exerciseData.instructions : (exerciseData.instructions ? (() => {
+            try {
+              return JSON.parse(exerciseData.instructions);
+            } catch (e) {
+              console.warn('Failed to parse instructions as JSON, treating as string:', e);
+              return [exerciseData.instructions];
+            }
+          })() : []),
           relatedExercises: Array.isArray(exerciseData.relatedExercises) ? exerciseData.relatedExercises : (exerciseData.relatedExercises ? exerciseData.relatedExercises.split(',').filter(Boolean) : []),
           author: { name: exerciseData.authorName || 'Unknown', profileUrl: exerciseData.authorProfileUrl }
         };
@@ -167,7 +174,14 @@ export default function ExerciseDetail({ params }: Props) {
                 equipment: Array.isArray(ex.equipment) ? ex.equipment : (ex.equipment ? ex.equipment.split(',').filter(Boolean) : []),
                 muscleGroups: Array.isArray(ex.muscleGroups) ? ex.muscleGroups : (ex.muscleGroups ? ex.muscleGroups.split(',').filter(Boolean) : []),
                 jointsOfInterest: Array.isArray(ex.jointsOfInterest) ? ex.jointsOfInterest : (ex.jointsOfInterest ? ex.jointsOfInterest.split(',').filter(Boolean) : []),
-                instructions: Array.isArray(ex.instructions) ? ex.instructions : (ex.instructions ? JSON.parse(ex.instructions) : []),
+                instructions: Array.isArray(ex.instructions) ? ex.instructions : (ex.instructions ? (() => {
+                  try {
+                    return JSON.parse(ex.instructions);
+                  } catch (e) {
+                    console.warn('Failed to parse related exercise instructions as JSON, treating as string:', e);
+                    return [ex.instructions];
+                  }
+                })() : []),
                 relatedExercises: Array.isArray(ex.relatedExercises) ? ex.relatedExercises : (ex.relatedExercises ? ex.relatedExercises.split(',').filter(Boolean) : []),
                 author: { name: ex.authorName || 'Unknown', profileUrl: ex.authorProfileUrl }
               }));
@@ -390,6 +404,7 @@ export default function ExerciseDetail({ params }: Props) {
                   videoUrl={videoUrl}
                   aspectRatio="auto"
                   keypointData={referenceKeypoints}
+                  exercise={exercise}
                 />
               </div>
             ) : (

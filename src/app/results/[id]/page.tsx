@@ -212,7 +212,8 @@ function ResultsTabs({
   poses,
   videoUrl,
   currentFrame,
-  onSeekFrame
+  onSeekFrame,
+  enhancedSessionStats
 }: any) {
   const [activeTab, setActiveTab] = useState<'charts' | 'feedback' | 'summary'>('summary');
   
@@ -915,6 +916,7 @@ function ResultsTabs({
             jointsOfInterest={jointsOfInterest}
             poses={poses}
             videoUrl={videoUrl}
+            enhancedSessionStats={enhancedSessionStats}
           />
         )}
       </div>
@@ -931,14 +933,15 @@ function SessionSummaryTab({
   referenceAngles, 
   jointsOfInterest, 
   poses, 
-  videoUrl 
+  videoUrl,
+  enhancedSessionStats // Add enhanced session stats prop
 }: any) {
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAssets, setGeneratedAssets] = useState<{ [key: string]: any }>({});
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
 
-  // Calculate session stats
+  // Calculate session stats with enhanced real-time analysis data
   const sessionStats = {
     overallScore: basicComparison?.overall?.score || 0,
     grade: basicComparison?.overall?.grade || 'N/A',
@@ -957,7 +960,17 @@ function SessionSummaryTab({
     balanceScore: advancedAnalysis?.balance_metrics?.stability_score || 0,
     repCount: advancedAnalysis ? 
       Object.values(advancedAnalysis.repetition_analysis || {})
-        .reduce((sum: number, analysis: any) => sum + (analysis.rep_count || 0), 0) : 0
+        .reduce((sum: number, analysis: any) => sum + (analysis.rep_count || 0), 0) : 0,
+    // Enhanced real-time analysis stats
+    realTimeAverageScore: enhancedSessionStats?.averageScore || 0,
+    realTimeFormConsistency: enhancedSessionStats?.formConsistency || 0,
+    realTimeImprovementTrend: enhancedSessionStats?.improvementTrend || 0,
+    timeInGoodForm: enhancedSessionStats?.timeInGoodForm || 0,
+    timeInWarningForm: enhancedSessionStats?.timeInWarningForm || 0,
+    timeInPoorForm: enhancedSessionStats?.timeInPoorForm || 0,
+    bestRealTimeFrame: enhancedSessionStats?.bestFrame || null,
+    worstRealTimeFrame: enhancedSessionStats?.worstFrame || null,
+    jointPerformance: enhancedSessionStats?.jointPerformance || {}
   };
 
   const assetTypes = [
@@ -1109,6 +1122,110 @@ function SessionSummaryTab({
             <div className="text-sm font-semibold">{sessionStats.worstJoint?.replace(/([A-Z])/g, ' $1').trim()}</div>
           </div>
         </div>
+        
+        {/* Real-time Analysis Data Section */}
+        {sessionStats.realTimeAverageScore > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+              <h4 style={{ fontSize: 16, fontWeight: 500, color: 'var(--results-summary-title)' }}>Real-time Analysis</h4>
+              <InfoTooltip content="Enhanced metrics from real-time analysis during your workout session.">
+                <span className="text-onyx-30 hover:text-onyx-20 cursor-help"
+                  style={{
+                    color: 'var(--results-info-icon)',
+                    cursor: 'help',
+                    transition: 'color 0.18s',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    marginLeft: 6,
+                    fontSize: '1em',
+                    verticalAlign: 'middle',
+                  }}
+                >ⓘ</span>
+              </InfoTooltip>
+            </div>
+            
+            {/* Real-time Performance Metrics */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 6, marginBottom: 12 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 16, fontWeight: 500 }}>{Math.round(sessionStats.realTimeAverageScore)}%</div>
+                <div style={{ fontSize: 11, opacity: 0.9 }}>Real-time Score</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 16, fontWeight: 500 }}>{Math.round(sessionStats.realTimeFormConsistency)}</div>
+                <div style={{ fontSize: 11, opacity: 0.9 }}>Consistency</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 16, fontWeight: 500, color: sessionStats.realTimeImprovementTrend > 0 ? '#2CFF05' : sessionStats.realTimeImprovementTrend < 0 ? '#FF2C2C' : 'inherit' }}>
+                  {sessionStats.realTimeImprovementTrend > 0 ? '+' : ''}{Math.round(sessionStats.realTimeImprovementTrend * 100) / 100}
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.9 }}>Trend</div>
+              </div>
+            </div>
+            
+            {/* Form Quality Distribution */}
+            <div style={{ background: 'var(--results-summary-info-bg)', borderRadius: 6, padding: 12, marginBottom: 12 }}>
+              <div className="text-xs opacity-90 mb-2">Form Quality Distribution</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ flex: 1, background: '#2CFF05', height: 8, borderRadius: 4, position: 'relative' }}>
+                  <div style={{ 
+                    width: `${sessionStats.timeInGoodForm}%`, 
+                    height: '100%', 
+                    background: '#2CFF05', 
+                    borderRadius: 4,
+                    transition: 'width 0.3s ease'
+                  }} />
+                  <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', fontSize: 10 }}>
+                    {Math.round(sessionStats.timeInGoodForm)}%
+                  </div>
+                </div>
+                <div style={{ flex: 1, background: '#FFA500', height: 8, borderRadius: 4, position: 'relative' }}>
+                  <div style={{ 
+                    width: `${sessionStats.timeInWarningForm}%`, 
+                    height: '100%', 
+                    background: '#FFA500', 
+                    borderRadius: 4,
+                    transition: 'width 0.3s ease'
+                  }} />
+                  <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', fontSize: 10 }}>
+                    {Math.round(sessionStats.timeInWarningForm)}%
+                  </div>
+                </div>
+                <div style={{ flex: 1, background: '#FF2C2C', height: 8, borderRadius: 4, position: 'relative' }}>
+                  <div style={{ 
+                    width: `${sessionStats.timeInPoorForm}%`, 
+                    height: '100%', 
+                    background: '#FF2C2C', 
+                    borderRadius: 4,
+                    transition: 'width 0.3s ease'
+                  }} />
+                  <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', fontSize: 10 }}>
+                    {Math.round(sessionStats.timeInPoorForm)}%
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginTop: 8 }}>
+                <span style={{ color: '#2CFF05' }}>Good</span>
+                <span style={{ color: '#FFA500' }}>Warning</span>
+                <span style={{ color: '#FF2C2C' }}>Poor</span>
+              </div>
+            </div>
+            
+            {/* Joint Performance Breakdown */}
+            {Object.keys(sessionStats.jointPerformance).length > 0 && (
+              <div style={{ background: 'var(--results-summary-info-bg)', borderRadius: 6, padding: 12 }}>
+                <div className="text-xs opacity-90 mb-2">Joint Performance</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
+                  {Object.entries(sessionStats.jointPerformance).map(([joint, score]) => (
+                    <div key={joint} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 14, fontWeight: 500 }}>{Math.round(score as number)}%</div>
+                      <div style={{ fontSize: 10, opacity: 0.8 }}>{joint.replace(/([A-Z])/g, ' $1').trim()}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {/* Quick Actions */}
       <div style={{ background: 'var(--results-summary-bg)', color: 'var(--results-summary-title)', borderRadius: 6, boxShadow: 'var(--results-summary-shadow)', border: '1px solid var(--results-summary-border)', padding: 21, marginBottom: 18 }}>
@@ -1194,6 +1311,10 @@ export default function ResultsPage() {
   const [advancedAnalysis, setAdvancedAnalysis] = useState<AdvancedAnalysisResult | null>(null);
   const [isLoadingAdvanced, setIsLoadingAdvanced] = useState(false);
   const [advancedAnalysisError, setAdvancedAnalysisError] = useState<string | null>(null);
+
+  // Real-time analysis data state
+  const [realTimeAnalysisData, setRealTimeAnalysisData] = useState<any[]>([]);
+  const [enhancedSessionStats, setEnhancedSessionStats] = useState<any>(null);
 
   // Video tracking state
   const [currentFrame, setCurrentFrame] = useState<number>(0); // For video->chart sync
@@ -1498,6 +1619,124 @@ export default function ResultsPage() {
     }
   }, [exercise, referenceAngles]); // Add referenceAngles as dependency
 
+  // Load real-time analysis data from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedData = localStorage.getItem("realTimeAnalysisData");
+        if (storedData) {
+          const parsedData = JSON.parse(storedData);
+          setRealTimeAnalysisData(parsedData);
+          console.log('📊 Loaded real-time analysis data:', parsedData.length, 'frames');
+          
+          // Calculate enhanced session stats
+          calculateEnhancedSessionStats(parsedData);
+        }
+      } catch (error) {
+        console.error('Error loading real-time analysis data:', error);
+      }
+    }
+  }, []);
+
+  // Calculate enhanced session statistics from real-time analysis data
+  const calculateEnhancedSessionStats = (data: any[]) => {
+    if (!data || data.length === 0) return;
+
+    const stats = {
+      averageScore: 0,
+      repCount: 0,
+      formConsistency: 0,
+      improvementTrend: 0,
+      bestFrame: null as any,
+      worstFrame: null as any,
+      jointPerformance: {} as { [joint: string]: number },
+      timeInGoodForm: 0,
+      timeInWarningForm: 0,
+      timeInPoorForm: 0
+    };
+
+    let totalScore = 0;
+    let goodFormFrames = 0;
+    let warningFormFrames = 0;
+    let poorFormFrames = 0;
+    let bestScore = 0;
+    let worstScore = 100;
+
+    data.forEach((frameData, index) => {
+      const analysis = frameData.analysis;
+      totalScore += analysis.score;
+
+      // Track form quality distribution
+      switch (analysis.severity) {
+        case 'good':
+          goodFormFrames++;
+          break;
+        case 'warning':
+          warningFormFrames++;
+          break;
+        case 'poor':
+          poorFormFrames++;
+          break;
+      }
+
+      // Track best and worst frames
+      if (analysis.score > bestScore) {
+        bestScore = analysis.score;
+        stats.bestFrame = frameData;
+      }
+      if (analysis.score < worstScore) {
+        worstScore = analysis.score;
+        stats.worstFrame = frameData;
+      }
+
+      // Aggregate joint performance
+      if (analysis.metrics.jointScores) {
+        Object.keys(analysis.metrics.jointScores).forEach(joint => {
+          if (!stats.jointPerformance[joint]) {
+            stats.jointPerformance[joint] = 0;
+          }
+          stats.jointPerformance[joint] += analysis.metrics.jointScores[joint];
+        });
+      }
+    });
+
+    // Calculate averages
+    stats.averageScore = totalScore / data.length;
+    stats.timeInGoodForm = (goodFormFrames / data.length) * 100;
+    stats.timeInWarningForm = (warningFormFrames / data.length) * 100;
+    stats.timeInPoorForm = (poorFormFrames / data.length) * 100;
+
+    // Average joint performance
+    Object.keys(stats.jointPerformance).forEach(joint => {
+      stats.jointPerformance[joint] = stats.jointPerformance[joint] / data.length;
+    });
+
+    // Calculate form consistency (standard deviation of scores)
+    const scoreVariance = data.reduce((sum, frameData) => {
+      const diff = frameData.analysis.score - stats.averageScore;
+      return sum + (diff * diff);
+    }, 0) / data.length;
+    stats.formConsistency = Math.sqrt(scoreVariance);
+
+    // Calculate improvement trend (linear regression slope)
+    if (data.length > 1) {
+      const xValues = data.map((_, index) => index);
+      const yValues = data.map(frameData => frameData.analysis.score);
+      const n = data.length;
+      
+      const sumX = xValues.reduce((sum, x) => sum + x, 0);
+      const sumY = yValues.reduce((sum, y) => sum + y, 0);
+      const sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
+      const sumXX = xValues.reduce((sum, x) => sum + x * x, 0);
+      
+      const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+      stats.improvementTrend = slope;
+    }
+
+    setEnhancedSessionStats(stats);
+    console.log('📊 Enhanced session stats calculated:', stats);
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-onyx-100 flex flex-col items-center justify-center px-4 py-8">
@@ -1627,7 +1866,7 @@ export default function ResultsPage() {
             videoUrl={videoUrl}
             currentFrame={currentFrame}
             onSeekFrame={setSeekFrame}
-
+            enhancedSessionStats={enhancedSessionStats}
           />
           </div>
         </div>

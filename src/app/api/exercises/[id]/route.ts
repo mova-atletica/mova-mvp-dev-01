@@ -55,7 +55,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await prisma.exercise.delete({ where: { id } });
+    
+    // Use a transaction to ensure all related records are deleted atomically
+    await prisma.$transaction([
+      // Delete analysis quality record
+      prisma.analysisQuality.deleteMany({
+        where: { exerciseId: id }
+      }),
+      // Delete pattern analysis record
+      prisma.patternAnalysis.deleteMany({
+        where: { exerciseId: id }
+      }),
+      // Delete rep analysis record
+      prisma.repAnalysis.deleteMany({
+        where: { exerciseId: id }
+      }),
+      // Finally, delete the exercise
+      prisma.exercise.delete({
+        where: { id }
+      })
+    ]);
+    
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting exercise:', error);

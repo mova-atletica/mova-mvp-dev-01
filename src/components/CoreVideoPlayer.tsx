@@ -15,8 +15,8 @@ interface CoreVideoPlayerProps {
   onCloseAdvancedPanel?: () => void;
   style?: React.CSSProperties;
   height?: string;
-  openMenu?: null | 'export' | 'biomechanics' | 'style' | 'focus';
-  setOpenMenu?: (menu: null | 'export' | 'biomechanics' | 'style' | 'focus') => void;
+  openMenu?: null | 'export' | 'biomechanics' | 'style' | 'focus' | 'analysis';
+  setOpenMenu?: (menu: null | 'export' | 'biomechanics' | 'style' | 'focus' | 'analysis') => void;
   panelContent?: React.ReactNode;
   // New props for the custom play bar
   currentTime?: number;
@@ -100,7 +100,7 @@ export default function CoreVideoPlayer({
   hidePlayBar = false, // New prop to hide the play bar
 }: CoreVideoPlayerProps) {
   // If controlled props are provided, use them; otherwise, use local state (for backward compatibility)
-  const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus'>(null);
+  const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus' | 'analysis'>(null);
   const openMenu = controlledOpenMenu !== undefined ? controlledOpenMenu : uncontrolledOpenMenu;
   const setOpenMenu = controlledSetOpenMenu !== undefined ? controlledSetOpenMenu : setUncontrolledOpenMenu;
 
@@ -178,6 +178,21 @@ export default function CoreVideoPlayer({
                     aria-label="Focus Selection"
                   >
                     <FocusIcon />
+                  </button>
+                  
+                  {/* Analysis Button */}
+                  <button
+                    style={{
+                      width: 30, height: 30, borderRadius: 6, background: openMenu === 'analysis' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'analysis' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)',
+                    }}
+                    onClick={() => setOpenMenu(openMenu === 'analysis' ? null : 'analysis')}
+                    aria-label="Real-time Analysis"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                      <path d="M2 17l10 5 10-5"/>
+                      <path d="M2 12l10 5 10-5"/>
+                    </svg>
                   </button>
                 </div>
                 {/* --- Floating Panel for Open Menu (moved here) --- */}

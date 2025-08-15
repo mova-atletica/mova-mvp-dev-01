@@ -6,11 +6,12 @@ const prisma = new PrismaClient();
 // GET - Fetch specific featured content
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const featuredContent = await prisma.featuredContent.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!featuredContent) {
@@ -33,9 +34,10 @@ export async function GET(
 // PUT - Update featured content
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const {
       title,
@@ -50,7 +52,7 @@ export async function PUT(
     } = body;
 
     const featuredContent = await prisma.featuredContent.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         title,
         description,
@@ -78,11 +80,12 @@ export async function PUT(
 // DELETE - Delete featured content
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.featuredContent.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
