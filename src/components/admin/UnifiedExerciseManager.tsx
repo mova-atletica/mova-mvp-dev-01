@@ -38,21 +38,41 @@ export default function UnifiedExerciseManager({
   }, [exercises, selectedExercise]);
 
   const handleEditExercise = (exercise: any) => {
+    console.log('🔧🔧🔧 UNIFIED EXERCISE MANAGER - handleEditExercise CALLED 🔧🔧🔧');
+    console.log('UnifiedExerciseManager handleEditExercise called with exercise:', exercise);
+    console.log('Raw exercise.jointsOfInterest:', exercise.jointsOfInterest);
+    console.log('Type of exercise.jointsOfInterest:', typeof exercise.jointsOfInterest);
+    console.log('Is Array?', Array.isArray(exercise.jointsOfInterest));
+    console.log('Raw exercise.tags:', exercise.tags);
+    console.log('Raw exercise.equipment:', exercise.equipment);
+    console.log('Raw exercise.muscleGroups:', exercise.muscleGroups);
+    
     setSelectedExercise(exercise);
     setEditingExercise(exercise);
-    setEditForm({
+    
+    // Parse the data properly - API already converts to arrays, but filter empty strings
+    const parsedData = {
       title: exercise.title || '',
       description: exercise.description || '',
       level: exercise.level || 'beginner',
-      tags: Array.isArray(exercise.tags) ? exercise.tags : [],
-      equipment: Array.isArray(exercise.equipment) ? exercise.equipment : [],
-      muscleGroups: Array.isArray(exercise.muscleGroups) ? exercise.muscleGroups : [],
-      jointsOfInterest: Array.isArray(exercise.jointsOfInterest) ? exercise.jointsOfInterest : [],
-      instructions: Array.isArray(exercise.instructions) ? exercise.instructions : [''],
+      tags: Array.isArray(exercise.tags) ? exercise.tags.filter((t: string) => t && t.trim()) : [],
+      equipment: Array.isArray(exercise.equipment) ? exercise.equipment.filter((e: string) => e && e.trim()) : [],
+      muscleGroups: Array.isArray(exercise.muscleGroups) ? exercise.muscleGroups.filter((m: string) => m && m.trim()) : [],
+      jointsOfInterest: Array.isArray(exercise.jointsOfInterest) ? exercise.jointsOfInterest.filter((j: string) => j && j.trim()) : [],
+      instructions: Array.isArray(exercise.instructions) ? exercise.instructions.filter((i: string) => i && i.trim()) : [''],
       authorName: exercise.authorName || '',
       authorProfileUrl: exercise.authorProfileUrl || '',
-      relatedExercises: Array.isArray(exercise.relatedExercises) ? exercise.relatedExercises : [],
-    });
+      relatedExercises: Array.isArray(exercise.relatedExercises) ? exercise.relatedExercises.filter((r: string) => r && r.trim()) : [],
+    };
+    
+    console.log('Parsed data for edit form:', parsedData);
+    console.log('Tags:', parsedData.tags);
+    console.log('Equipment:', parsedData.equipment);
+    console.log('Muscle Groups:', parsedData.muscleGroups);
+    console.log('Joints of Interest:', parsedData.jointsOfInterest);
+    console.log('Instructions:', parsedData.instructions);
+    
+    setEditForm(parsedData);
     setViewMode('edit');
   };
 
@@ -318,11 +338,59 @@ export default function UnifiedExerciseManager({
               value={editForm.muscleGroups}
               onChange={(value) => updateArrayField('muscleGroups', value)}
             />
-            <ArrayFieldEditor
-              label="Joints of Interest"
-              value={editForm.jointsOfInterest}
-              onChange={(value) => updateArrayField('jointsOfInterest', value)}
-            />
+          </div>
+
+          {/* Joints of Interest - Checkbox Interface */}
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Joints of Interest</label>
+            <p className="text-xs text-gray-500 mb-3">Select the joints that should be analyzed for this exercise:</p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { key: 'leftShoulder', label: 'Left Shoulder' },
+                { key: 'rightShoulder', label: 'Right Shoulder' },
+                { key: 'leftElbow', label: 'Left Elbow' },
+                { key: 'rightElbow', label: 'Right Elbow' },
+                { key: 'leftWrist', label: 'Left Wrist' },
+                { key: 'rightWrist', label: 'Right Wrist' },
+                { key: 'leftHip', label: 'Left Hip' },
+                { key: 'rightHip', label: 'Right Hip' },
+                { key: 'leftKnee', label: 'Left Knee' },
+                { key: 'rightKnee', label: 'Right Knee' },
+                { key: 'leftAnkle', label: 'Left Ankle' },
+                { key: 'rightAnkle', label: 'Right Ankle' },
+                { key: 'trunk', label: 'Trunk' }
+              ].map(joint => (
+                <label key={joint.key} className="flex items-center text-sm cursor-pointer p-2 rounded border border-gray-300 hover:bg-gray-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={Array.isArray(editForm.jointsOfInterest) && editForm.jointsOfInterest.includes(joint.key)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        updateArrayField('jointsOfInterest', [...editForm.jointsOfInterest, joint.key]);
+                      } else {
+                        updateArrayField('jointsOfInterest', editForm.jointsOfInterest.filter((j: string) => j !== joint.key));
+                      }
+                    }}
+                    className="mr-2"
+                  />
+                  <span className="text-gray-700">{joint.label}</span>
+                </label>
+              ))}
+            </div>
+            
+            {Array.isArray(editForm.jointsOfInterest) && editForm.jointsOfInterest.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-gray-500 mb-2">Selected joints:</p>
+                <div className="flex flex-wrap gap-2">
+                  {editForm.jointsOfInterest.map((joint: string, index: number) => (
+                    <span key={index} className="bg-blue-100 text-blue-900 px-2 py-1 rounded text-xs font-medium">
+                      {joint}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Instructions */}

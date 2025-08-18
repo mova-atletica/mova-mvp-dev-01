@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
               repBoundaries: null, // Will be populated by admin editing
               adminNotes: null, // Will be populated by admin editing
               jointAngleRules: null, // Will be populated by admin editing
-              repCountingRules: null, // Will be populated by admin editing
+    
               validatedByAdmin: false,
             }
           });

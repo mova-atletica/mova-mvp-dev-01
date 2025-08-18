@@ -99,25 +99,23 @@ export async function POST(request: NextRequest) {
         if (analysisResult.repAnalysis) {
           await (prisma.repAnalysis as any).upsert({
             where: { exerciseId: exercise.id },
-            update: {
-              // focused fields for admin analysis
-              goldStandardRep: null, // Will be populated by admin editing
-              repBoundaries: null, // Will be populated by admin editing
-              adminNotes: null, // Will be populated by admin editing
-              jointAngleRules: null, // Will be populated by admin editing
-              repCountingRules: null, // Will be populated by admin editing
-              validatedByAdmin: false,
-            },
-            create: {
-              exerciseId: exercise.id,
-              // focused fields for admin analysis
-              goldStandardRep: null, // Will be populated by admin editing
-              repBoundaries: null, // Will be populated by admin editing
-              adminNotes: null, // Will be populated by admin editing
-              jointAngleRules: null, // Will be populated by admin editing
-              repCountingRules: null, // Will be populated by admin editing
-              validatedByAdmin: false,
-            }
+                    update: {
+          // focused fields for admin analysis
+          goldStandardRep: null, // Will be populated by admin editing
+          repBoundaries: null, // Will be populated by admin editing
+          adminNotes: null, // Will be populated by admin editing
+          jointAngleRules: null, // Will be populated by admin editing
+          validatedByAdmin: false,
+        },
+                    create: {
+          exerciseId: exercise.id,
+          // focused fields for admin analysis
+          goldStandardRep: null, // Will be populated by admin editing
+          repBoundaries: null, // Will be populated by admin editing
+          adminNotes: null, // Will be populated by admin editing
+          jointAngleRules: null, // Will be populated by admin editing
+          validatedByAdmin: false,
+        }
           });
         }
 

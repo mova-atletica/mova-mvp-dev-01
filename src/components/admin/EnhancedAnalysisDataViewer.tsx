@@ -197,11 +197,9 @@ export default function EnhancedAnalysisDataViewer({
       ? analysisData.repAnalysis && analysisData.repAnalysis.goldStandardRep
       : analysisData.patternAnalysis && analysisData.patternAnalysis.referencePatterns;
     
-    const hasQualityAnalysis = analysisData.analysisQuality && analysisData.analysisQuality.overallQuality;
     const hasRules = analysisData.exerciseRules && Object.keys(analysisData.exerciseRules).length > 0;
 
-    if (!hasTypeSpecificAnalysis || !hasQualityAnalysis) return 2;
-    if (hasTypeSpecificAnalysis && hasQualityAnalysis && !hasRules) return 3;
+    if (hasTypeSpecificAnalysis && !hasRules) return 3;
     if (!hasRules) return 4;
     return 5;
   };
@@ -484,20 +482,7 @@ export default function EnhancedAnalysisDataViewer({
           </AnalysisSection>
         )}
 
-        {/* Quality Analysis Section - Always shown */}
-        <AnalysisSection
-          title="Quality Analysis Details"
-          expanded={expandedSections.has('quality')}
-          onToggle={() => toggleSection('quality')}
-        >
-          <QualityAnalysisEditor
-            data={analysisData.analysisQuality}
-            onSave={(data) => saveField('quality', data)}
-            editingField={editingField}
-            onStartEditing={startEditing}
-            onCancelEditing={cancelEditing}
-          />
-        </AnalysisSection>
+
 
         {/* Exercise Rules Section */}
         <AnalysisSection
@@ -624,7 +609,6 @@ function OverviewCard({ title, status, data }: OverviewCardProps) {
 
 import RepAnalysisEditor from './RepAnalysisEditor';
 import PatternAnalysisEditor from './PatternAnalysisEditor';
-import QualityAnalysisEditor from './QualityAnalysisEditor';
 import ExerciseRulesViewer from './ExerciseRulesViewer';
 
 // Workflow Step Component

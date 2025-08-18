@@ -8,6 +8,7 @@ interface SideBySideVideoPlayerProps {
   referenceVideoUrl: string | null;
   userPoses: any[];
   referencePoses?: any[];
+  exercise?: any; // Add exercise prop for VideoPlayer
   onUserFrameChange?: (frame: number) => void;
   onReferenceFrameChange?: (frame: number) => void;
   onUserTimeUpdate?: (time: number) => void;
@@ -25,6 +26,7 @@ export default function SideBySideVideoPlayer({
   referenceVideoUrl,
   userPoses,
   referencePoses = [],
+  exercise,
   onUserFrameChange,
   onReferenceFrameChange,
   onUserTimeUpdate,
@@ -98,6 +100,7 @@ export default function SideBySideVideoPlayer({
             ref={activeVideo === 'user' ? userVideoRef : undefined}
             videoUrl={currentVideoUrl || ""}
             keypointData={currentPoses}
+            exercise={exercise}
             onFrameChange={currentOnFrameChange}
             onTimeUpdate={currentOnTimeUpdate}
             duration={activeVideo === 'user' ? userVideoDuration : undefined}
@@ -136,6 +139,7 @@ export default function SideBySideVideoPlayer({
                 ref={userVideoRef}
                 videoUrl={userVideoUrl || ""}
                 keypointData={userPoses}
+                exercise={exercise}
                 onFrameChange={onUserFrameChange}
                 onTimeUpdate={onUserTimeUpdate}
                 duration={userVideoDuration}
@@ -150,6 +154,7 @@ export default function SideBySideVideoPlayer({
               <VideoPlayer
                 videoUrl={referenceVideoUrl || ""}
                 keypointData={referencePoses}
+                exercise={exercise}
                 onFrameChange={onReferenceFrameChange}
                 onTimeUpdate={onReferenceTimeUpdate}
               />

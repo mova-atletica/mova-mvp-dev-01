@@ -382,7 +382,7 @@ export default function ExerciseDetail({ params }: Props) {
                     <ol className="space-y-2" style={{ color: 'var(--accordion-text)' }}>
                       {exercise.instructions.map((step, i) => (
                         <li key={i} className="flex gap-3">
-                          <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-800 flex items-center justify-center text-sm font-medium">
+                          <span className="flex-shrink-0 rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium" style={{ background: 'var(--tag-bg)', color: 'var(--tag-text)' }}>
                             {i + 1}
                           </span>
                           <span className="text-sm leading-relaxed">{step}</span>

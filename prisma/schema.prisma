@@ -46,9 +46,8 @@ model RepAnalysis {
   repBoundaries         String?  // JSON: [{id: "rep-1", startTime: 0, endTime: 5, bottomTime: 2.3, phases: [{name: "eccentric", startTime: 0, endTime: 2.3}, {name: "concentric", startTime: 2.3, endTime: 5}]}]
   adminNotes            String?  // Admin notes and validation comments
   
-  // 🆕 PHASE-BASED JOINT ANGLE RULES
-  jointAngleRules       String?  // JSON: Phase-based joint angle thresholds for real-time feedback
-  repCountingRules      String?  // JSON: Rules specifically for accurate rep counting
+  // 🆕 ENHANCED JOINT ANGLE RULES (replaces repCountingRules)
+  jointAngleRules       String?  // JSON: Enhanced joint angle thresholds and rep completion logic for real-time feedback
   
   // Validation
   validatedByAdmin      Boolean  @default(false)

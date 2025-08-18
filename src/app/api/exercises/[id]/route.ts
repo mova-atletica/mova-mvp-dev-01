@@ -9,7 +9,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     
     const exercise = await prisma.exercise.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        repAnalysis: true,
+        patternAnalysis: true,
+        analysisQuality: true,
+      }
     });
     
     if (!exercise) {

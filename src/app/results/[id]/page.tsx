@@ -1831,6 +1831,7 @@ export default function ResultsPage() {
             referenceVideoUrl={referenceVideoUrl}
             userPoses={poses}
             referencePoses={referencePoses}
+            exercise={exercise}
             onUserFrameChange={setCurrentFrame}
             seekFrame={seekFrame}
             onSeekFrameHandled={() => setSeekFrame(null)}

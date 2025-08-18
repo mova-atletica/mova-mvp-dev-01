@@ -164,8 +164,8 @@ export default function RepAnalysisEditor({
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             )}
-          </div>
-        )}
+           </div>
+         )}
         
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>

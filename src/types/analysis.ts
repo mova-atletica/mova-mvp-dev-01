@@ -72,9 +72,10 @@ export interface JointAngleRules {
   repCompletion: {
     // CHANGE: From single joint to all joints
     [jointName: string]: {  // Instead of single primaryJoint
-      startAngle: number;
-      bottomAngle: number;
-      endAngle: number;
+      startThreshold: number;
+      completionThreshold: number;
+      returnThreshold: number;
+      hysteresis: number;
     };
   };
 }

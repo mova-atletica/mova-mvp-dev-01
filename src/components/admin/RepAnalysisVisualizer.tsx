@@ -71,6 +71,21 @@ export default function RepAnalysisVisualizer({
   const [hoveredPhase, setHoveredPhase] = useState<string | null>(null);
   const videoPlayerRef = useRef<VideoPlayerHandle>(null);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
+  const [exercise, setExercise] = useState<any>(null);
+
+  // Load exercise data from database
+  useEffect(() => {
+    if (exerciseId) {
+      fetch(`/api/exercises/${exerciseId}`)
+        .then(res => res.json())
+        .then(data => {
+          setExercise(data);
+        })
+        .catch(error => {
+          console.error('Error loading exercise data:', error);
+        });
+    }
+  }, [exerciseId]);
 
   console.log('RepAnalysisVisualizer received data:', data);
   console.log('Exercise title:', exerciseTitle);
@@ -297,6 +312,7 @@ export default function RepAnalysisVisualizer({
                     console.log('Video time update:', time);
                   }}
                   keypointData={keypointsData}
+                  exercise={exercise}
                   className="w-full"
                 />
               ) : (

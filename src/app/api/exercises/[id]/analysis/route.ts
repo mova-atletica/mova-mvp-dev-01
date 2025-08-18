@@ -43,6 +43,13 @@ export async function GET(
     
     const parsedExercise = {
       ...exercise,
+      // Convert string fields to arrays for consistency with main exercises API
+      tags: exercise.tags ? exercise.tags.split(',') : [],
+      equipment: exercise.equipment ? exercise.equipment.split(',') : [],
+      muscleGroups: exercise.muscleGroups ? exercise.muscleGroups.split(',') : [],
+      jointsOfInterest: exercise.jointsOfInterest ? exercise.jointsOfInterest.split(',') : [],
+      instructions: exercise.instructions ? JSON.parse(exercise.instructions) : [],
+      relatedExercises: exercise.relatedExercises ? exercise.relatedExercises.split(',') : [],
       repAnalysis: exerciseWithRelations.repAnalysis ? {
         ...exerciseWithRelations.repAnalysis,
         // focused fields for admin analysis
@@ -50,7 +57,6 @@ export async function GET(
         repBoundaries: safeJsonParse(exerciseWithRelations.repAnalysis.repBoundaries),
         adminNotes: exerciseWithRelations.repAnalysis.adminNotes,
         jointAngleRules: safeJsonParse(exerciseWithRelations.repAnalysis.jointAngleRules),
-        repCountingRules: safeJsonParse(exerciseWithRelations.repAnalysis.repCountingRules),
         validatedByAdmin: exerciseWithRelations.repAnalysis.validatedByAdmin,
       } : null,
       patternAnalysis: exerciseWithRelations.patternAnalysis ? {
@@ -141,7 +147,6 @@ export async function PUT(
             repBoundaries: adminData.repAnalysis.repBoundaries ? JSON.stringify(adminData.repAnalysis.repBoundaries) : null,
             adminNotes: adminData.repAnalysis.adminNotes,
             jointAngleRules: adminData.repAnalysis.jointAngleRules ? JSON.stringify(adminData.repAnalysis.jointAngleRules) : null,
-            repCountingRules: adminData.repAnalysis.repCountingRules ? JSON.stringify(adminData.repAnalysis.repCountingRules) : null,
             validatedByAdmin: adminData.repAnalysis.validatedByAdmin,
           },
           create: {
@@ -151,7 +156,6 @@ export async function PUT(
             repBoundaries: adminData.repAnalysis.repBoundaries ? JSON.stringify(adminData.repAnalysis.repBoundaries) : null,
             adminNotes: adminData.repAnalysis.adminNotes,
             jointAngleRules: adminData.repAnalysis.jointAngleRules ? JSON.stringify(adminData.repAnalysis.jointAngleRules) : null,
-            repCountingRules: adminData.repAnalysis.repCountingRules ? JSON.stringify(adminData.repAnalysis.repCountingRules) : null,
             validatedByAdmin: adminData.repAnalysis.validatedByAdmin,
           }
         });
@@ -324,7 +328,6 @@ export async function POST(
           repBoundaries: repAnalysisData.repBoundaries ? JSON.stringify(repAnalysisData.repBoundaries) : null,
           adminNotes: repAnalysisData.adminNotes || null,
           jointAngleRules: repAnalysisData.jointAngleRules ? JSON.stringify(repAnalysisData.jointAngleRules) : null,
-          repCountingRules: repAnalysisData.repCountingRules ? JSON.stringify(repAnalysisData.repCountingRules) : null,
           validatedByAdmin: repAnalysisData.validatedByAdmin || false,
         },
         create: {
@@ -334,7 +337,6 @@ export async function POST(
           repBoundaries: repAnalysisData.repBoundaries ? JSON.stringify(repAnalysisData.repBoundaries) : null,
           adminNotes: repAnalysisData.adminNotes || null,
           jointAngleRules: repAnalysisData.jointAngleRules ? JSON.stringify(repAnalysisData.jointAngleRules) : null,
-          repCountingRules: repAnalysisData.repCountingRules ? JSON.stringify(repAnalysisData.repCountingRules) : null,
           validatedByAdmin: repAnalysisData.validatedByAdmin || false,
         }
       });

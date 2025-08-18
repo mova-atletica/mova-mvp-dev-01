@@ -7,6 +7,7 @@ import RepAnalysisEditor from './RepAnalysisEditor';
 import RepAnalysisVisualizer from './RepAnalysisVisualizer';
 import PatternAnalysisEditor from './PatternAnalysisEditor';
 import QualityAnalysisEditor from './QualityAnalysisEditor';
+import RepThresholdEditor from './RepThresholdEditor';
 
 interface Exercise {
   id: string;
@@ -679,9 +680,29 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
               </div>
             </div>
 
-
-
-
+            {/* Rep Completion Thresholds Editor */}
+            {analysisData?.repAnalysis?.jointAngleRules && (
+              <RepThresholdEditor
+                jointAngleRules={analysisData.repAnalysis.jointAngleRules}
+                onThresholdsChange={(updatedRules) => {
+                  console.log('Rep thresholds changed:', updatedRules);
+                  // Update joint angle rules in analysis data
+                  if (analysisData?.repAnalysis) {
+                    const updatedRepAnalysis = {
+                      ...analysisData.repAnalysis,
+                      jointAngleRules: updatedRules
+                    };
+                    setAnalysisData({
+                      ...analysisData,
+                      repAnalysis: updatedRepAnalysis
+                    });
+                    setHasUnsavedChanges(true);
+                  }
+                }}
+                selectedJoints={selectedJoints}
+                disabled={saving}
+              />
+            )}
 
             {/* Analysis Data Sections */}
             <div className="bg-white border border-gray-200 rounded-lg p-4">

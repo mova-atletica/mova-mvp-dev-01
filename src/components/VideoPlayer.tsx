@@ -1,8 +1,9 @@
 "use client";
-import React, { useRef, useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useImperativeHandle, forwardRef, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import CoreVideoPlayer from './CoreVideoPlayer';
 import { getAngleWithConfidence } from '../lib/analysisUtils';
+
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -21,6 +22,15 @@ interface VideoMetadata {
   width: number;
   height: number;
   aspectRatio: 'landscape' | 'portrait';
+}
+
+// Update the RepState interface to match Python style:
+interface RepState {
+  s1_completed: boolean;
+  s2_completed: boolean;
+  s3_completed: boolean;
+  lastAngle: number | null;
+  repStartTime: number | null;
 }
 
 const ANGLE_OPTIONS = [
@@ -111,8 +121,588 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   const [jointSize, setJointSize] = useState<number>(4);
   const [videoVisible, setVideoVisible] = useState(true);
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
-  const [advancedTab, setAdvancedTab] = useState<'focus' | 'style' | 'biomechanics'>('focus');
-  const [openMenu, setOpenMenu] = useState<null | 'export' | 'biomechanics' | 'style' | 'focus' | 'analysis'>(null);
+  const [advancedTab, setAdvancedTab] = useState<'focus' | 'style'>('focus');
+  const [openMenu, setOpenMenu] = useState<null | 'export' | 'style' | 'focus' | 'analysis'>(null);
+
+  // Helper function to get current angles from keypoint frame
+  const getCurrentAngles = (keypointFrame: any) => {
+    console.log('📐 getCurrentAngles called:', {
+      hasKeypoints: !!keypointFrame?.keypoints,
+      keypointsLength: keypointFrame?.keypoints?.length,
+      keypoints: keypointFrame?.keypoints?.slice(0, 3) // Show first 3 keypoints
+    });
+    
+    if (!keypointFrame?.keypoints) {
+      console.log('❌ getCurrentAngles early return - missing keypoints');
+      return {};
+    }
+    
+    const angles: { [joint: string]: number } = {};
+    const kp = keypointFrame.keypoints;
+    
+    // Left leg angles
+    if (kp[11] && kp[13] && kp[15]) {
+      // Left knee angle (hip-knee-ankle)
+      angles.leftKnee = getAngleWithConfidence(kp[11], kp[13], kp[15]).angle || 0;
+    }
+    
+    if (kp[5] && kp[11] && kp[13]) {
+      // Left hip angle (shoulder-hip-knee)
+      angles.leftHip = getAngleWithConfidence(kp[5], kp[11], kp[13]).angle || 0;
+    }
+    
+    // Right leg angles
+    if (kp[12] && kp[14] && kp[16]) {
+      // Right knee angle (hip-knee-ankle)
+      angles.rightKnee = getAngleWithConfidence(kp[12], kp[14], kp[16]).angle || 0;
+    }
+    
+    if (kp[6] && kp[12] && kp[14]) {
+      // Right hip angle (shoulder-hip-knee)
+      angles.rightHip = getAngleWithConfidence(kp[6], kp[12], kp[14]).angle || 0;
+    }
+    
+    // Arm angles
+    if (kp[5] && kp[7] && kp[9]) {
+      // Left shoulder angle (hip-shoulder-elbow)
+      angles.leftShoulder = getAngleWithConfidence(kp[5], kp[7], kp[9]).angle || 0;
+    }
+    
+    if (kp[6] && kp[8] && kp[10]) {
+      // Right shoulder angle (hip-shoulder-elbow)
+      angles.rightShoulder = getAngleWithConfidence(kp[6], kp[8], kp[10]).angle || 0;
+    }
+    
+    if (kp[7] && kp[9] && kp[11]) {
+      // Left elbow angle (shoulder-elbow-wrist)
+      angles.leftElbow = getAngleWithConfidence(kp[7], kp[9], kp[11]).angle || 0;
+    }
+    
+    if (kp[8] && kp[10] && kp[12]) {
+      // Right elbow angle (shoulder-elbow-wrist)
+      angles.rightElbow = getAngleWithConfidence(kp[8], kp[10], kp[12]).angle || 0;
+    }
+    
+    // Torso angle (using shoulders and hips)
+    if (kp[5] && kp[6] && kp[11] && kp[12]) {
+      const leftTorso = getAngleWithConfidence(kp[5], kp[11], kp[12]).angle || 0;
+      const rightTorso = getAngleWithConfidence(kp[6], kp[12], kp[11]).angle || 0;
+      angles.torso = (leftTorso + rightTorso) / 2;
+    }
+    
+    console.log('📐 getCurrentAngles result:', angles);
+    return angles;
+  };
+
+    // Simple real-time feedback state
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [repCountingEnabled, setRepCountingEnabled] = useState(false);
+  const [currentRepCount, setCurrentRepCount] = useState(0);
+  const [currentPhase, setCurrentPhase] = useState<string | null>(null);
+  const [isInRep, setIsInRep] = useState(false);
+  const [lastBottomTime, setLastBottomTime] = useState<number | null>(null);
+  const [repStates, setRepStates] = useState<{[joint: string]: RepState}>({});
+  
+  // Memoize current angles to prevent infinite loop
+  const currentAngles = useMemo(() => {
+    return currentKeypointFrame ? getCurrentAngles(currentKeypointFrame) : {};
+  }, [currentKeypointFrame]);
+  
+
+  
+  // Simple feedback functions
+  const toggleAudio = (enabled: boolean) => setAudioEnabled(enabled);
+  
+  const toggleRepCounting = (enabled: boolean) => {
+    setRepCountingEnabled(enabled);
+    if (!enabled) {
+      // Reset rep counting state when disabled
+      setCurrentRepCount(0);
+      setIsInRep(false);
+      setCurrentPhase(null);
+      setLastBottomTime(null);
+      setRepStates({}); // Reset all rep states
+    }
+    console.log('🔢 Rep counting:', enabled ? 'enabled' : 'disabled');
+  };
+  
+  const resetRepCount = () => {
+    setCurrentRepCount(0);
+    setCurrentPhase(null);
+    setIsInRep(false);
+    setLastBottomTime(null);
+    // Reset all rep states
+    setRepStates({});
+    console.log('🔄 Rep count and states reset');
+  };
+  
+// Replace the entire processRepFeedback function with this Python-inspired approach:
+
+const processRepFeedback = () => {
+  console.log('🔍 processRepFeedback called:', {
+    repCountingEnabled,
+    currentAnglesKeys: Object.keys(currentAngles),
+    currentAngles,
+    currentKeypointFrame: !!currentKeypointFrame,
+    exercise: !!exercise,
+    exerciseType: exercise?.exerciseType,
+    jointsOfInterest: exercise?.jointsOfInterest,
+    repAnalysis: !!exercise?.repAnalysis,
+    jointAngleRules: !!exercise?.repAnalysis?.jointAngleRules
+  });
+  
+  if (!repCountingEnabled || Object.keys(currentAngles).length === 0) {
+    console.log('❌ Early return - repCountingEnabled:', repCountingEnabled, 'currentAngles empty:', Object.keys(currentAngles).length === 0);
+    return;
+  }
+  
+  // Get joints of interest from exercise data, with fallback to common joints
+  const jointsOfInterest = (exercise?.jointsOfInterest && Array.isArray(exercise.jointsOfInterest)) 
+    ? exercise.jointsOfInterest 
+    : ['leftKnee', 'rightKnee', 'leftHip', 'rightHip'];
+  console.log('🎯 Exercise joints of interest:', jointsOfInterest);
+  
+  // Find available joints of interest that we have angle data for
+  const availableJointsOfInterest = jointsOfInterest.filter((joint: string) => 
+    currentAngles[joint] !== undefined
+  );
+  
+  console.log('🎯 Available joints of interest:', availableJointsOfInterest);
+  
+  if (availableJointsOfInterest.length === 0) {
+    console.log('❌ No joints of interest available - trying all available angles');
+    // Fallback: use any available angle data
+    const allAvailableJoints = Object.keys(currentAngles);
+    if (allAvailableJoints.length === 0) {
+      console.log('❌ No angle data available at all - skipping rep detection');
+      return;
+    }
+    availableJointsOfInterest.push(allAvailableJoints[0]);
+    console.log('🎯 Using fallback joint:', availableJointsOfInterest[0]);
+  }
+  
+  // ALWAYS use joints of interest - prioritize joints that have generated rules
+  let trackingJoint = null;
+  let currentAngle = null;
+  
+  // Parse joint angle rules if they're stored as a JSON string
+  const jointAngleRules = exercise?.repAnalysis?.jointAngleRules 
+    ? (typeof exercise.repAnalysis.jointAngleRules === 'string' 
+        ? JSON.parse(exercise.repAnalysis.jointAngleRules) 
+        : exercise.repAnalysis.jointAngleRules)
+    : null;
+  
+  // First, try to find a joint of interest that has generated rules
+  if (jointAngleRules?.repCompletion) {
+    for (const joint of availableJointsOfInterest) {
+      if (jointAngleRules.repCompletion[joint] && currentAngles[joint] !== undefined) {
+        trackingJoint = joint;
+        currentAngle = currentAngles[joint];
+        console.log('🎯 Selected joint with generated rules:', trackingJoint);
+        break;
+      }
+    }
+  }
+  
+  // If no joint with rules found, use the first available joint of interest
+  if (!trackingJoint || currentAngle === null || currentAngle === undefined) {
+    trackingJoint = availableJointsOfInterest[0];
+    currentAngle = currentAngles[trackingJoint];
+    console.log('🎯 Selected first available joint of interest:', trackingJoint);
+  }
+  
+  // Safety check - if we still don't have a valid angle, skip rep detection
+  if (currentAngle === null || currentAngle === undefined) {
+    console.log('❌ No valid angle found for tracking joint - skipping rep detection');
+    return;
+  }
+  
+  // Get thresholds from rep analysis rules for the specific joint
+  let angleThresholds;
+  
+  if (jointAngleRules?.repCompletion?.[trackingJoint]) {
+    // Use enhanced joint angle rules for this joint
+    const jointRule = jointAngleRules.repCompletion[trackingJoint];
+    angleThresholds = {
+      startThreshold: jointRule.startThreshold || 120,
+      completionThreshold: jointRule.completionThreshold || 100,
+      returnThreshold: jointRule.returnThreshold || 120,
+      hysteresis: jointRule.hysteresis || 5
+    };
+    console.log('📋 Using enhanced joint angle rules for', trackingJoint, ':', angleThresholds);
+  } else {
+    // Fallback thresholds for testing
+    angleThresholds = {
+      startThreshold: 120,
+      completionThreshold: 100,
+      returnThreshold: 120,
+      hysteresis: 5
+    };
+    console.log('📋 Using fallback thresholds for', trackingJoint, ':', angleThresholds);
+  }
+  
+  // Get or create rep state for this joint (Python-style persistent flags)
+  let currentRepState = repStates[trackingJoint];
+  if (!currentRepState) {
+    currentRepState = {
+      s1_completed: false,
+      s2_completed: false,
+      s3_completed: false,
+      lastAngle: null,
+      repStartTime: null
+    };
+    
+    setRepStates(prev => ({
+      ...prev,
+      [trackingJoint]: currentRepState
+    }));
+  }
+  
+  // Determine exercise pattern based on threshold relationships
+  const isDownwardExercise = angleThresholds.completionThreshold < angleThresholds.startThreshold; // Like squat
+  
+  console.log('🎯 Exercise pattern:', isDownwardExercise ? 'Downward' : 'Upward');
+  console.log('📊 Thresholds:', angleThresholds);
+  console.log('📐 Current angle:', currentAngle.toFixed(1));
+  
+  // Python-style state logic with persistent flags
+  let s1_completed = currentRepState.s1_completed;
+  let s2_completed = currentRepState.s2_completed;
+  let s3_completed = currentRepState.s3_completed;
+  
+  if (isDownwardExercise) {
+    // DOWNWARD EXERCISE LOGIC (like squat: High → Low → High)
+    
+    // S1: Start position (high angle)
+    if (currentAngle >= (angleThresholds.startThreshold  - (angleThresholds.hysteresis*1)) ) {
+      s1_completed = true;
+      s2_completed = false; // Clear S2 and S3 when returning to start
+      s3_completed = false;
+      console.log('📍 S1 (Start): Set s1_completed = true, cleared s2 & s3');
+    }
+    
+    // S2: Mid position (medium angle) - only if S1 was completed
+    else if (currentAngle <= (angleThresholds.completionThreshold + (angleThresholds.hysteresis*1)) && s1_completed) {
+      s2_completed = true;
+      console.log('📍 S2 (Bottom): Set s2_completed = true');
+    }
+    
+    // S3: Return position (high angle) - only if S1 AND S2 were completed
+    else if (currentAngle >= (angleThresholds.returnThreshold + (angleThresholds.hysteresis*1)) && s1_completed && s2_completed) {
+      s3_completed = true;
+      console.log('📍 S3 (Return): Set s3_completed = true');
+    }
+    
+    // Check for complete rep OUTSIDE the state conditions (Python style)
+    if (s1_completed && s2_completed && s3_completed) {
+      setCurrentRepCount(prev => {
+        const newCount = prev + 1;
+        console.log(`✅ Rep ${newCount} completed! (Downward pattern)`);
+        return newCount;
+      });
+      
+      // Reset all flags after successful completion (Python style)
+      s1_completed = false;
+      s2_completed = false;
+      s3_completed = false;
+      console.log('🔄 All states reset after successful rep');
+      
+      // IMPORTANT: Update the state immediately after resetting
+      setRepStates(prev => ({
+        ...prev,
+        [trackingJoint]: {
+          s1_completed: false,
+          s2_completed: false,
+          s3_completed: false,
+          lastAngle: currentAngle,
+          repStartTime: null
+        }
+      }));
+      
+      // Return early to avoid the final setRepStates call
+      return;
+    }
+    
+    // Error handling: Return to S1 without completing S3 (incomplete rep)
+    if (currentAngle >= angleThresholds.startThreshold && s1_completed && s2_completed && !s3_completed) {
+      console.log('❌ Incomplete rep detected - returned to start without completing');
+      // Reset all states
+      s1_completed = false;
+      s2_completed = false;
+      s3_completed = false;
+    }
+    
+  } else {
+    // UPWARD EXERCISE LOGIC (like leg lift: Low → High → Low)
+    
+    // S1: Start position (low angle)
+    if (currentAngle <= (angleThresholds.startThreshold - (angleThresholds.hysteresis*1))) {
+      s1_completed = true;
+      s2_completed = false; // Clear S2 and S3 when returning to start
+      s3_completed = false;
+      console.log('📍 S1 (Start): Set s1_completed = true, cleared s2 & s3');
+    }
+    
+    // S2: Peak position (high angle) - only if S1 was completed
+    else if (currentAngle >= (angleThresholds.completionThreshold + (angleThresholds.hysteresis*1)) && s1_completed) {
+      s2_completed = true;
+      console.log('📍 S2 (Peak): Set s2_completed = true');
+    }
+    
+    // S3: Return position (low angle) - only if S1 AND S2 were completed
+    else if (currentAngle <= (angleThresholds.returnThreshold + (angleThresholds.hysteresis*1)) && s1_completed && s2_completed) {
+      s3_completed = true;
+      console.log('📍 S3 (Return): Set s3_completed = true');
+    }
+    
+    // Debug: Show why no state is being set
+    if (!s1_completed && !s2_completed && !s3_completed) {
+      console.log('🔍 Debug - No state set because:');
+      console.log('  - S1 condition (angle <= 135):', currentAngle <= angleThresholds.startThreshold, `(${currentAngle} <= ${angleThresholds.startThreshold})`);
+      console.log('  - S2 condition (angle >= 171 AND s1_completed):', currentAngle >= angleThresholds.completionThreshold && s1_completed, `(${currentAngle} >= ${angleThresholds.completionThreshold} AND ${s1_completed})`);
+      console.log('  - S3 condition (angle <= 176 AND s1_completed AND s2_completed):', currentAngle <= angleThresholds.returnThreshold && s1_completed && s2_completed, `(${currentAngle} <= ${angleThresholds.returnThreshold} AND ${s1_completed} AND ${s2_completed})`);
+    }
+    
+    // Check for complete rep OUTSIDE the state conditions (Python style)
+    if (s1_completed && s2_completed && s3_completed) {
+      setCurrentRepCount(prev => {
+        const newCount = prev + 1;
+        console.log(`✅ Rep ${newCount} completed! (Upward pattern)`);
+        return newCount;
+      });
+      
+      // Reset all flags after successful completion
+      s1_completed = false;
+      s2_completed = false;
+      s3_completed = false;
+      console.log('🔄 All states reset after successful rep');
+      
+      // IMPORTANT: Update the state immediately after resetting
+      setRepStates(prev => ({
+        ...prev,
+        [trackingJoint]: {
+          s1_completed: false,
+          s2_completed: false,
+          s3_completed: false,
+          lastAngle: currentAngle,
+          repStartTime: null
+        }
+      }));
+      
+      // Return early to avoid the final setRepStates call
+      return;
+    }
+    
+    // Error handling: Return to S1 without completing S3
+    if (currentAngle <= angleThresholds.startThreshold && s1_completed && s2_completed && !s3_completed) {
+      console.log('❌ Incomplete rep detected - returned to start without completing');
+      // Reset all states
+      s1_completed = false;
+      s2_completed = false;
+      s3_completed = false;
+    }
+  }
+
+  // Update state with new flag values
+  setRepStates(prev => ({
+    ...prev,
+    [trackingJoint]: {
+      s1_completed,
+      s2_completed,
+      s3_completed,
+      lastAngle: currentAngle,
+      repStartTime: s1_completed && !prev[trackingJoint]?.s1_completed ? Date.now() : prev[trackingJoint]?.repStartTime
+    }
+  }));
+  
+  // Enhanced debugging
+  console.log('🎯 State:', {
+    joint: trackingJoint,
+    s1_completed,
+    s2_completed,
+    s3_completed,
+    angle: currentAngle.toFixed(1),
+    pattern: isDownwardExercise ? 'Downward' : 'Upward',
+    thresholds: angleThresholds,
+    repCount: currentRepCount
+  });
+};
+  
+  // Process feedback on each frame
+  useEffect(() => {
+    console.log('🎬 useEffect triggered:', {
+      hasCurrentKeypointFrame: !!currentKeypointFrame,
+      currentAnglesKeys: Object.keys(currentAngles),
+      repCountingEnabled
+    });
+    
+    if (currentKeypointFrame && repCountingEnabled) {
+      processRepFeedback();
+    }
+  }, [currentKeypointFrame, repCountingEnabled]); // Removed currentAngles and exercise?.repAnalysis?.jointAngleRules from dependencies
+
+  // Exercise-type-specific content renderer
+  const renderExerciseTypeSpecificContent = () => {
+    const exerciseType = exercise?.exerciseType;
+    
+    switch (exerciseType) {
+      case 'repetition':
+      case 'rep-based':
+        return (
+          <>
+            {/* Rep Counting Toggle */}
+            <div style={{ 
+              background: 'var(--vp-dropdown-bg)', 
+              border: '1px solid var(--vp-dropdown-border)', 
+              borderRadius: '4px', 
+              padding: '8px', 
+              marginBottom: '8px' 
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
+                Rep Counting:
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: '#6b7280' }}>
+                <input
+                  type="checkbox"
+                  checked={repCountingEnabled}
+                  onChange={(e) => toggleRepCounting(e.target.checked)}
+                  style={{ marginRight: '6px' }}
+                />
+                Enable real-time rep counting
+              </label>
+            </div>
+
+            {/* Real-time Rep Analysis - Only show when enabled */}
+            {repCountingEnabled && (
+              <div style={{ 
+                background: 'var(--vp-dropdown-bg)', 
+                border: '1px solid var(--vp-dropdown-border)', 
+                borderRadius: '4px', 
+                padding: '8px', 
+                marginBottom: '8px' 
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
+                  Real-time Analysis:
+                </div>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+                  Rep Count: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{currentRepCount}</span>
+                  <button 
+                    onClick={resetRepCount}
+                    style={{ 
+                      marginLeft: '8px', 
+                      fontSize: '8px', 
+                      padding: '2px 4px', 
+                      background: '#ef4444', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '2px',
+                      cursor: 'pointer'
+                    }}
+                    title="Reset rep count"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+                  Current Phase: <span style={{ 
+                    color: currentPhase === 'eccentric' ? '#f59e0b' : 
+                           currentPhase === 'concentric' ? '#10b981' : 
+                           currentPhase === 'transition' ? '#8b5cf6' : '#6b7280', 
+                    fontWeight: 500 
+                  }}>{currentPhase || 'None'}</span>
+                </div>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+                  In Rep: <span style={{ color: isInRep ? '#10b981' : '#6b7280', fontWeight: 500 }}>
+                    {isInRep ? 'Yes' : 'No'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Audio Feedback Toggle - Separate from rep counting */}
+            <div style={{ 
+              background: 'var(--vp-dropdown-bg)', 
+              border: '1px solid var(--vp-dropdown-border)', 
+              borderRadius: '4px', 
+              padding: '8px', 
+              marginBottom: '8px' 
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
+                Audio Feedback:
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: '#6b7280' }}>
+                <input
+                  type="checkbox"
+                  checked={audioEnabled}
+                  onChange={(e) => toggleAudio(e.target.checked)}
+                  style={{ marginRight: '6px' }}
+                />
+                Enable rep completion audio cues
+              </label>
+            </div>
+          </>
+        );
+        
+      case 'pose':
+      case 'pose-based':
+        return (
+          <>
+            {/* Audio Feedback Toggle for Pose-based */}
+            <div style={{ 
+              background: 'var(--vp-dropdown-bg)', 
+              border: '1px solid var(--vp-dropdown-border)', 
+              borderRadius: '4px', 
+              padding: '8px', 
+              marginBottom: '8px' 
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
+                Audio Feedback:
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: '#6b7280' }}>
+                <input
+                  type="checkbox"
+                  checked={audioEnabled}
+                  onChange={(e) => toggleAudio(e.target.checked)}
+                  style={{ marginRight: '6px' }}
+                />
+                Enable pose achievement & hold audio cues
+              </label>
+            </div>
+          </>
+        );
+        
+      case 'flow':
+      case 'flow-based':
+        return (
+          <>
+            {/* Audio Feedback Toggle for Flow-based */}
+            <div style={{ 
+              background: 'var(--vp-dropdown-bg)', 
+              border: '1px solid var(--vp-dropdown-border)', 
+              borderRadius: '4px', 
+              padding: '8px', 
+              marginBottom: '8px' 
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
+                Audio Feedback:
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: '#6b7280' }}>
+                <input
+                  type="checkbox"
+                  checked={audioEnabled}
+                  onChange={(e) => toggleAudio(e.target.checked)}
+                  style={{ marginRight: '6px' }}
+                />
+                Enable sequence transition audio cues
+              </label>
+            </div>
+          </>
+        );
+        
+      default:
+        return null;
+    }
+  };
 
   // Detect mobile
   useEffect(() => {
@@ -164,7 +754,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     
     onTimeUpdate?.(time);
     onFrameChange?.(Math.floor(time * 30)); // Keep original frame calculation for other uses
-  }, [onTimeUpdate, onFrameChange, showKeypoints, keypointData]);
+  }, [onTimeUpdate, onFrameChange, showKeypoints]); // Removed keypointData from dependencies
 
   // Helper function to find nearest timestamp
   const findNearestTimestamp = (targetTime: number, timestamps: number[]): number => {
@@ -874,33 +1464,7 @@ const videoElement = (
       </div>
     </div>
   );
-      const actionsPanel = (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '0px' }}>Biomechanics</div>
-      {/* Skeleton Toggle, Angles Toggle, Video Toggle */}
-      <button
-        onClick={() => setShowKeypoints(!showKeypoints)}
-        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
-        style={{ marginBottom: '4px' }}
-      >
-        {showKeypoints ? EyeIcon : EyeOffIcon}Skeleton
-      </button>
-      <button
-        onClick={() => setShowAngles(!showAngles)}
-        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
-        style={{ marginBottom: '4px' }}
-      >
-        {showAngles ? EyeIcon : EyeOffIcon}Angles
-      </button>
-      <button
-        onClick={() => setVideoVisible(v => !v)}
-        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
-        style={{ marginBottom: '4px' }}
-      >
-        {videoVisible ? EyeIcon : EyeOffIcon}Video
-      </button>
-    </div>
-  );
+;
       const exportPanel = (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '0px' }}>Export</div>
@@ -917,7 +1481,7 @@ const videoElement = (
 
   // Analysis Panel for recorded videos
   const analysisPanel = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '250px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '300px' }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Exercise Analysis</div>
       
       {/* Exercise Type and Classification */}
@@ -933,137 +1497,40 @@ const videoElement = (
           Type: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise?.exerciseType || 'Unknown'}</span>
         </div>
         <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-          Subtype: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise?.exerciseSubtype || 'Unknown'}</span>
-        </div>
-        <div style={{ fontSize: 10, color: '#6b7280' }}>
-          Confidence: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise?.classificationConfidence ? `${(exercise.classificationConfidence * 100).toFixed(1)}%` : 'N/A'}</span>
+          Joints of Interest: <span style={{ color: '#3b82f6', fontWeight: 500 }}>
+            {exercise?.jointsOfInterest && Array.isArray(exercise.jointsOfInterest) && exercise.jointsOfInterest.length > 0 
+              ? exercise.jointsOfInterest.join(', ')
+              : 'None specified'
+            }
+          </span>
         </div>
       </div>
 
-      {/* Repetition Analysis */}
-      {exercise?.repAnalysis && (
-        <div style={{ 
-          background: 'var(--vp-dropdown-bg)', 
-          border: '1px solid var(--vp-dropdown-border)', 
-          borderRadius: '4px', 
-          padding: '8px', 
-          marginBottom: '8px' 
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Repetition Analysis:</div>
-          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-            Rep Count: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.repAnalysis.repBoundaries?.length || 'N/A'}</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-            Duration: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.repAnalysis.repBoundaries?.length ? `${Math.max(...exercise.repAnalysis.repBoundaries.map((r: any) => r.endTime || 0)).toFixed(1)}s` : 'N/A'}</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-            Rep Pattern: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.repAnalysis.repetitionPattern || 'N/A'}</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#6b7280' }}>
-            Tempo: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.repAnalysis.tempo || 'N/A'}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Pattern Analysis */}
-      {exercise?.patternAnalysis && (
-        <div style={{ 
-          background: 'var(--vp-dropdown-bg)', 
-          border: '1px solid var(--vp-dropdown-border)', 
-          borderRadius: '4px', 
-          padding: '8px', 
-          marginBottom: '8px' 
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Pattern Analysis:</div>
-          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-            Primary Joints: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.patternAnalysis.primaryJoints?.join(', ') || 'N/A'}</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-            Key Angles: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.patternAnalysis.keyAngles?.join(', ') || 'N/A'}</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-            Pattern Quality: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.patternAnalysis.patternQuality ? `${(exercise.patternAnalysis.patternQuality * 100).toFixed(1)}%` : 'N/A'}</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#6b7280' }}>
-            Complexity: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise.patternAnalysis.complexity || 'N/A'}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Quality Assessment */}
-      {exercise?.analysisQuality && (
-        <div style={{ 
-          background: 'var(--vp-dropdown-bg)', 
-          border: '1px solid var(--vp-dropdown-border)', 
-          borderRadius: '4px', 
-          padding: '8px', 
-          marginBottom: '8px' 
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Quality Assessment:</div>
-          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-            Overall Quality: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.analysisQuality.overallQuality ? `${(exercise.analysisQuality.overallQuality * 100).toFixed(1)}%` : 'N/A'}</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-            Pose Confidence: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.analysisQuality.poseConfidence ? `${(exercise.analysisQuality.poseConfidence * 100).toFixed(1)}%` : 'N/A'}</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-            Data Completeness: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.analysisQuality.dataCompleteness ? `${(exercise.analysisQuality.dataCompleteness * 100).toFixed(1)}%` : 'N/A'}</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#6b7280' }}>
-            Reliability: <span style={{ color: '#10b981', fontWeight: 500 }}>{exercise.analysisQuality.reliability ? `${(exercise.analysisQuality.reliability * 100).toFixed(1)}%` : 'N/A'}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Visualization Controls */}
-      <div style={{ 
-        background: 'var(--vp-dropdown-bg)', 
-        border: '1px solid var(--vp-dropdown-border)', 
-        borderRadius: '4px', 
-        padding: '8px', 
-        marginBottom: '8px' 
-      }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Visualization:</div>
-        
-        {/* Keypoint Analysis Toggle */}
         <button
           onClick={() => setShowKeypoints(!showKeypoints)}
-          className={`px-3 py-2 rounded text-xs vp-btn flex items-center justify-between w-full ${
-            showKeypoints ? 'bg-blue-600 text-white' : ''
-          }`}
+          className="px-3 py-2 rounded text-xs vp-btn flex items-center"
           style={{ marginBottom: '4px' }}
         >
-          <span>Keypoint Analysis</span>
-          <span>{showKeypoints ? '🟢' : '⚪'}</span>
+          {showKeypoints ? EyeIcon : EyeOffIcon}Skeleton
         </button>
-        
-        {/* Angle Analysis Toggle */}
         <button
           onClick={() => setShowAngles(!showAngles)}
-          className={`px-3 py-2 rounded text-xs vp-btn flex items-center justify-between w-full ${
-            showAngles ? 'bg-blue-600 text-white' : ''
-          }`}
+          className="px-3 py-2 rounded text-xs vp-btn flex items-center"
           style={{ marginBottom: '4px' }}
         >
-          <span>Angle Analysis</span>
-          <span>{showAngles ? '🟢' : '⚪'}</span>
+          {showAngles ? EyeIcon : EyeOffIcon}Angles
         </button>
-      </div>
+        <button
+          onClick={() => setVideoVisible(v => !v)}
+          className="px-3 py-2 rounded text-xs vp-btn flex items-center"
+          style={{ marginBottom: '4px' }}
+        >
+          {videoVisible ? EyeIcon : EyeOffIcon}Video
+        </button>
 
-      {/* Joints of Interest */}
-      {exercise?.jointsOfInterest && exercise.jointsOfInterest.length > 0 && (
-        <div style={{ 
-          background: 'var(--vp-dropdown-bg)', 
-          border: '1px solid var(--vp-dropdown-border)', 
-          borderRadius: '4px', 
-          padding: '8px' 
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Joints of Interest:</div>
-          <div style={{ fontSize: 10, color: '#6b7280' }}>
-            {exercise.jointsOfInterest.join(', ')}
-          </div>
-        </div>
-      )}
+      {/* Exercise-Type-Specific Content */}
+      {renderExerciseTypeSpecificContent()}
+
     </div>
   );
 
@@ -1071,7 +1538,6 @@ const videoElement = (
   let panelContent: React.ReactNode = null;
   if (openMenu === 'focus') panelContent = selectionPanel; // Changed from 'selection'
   else if (openMenu === 'style') panelContent = stylePanel;
-  else if (openMenu === 'biomechanics') panelContent = actionsPanel; // Changed from 'actions'
   else if (openMenu === 'export') panelContent = exportPanel;
   else if (openMenu === 'analysis') panelContent = analysisPanel; // Added analysis panel
 
