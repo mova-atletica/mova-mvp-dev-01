@@ -3,84 +3,146 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// GET a single exercise by ID
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
+    console.log('🔍 API: Fetching exercise with ID:', id);
     
     const exercise = await prisma.exercise.findUnique({
       where: { id },
       include: {
         repAnalysis: true,
-        patternAnalysis: true,
-        analysisQuality: true,
+        poseAnalysis: true,
       }
     });
-    
+
+    console.log('🔍 API: Exercise found:', exercise ? 'Yes' : 'No');
+    if (exercise) {
+      console.log('🔍 API: Exercise data:', {
+        id: exercise.id,
+        title: exercise.title,
+        exerciseType: exercise.exerciseType,
+        referenceVideoUrl: exercise.referenceVideoUrl,
+        referenceKeypointsUrl: exercise.referenceKeypointsUrl,
+        hasPoseAnalysis: !!exercise.poseAnalysis,
+        poseAnalysisKeys: exercise.poseAnalysis ? Object.keys(exercise.poseAnalysis) : null
+      });
+    }
+
     if (!exercise) {
+      console.log('❌ API: Exercise not found for ID:', id);
       return NextResponse.json({ error: 'Exercise not found' }, { status: 404 });
     }
-    
-    return NextResponse.json(exercise);
+
+    // Parse string fields to arrays for consistency
+    const parsedExercise = {
+      ...exercise,
+      tags: exercise.tags ? exercise.tags.split(',') : [],
+      equipment: exercise.equipment ? exercise.equipment.split(',') : [],
+      muscleGroups: exercise.muscleGroups ? exercise.muscleGroups.split(',') : [],
+      jointsOfInterest: exercise.jointsOfInterest ? exercise.jointsOfInterest.split(',') : [],
+      instructions: exercise.instructions ? JSON.parse(exercise.instructions) : [],
+      relatedExercises: exercise.relatedExercises ? exercise.relatedExercises.split(',') : [],
+      // Parse pose analysis data from JSON strings
+      poseAnalysis: exercise.poseAnalysis ? {
+        ...exercise.poseAnalysis,
+        targetPoses: exercise.poseAnalysis.targetPoses ? JSON.parse(exercise.poseAnalysis.targetPoses) : [],
+        angleRanges: exercise.poseAnalysis.angleRanges ? JSON.parse(exercise.poseAnalysis.angleRanges) : {},
+        primaryJoints: exercise.poseAnalysis.primaryJoints ? exercise.poseAnalysis.primaryJoints.split(',') : [],
+        toleranceMultipliers: exercise.poseAnalysis.toleranceMultipliers ? JSON.parse(exercise.poseAnalysis.toleranceMultipliers) : {},
+        feedbackMessages: exercise.poseAnalysis.feedbackMessages ? JSON.parse(exercise.poseAnalysis.feedbackMessages) : {}
+      } : null,
+    };
+
+    // Debug parsed pose analysis data
+    if (parsedExercise.poseAnalysis) {
+      console.log('🔍 Parsed pose analysis data:', {
+        targetPoses: parsedExercise.poseAnalysis.targetPoses,
+        angleRanges: parsedExercise.poseAnalysis.angleRanges,
+        primaryJoints: parsedExercise.poseAnalysis.primaryJoints,
+        toleranceMultipliers: parsedExercise.poseAnalysis.toleranceMultipliers,
+        feedbackMessages: parsedExercise.poseAnalysis.feedbackMessages
+      });
+    }
+
+    return NextResponse.json({ exercise: parsedExercise });
   } catch (error) {
     console.error('Error fetching exercise:', error);
     return NextResponse.json({ error: 'Failed to fetch exercise' }, { status: 500 });
   }
 }
 
-// UPDATE an exercise by ID
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const data = await req.json();
     const { id } = await params;
+    const updateData = await request.json();
     
-    // Convert arrays to strings for database storage
+    console.log('Updating exercise:', id, 'with data:', updateData);
+
+    // Convert array fields to strings for database storage
     const processedData = {
-      ...data,
-      tags: Array.isArray(data.tags) ? data.tags.join(',') : data.tags,
-      equipment: Array.isArray(data.equipment) ? data.equipment.join(',') : data.equipment,
-      muscleGroups: Array.isArray(data.muscleGroups) ? data.muscleGroups.join(',') : data.muscleGroups,
-      jointsOfInterest: Array.isArray(data.jointsOfInterest) ? data.jointsOfInterest.join(',') : data.jointsOfInterest,
-      instructions: Array.isArray(data.instructions) ? JSON.stringify(data.instructions) : data.instructions,
-      relatedExercises: Array.isArray(data.relatedExercises) ? data.relatedExercises.join(',') : data.relatedExercises,
+      title: updateData.title,
+      description: updateData.description,
+      image: updateData.image,
+      referenceVideoUrl: updateData.referenceVideoUrl,
+      referenceKeypointsUrl: updateData.referenceKeypointsUrl,
+      tags: Array.isArray(updateData.tags) ? updateData.tags.join(',') : updateData.tags,
+      equipment: Array.isArray(updateData.equipment) ? updateData.equipment.join(',') : updateData.equipment,
+      muscleGroups: Array.isArray(updateData.muscleGroups) ? updateData.muscleGroups.join(',') : updateData.muscleGroups,
+      jointsOfInterest: Array.isArray(updateData.jointsOfInterest) ? updateData.jointsOfInterest.join(',') : updateData.jointsOfInterest,
+      createdBy: updateData.createdBy,
+      instructions: Array.isArray(updateData.instructions) ? JSON.stringify(updateData.instructions) : updateData.instructions,
+      authorName: updateData.authorName,
+      authorProfileUrl: updateData.authorProfileUrl,
+      relatedExercises: Array.isArray(updateData.relatedExercises) ? updateData.relatedExercises.join(',') : updateData.relatedExercises,
+      exerciseType: updateData.exerciseType,
+      exerciseSubtype: updateData.exerciseSubtype,
+      classificationConfidence: updateData.classificationConfidence,
     };
-    
-    const updated = await prisma.exercise.update({
+
+    console.log('Processed data for database:', processedData);
+
+    // Update the exercise
+    const updatedExercise = await prisma.exercise.update({
       where: { id },
       data: processedData
     });
-    return NextResponse.json(updated);
+
+    console.log('Exercise updated successfully:', updatedExercise.id);
+    return NextResponse.json({ success: true, exercise: updatedExercise });
   } catch (error) {
     console.error('Error updating exercise:', error);
     return NextResponse.json({ error: 'Failed to update exercise' }, { status: 500 });
   }
 }
 
-// DELETE an exercise by ID
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
     
-    // Use a transaction to ensure all related records are deleted atomically
-    await prisma.$transaction([
-      // Delete analysis quality record
-      prisma.analysisQuality.deleteMany({
-        where: { exerciseId: id }
-      }),
-      // Delete pattern analysis record
-      prisma.patternAnalysis.deleteMany({
-        where: { exerciseId: id }
-      }),
-      // Delete rep analysis record
-      prisma.repAnalysis.deleteMany({
-        where: { exerciseId: id }
-      }),
-      // Finally, delete the exercise
-      prisma.exercise.delete({
-        where: { id }
-      })
-    ]);
+    // Delete related analysis data first
+    await prisma.repAnalysis.deleteMany({
+      where: { exerciseId: id }
+    });
     
+    await prisma.poseAnalysis.deleteMany({
+      where: { exerciseId: id }
+    });
+
+    // Delete the exercise
+    await prisma.exercise.delete({
+      where: { id }
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting exercise:', error);

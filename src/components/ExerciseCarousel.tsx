@@ -14,6 +14,8 @@ export default function ExerciseCarousel({ title, exercises, className = "" }: E
   const [showRightArrow, setShowRightArrow] = useState(true);
   const carouselRef = useRef<HTMLDivElement>(null);
 
+
+
   const scroll = (direction: 'left' | 'right') => {
     if (!carouselRef.current) return;
     
@@ -112,7 +114,7 @@ export default function ExerciseCarousel({ title, exercises, className = "" }: E
           className="flex gap-4 overflow-x-auto scrollbar-hide px-4 pb-6 relative"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', paddingTop: '9px', paddingBottom: '18px' }}
         >
-          {exercises.map((exercise) => (
+          {exercises.filter(exercise => exercise && exercise.id).map((exercise, index) => (
             <div key={exercise.id} className="flex-shrink-0" style={{ width: '200px', padding: '0px' }}>
               <ExerciseCard exercise={exercise} />
             </div>

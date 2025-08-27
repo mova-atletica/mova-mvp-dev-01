@@ -16,18 +16,21 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(exercise);
 }
 
-// GET all exercises
 export async function GET() {
-  const exercises = await prisma.exercise.findMany();
-  // Convert string fields back to arrays/objects for frontend use
-  const parsed = exercises.map((e: any) => ({
-    ...e,
-    tags: e.tags ? e.tags.split(',') : [],
-    equipment: e.equipment ? e.equipment.split(',') : [],
-    muscleGroups: e.muscleGroups ? e.muscleGroups.split(',') : [],
-    jointsOfInterest: e.jointsOfInterest ? e.jointsOfInterest.split(',') : [],
-    instructions: e.instructions ? JSON.parse(e.instructions) : [],
-    relatedExercises: e.relatedExercises ? e.relatedExercises.split(',') : [],
-  }));
-  return NextResponse.json(parsed);
+  try {
+    const exercises = await prisma.exercise.findMany({
+      select: {
+        id: true,
+        title: true,
+        referenceVideoUrl: true,
+        referenceKeypointsUrl: true,
+      }
+    });
+
+    console.log('🔍 All exercises in database:', exercises);
+    return NextResponse.json({ exercises });
+  } catch (error) {
+    console.error('Error fetching exercises:', error);
+    return NextResponse.json({ error: 'Failed to fetch exercises' }, { status: 500 });
+  }
 }

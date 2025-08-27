@@ -164,10 +164,13 @@ export default function AdminUpload() {
       if (!res.ok) throw new Error('Failed to load exercises');
       const data = await res.json();
       
+      // Fix: Extract exercises array from the response object
+      const exercisesArray = data.exercises || [];
+      
       // For exercises view, fetch analysis data for each exercise
       if (viewMode === 'exercises') {
         const exercisesWithAnalysis = await Promise.all(
-          data.map(async (exercise: any) => {
+          exercisesArray.map(async (exercise: any) => {
             try {
               const analysisRes = await fetch(`/api/exercises/${exercise.id}/analysis`);
               if (analysisRes.ok) {
@@ -182,10 +185,12 @@ export default function AdminUpload() {
         );
         setExercises(exercisesWithAnalysis);
       } else {
-        setExercises(data);
+        setExercises(exercisesArray);
       }
     } catch (err) {
       console.error('Error loading exercises:', err);
+      // Also set exercises to empty array on error to prevent map errors
+      setExercises([]);
     }
   };
 
@@ -716,12 +721,19 @@ export default function AdminUpload() {
   const extractKeypoints = async () => {
     if (!videoRef.current) return;
     setProcessing(true);
-    await tf.setBackend("webgl");
-    await tf.ready();
-    const detector = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
-      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
-    );
+    
+    try {
+      console.log('🔄 Loading TensorFlow backend...');
+      await tf.setBackend("webgl");
+      await tf.ready();
+      console.log('✅ TensorFlow backend ready');
+      
+      console.log('🔄 Loading pose detection model...');
+      const detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+      );
+      console.log('✅ Pose detection model loaded successfully');
     const video = videoRef.current;
     const poses: any[] = [];
     video.currentTime = 0;
@@ -742,6 +754,51 @@ export default function AdminUpload() {
     setKeypoints(poses);
     setProcessing(false);
     setSelectedFrame(0);
+    } catch (error) {
+      console.error('❌ Error loading pose detection model:', error);
+      
+      // Retry with different backend if WebGL fails
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('webgl') || errorMessage.includes('fetch')) {
+        console.log('🔄 Retrying with CPU backend...');
+        try {
+          await tf.setBackend("cpu");
+          await tf.ready();
+          const detector = await poseDetection.createDetector(
+            poseDetection.SupportedModels.MoveNet,
+            { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+          );
+          console.log('✅ Pose detection model loaded with CPU backend');
+          
+          // Continue with the rest of the processing
+          const video = videoRef.current;
+          const poses: any[] = [];
+          video.currentTime = 0;
+
+          await new Promise((resolve) => {
+            if (video.readyState >= 1) resolve(true);
+            else video.onloadedmetadata = () => resolve(true);
+          });
+
+          const step = 3; // Process every 3rd frame (10fps) for efficiency
+          const frameRate = 30;
+          for (let t = 0; t < video.duration; t += step / frameRate) {
+            video.currentTime = t;
+            await new Promise((resolve) => (video.onseeked = resolve));
+            const pose = await detector.estimatePoses(video);
+            poses.push(pose[0] || null);
+          }
+          setKeypoints(poses);
+          setProcessing(false);
+          setSelectedFrame(0);
+        } catch (retryError) {
+          console.error('❌ Failed to load model with CPU backend:', retryError);
+          setProcessing(false);
+        }
+      } else {
+        setProcessing(false);
+      }
+    }
   };
 
   // Download keypoints as JSON
@@ -1066,6 +1123,11 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
 
   // Update selected exercises when curatedSectionData.exercises changes
   useEffect(() => {
+    // Guard clause: ensure exercises is an array before proceeding
+    if (!Array.isArray(exercises)) {
+      return;
+    }
+    
     // Create a map for quick lookup
     const exerciseMap = new Map(exercises.map(ex => [ex.id, ex]));
     

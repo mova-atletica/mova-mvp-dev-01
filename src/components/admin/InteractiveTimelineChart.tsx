@@ -249,14 +249,14 @@ export default function InteractiveTimelineChart({
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 px-0">Interactive Timeline</h3>
               
-              {chartData.length > 0 ? (
+              {(chartData.length > 0 || (repBoundaries && repBoundaries.length > 0)) ? (
                 <div className="space-y-4 px-0">
                   {/* Chart */}
                   <div className="h-96 w-[100%]">
                     <div className="h-80 w-[100%]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
-                          data={chartData}
+                          data={chartData.length > 0 ? chartData : [{ time: 0, v: 0 }, { time: fullDuration, v: 0 }]}
                           onClick={handleChartClick}
                           onMouseMove={(e) => {
                             if (e && e.activeLabel !== undefined) {
@@ -348,8 +348,8 @@ export default function InteractiveTimelineChart({
                             </g>
                           ))}
 
-                          {/* Joint data lines */}
-                          {selectedJoints.map((joint) => {
+                          {/* Joint data lines - only show if we have keypoints data */}
+                          {chartData.length > 0 && selectedJoints.map((joint) => {
                             const jointName = joint.replace(/([A-Z])/g, '_$1').toLowerCase();
                             return (
                               <Line
@@ -374,7 +374,7 @@ export default function InteractiveTimelineChart({
                     {/* Stats */}
                     <div className="flex items-center justify-between text-sm text-gray-600">
                       <div>
-                        {chartData.length} frames • {fullDuration.toFixed(1)}s timeline • {repBoundaries.length} reps
+                        {chartData.length > 0 ? `${chartData.length} frames • ` : ''}{fullDuration.toFixed(1)}s timeline • {repBoundaries.length} reps
                       </div>
                       <div className="flex items-center space-x-2">
                         <span>Current:</span>
@@ -384,30 +384,32 @@ export default function InteractiveTimelineChart({
 
                     {/* Legend */}
                     <div className="flex flex-wrap gap-4 text-sm">
-                      {/* Joints Legend */}
-                      <div className="flex flex-col space-y-2">
-                        <span className="font-medium text-gray-700">Joints:</span>
-                        <div className="grid grid-cols-2 gap-2">
-                          {selectedJoints.map((joint) => {
-                            const jointName = joint.replace(/([A-Z])/g, '_$1').toLowerCase();
-                            const hoveredValue = hoveredValues[joint];
-                            return (
-                              <div key={joint} className="flex items-center space-x-2 p-1 bg-gray-50 rounded">
-                                <div 
-                                  className="w-3 h-3 rounded-full" 
-                                  style={{ backgroundColor: getJointColor(jointName) }}
-                                />
-                                <span className="text-gray-600 text-sm">{joint}</span>
-                                {hoveredValue !== undefined && (
-                                  <span className="text-xs text-gray-500 ml-auto">
-                                    {hoveredValue.toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
+                      {/* Joints Legend - only show if we have keypoints data */}
+                      {chartData.length > 0 && (
+                        <div className="flex flex-col space-y-2">
+                          <span className="font-medium text-gray-700">Joints:</span>
+                          <div className="grid grid-cols-2 gap-2">
+                            {selectedJoints.map((joint) => {
+                              const jointName = joint.replace(/([A-Z])/g, '_$1').toLowerCase();
+                              const hoveredValue = hoveredValues[joint];
+                              return (
+                                <div key={joint} className="flex items-center space-x-2 p-1 bg-gray-50 rounded">
+                                  <div 
+                                    className="w-3 h-3 rounded-full" 
+                                    style={{ backgroundColor: getJointColor(jointName) }}
+                                  />
+                                  <span className="text-gray-600 text-sm">{joint}</span>
+                                  {hoveredValue !== undefined && (
+                                    <span className="text-xs text-gray-500 ml-auto">
+                                      {hoveredValue.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Phases Legend */}
                       {repBoundaries && repBoundaries.some(boundary => boundary.phases && boundary.phases.length > 0) && (
@@ -437,9 +439,19 @@ export default function InteractiveTimelineChart({
               ) : (
                 <div className="text-center text-gray-500 py-8">
                   <div className="text-2xl mb-2">📊</div>
-                  <div>No keypoint data available</div>
-                  <div className="text-sm mt-2">ChartData length: {chartData.length}</div>
-                  <div className="text-sm">KeypointsData length: {keypointsData?.length || 0}</div>
+                  <div>No timeline data available</div>
+                  <div className="text-sm mt-2">
+                    {repBoundaries && repBoundaries.length > 0 
+                      ? `Rep boundaries: ${repBoundaries.length} reps found`
+                      : 'No rep boundaries found'
+                    }
+                  </div>
+                  <div className="text-sm">
+                    {keypointsData && keypointsData.length > 0 
+                      ? `Keypoints data: ${keypointsData.length} frames available`
+                      : 'No keypoints data available'
+                    }
+                  </div>
                 </div>
               )}
             </div>
@@ -858,6 +870,14 @@ export default function InteractiveTimelineChart({
                   <button
                     onClick={async () => {
                       try {
+                        console.log('InteractiveTimelineChart generating rules with:', {
+                          exerciseId,
+                          exerciseType: exerciseType || 'rep-based',
+                          jointsOfInterest: selectedJoints,
+                          goldStandardRep: repAnalysisData?.goldStandardRep,
+                          repBoundaries: repBoundaries
+                        });
+                        
                         // Call the generate-rules API
                         const response = await fetch('/api/analysis/generate-rules', {
                           method: 'POST',
@@ -865,6 +885,7 @@ export default function InteractiveTimelineChart({
                           body: JSON.stringify({ 
                             exerciseId: exerciseId,
                             exerciseType: exerciseType || 'rep-based',
+                            jointsOfInterest: selectedJoints,
                             goldStandardRep: repAnalysisData?.goldStandardRep,
                             repBoundaries: repBoundaries
                           })

@@ -78,8 +78,11 @@ export default function RepAnalysisVisualizer({
     if (exerciseId) {
       fetch(`/api/exercises/${exerciseId}`)
         .then(res => res.json())
-        .then(data => {
-          setExercise(data);
+        .then(responseData => {
+          // Extract exercise data from the response
+          const exerciseData = responseData.exercise || responseData;
+          console.log('RepAnalysisVisualizer loaded exercise data:', exerciseData);
+          setExercise(exerciseData);
         })
         .catch(error => {
           console.error('Error loading exercise data:', error);
@@ -170,10 +173,13 @@ export default function RepAnalysisVisualizer({
   // Debug: Log the data being loaded
   console.log('RepAnalysisVisualizer received data:', data);
   console.log('Exercise title:', exerciseTitle);
+  console.log('Exercise ID:', exerciseId);
   console.log('Data types:', {
     repBoundaries: typeof data?.repBoundaries,
     isRepBoundariesArray: Array.isArray(data?.repBoundaries),
     goldStandardRep: typeof data?.goldStandardRep,
+    repBoundariesValue: data?.repBoundaries,
+    goldStandardRepValue: data?.goldStandardRep,
   });
   console.log('Extracted arrays:', {
     repBoundaries: repBoundaries
@@ -298,74 +304,68 @@ export default function RepAnalysisVisualizer({
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Video & Timeline Analysis</h3>
         
-        {videoUrl ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Video Player */}
-            <div className="space-y-3">
-              <h4 className="text-md font-medium text-gray-700">Reference Video</h4>
-              {videoUrl ? (
-                <VideoPlayer
-                  ref={videoPlayerRef}
-                  videoUrl={`/api/storage/video-proxy?fileName=${encodeURIComponent(videoUrl)}`}
-                  onTimeUpdate={(time) => {
-                    setCurrentVideoTime(time);
-                    console.log('Video time update:', time);
-                  }}
-                  keypointData={keypointsData}
-                  exercise={exercise}
-                  className="w-full"
-                />
-              ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <div className="text-2xl mb-2">🎥</div>
-                  <div>No reference video available</div>
-                </div>
-              )}
-            </div>
-
-            {/* Interactive Timeline Chart */}
-            <div className="space-y-3">
-              <h4 className="text-md font-medium text-gray-700">Rep Data</h4>
-              <InteractiveTimelineChart
-                keypointsData={keypointsData || []}
-                videoUrl={videoUrl}
-                repBoundaries={repBoundaries.map((boundary, index) => ({
-                  id: boundary.id || `rep-${index}`,
-                  startTime: boundary.startTime || 0,
-                  endTime: boundary.endTime || 0,
-                  bottomTime: boundary.bottomTime || (boundary.startTime + boundary.endTime) / 2,
-                  startFrame: boundary.startFrame || 0,
-                  endFrame: boundary.endFrame || 0,
-                  phases: boundary.phases || []
-                }))}
-                phases={[]} // We'll handle phases within each rep boundary instead
-                selectedJoints={selectedJoints || []}
-                repAnalysisData={data} // Pass the full rep analysis data
-                exerciseId={exerciseId}
-                exerciseType={exerciseType}
-                onRepBoundaryChange={onRepBoundaryChange}
-                onPhaseChange={onPhaseChange}
-                onRepAnalysisChange={onRepAnalysisChange}
-                onTimeChange={(time) => {
-                  console.log('Time changed:', time);
-                  // Sync video to chart click
-                  if (videoPlayerRef.current) {
-                    // Convert time to frame and seek
-                    const frameRate = 30; // Assuming 30fps
-                    const frame = Math.floor(time * frameRate);
-                    videoPlayerRef.current.seekToFrame(frame);
-                  }
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Video Player */}
+          <div className="space-y-3">
+            <h4 className="text-md font-medium text-gray-700">Reference Video</h4>
+            {videoUrl ? (
+              <VideoPlayer
+                ref={videoPlayerRef}
+                videoUrl={`/api/storage/video-proxy?fileName=${encodeURIComponent(videoUrl)}`}
+                onTimeUpdate={(time) => {
+                  setCurrentVideoTime(time);
+                  console.log('Video time update:', time);
                 }}
-                onDataReload={onDataReload}
-                currentTime={currentVideoTime}
+                keypointData={keypointsData}
+                exercise={exercise}
+                className="w-full"
               />
-            </div>
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                <div className="text-2xl mb-2">🎥</div>
+                <div>No reference video available</div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="text-center text-gray-500 py-8">
-            No timeline data available
+
+          {/* Interactive Timeline Chart */}
+          <div className="space-y-3">
+            <h4 className="text-md font-medium text-gray-700">Rep Data</h4>
+            <InteractiveTimelineChart
+              keypointsData={keypointsData || []}
+              videoUrl={videoUrl}
+              repBoundaries={repBoundaries.map((boundary, index) => ({
+                id: boundary.id || `rep-${index}`,
+                startTime: boundary.startTime || 0,
+                endTime: boundary.endTime || 0,
+                bottomTime: boundary.bottomTime || (boundary.startTime + boundary.endTime) / 2,
+                startFrame: boundary.startFrame || 0,
+                endFrame: boundary.endFrame || 0,
+                phases: boundary.phases || []
+              }))}
+              phases={[]} // We'll handle phases within each rep boundary instead
+              selectedJoints={selectedJoints || []}
+              repAnalysisData={data} // Pass the full rep analysis data
+              exerciseId={exerciseId}
+              exerciseType={exerciseType}
+              onRepBoundaryChange={onRepBoundaryChange}
+              onPhaseChange={onPhaseChange}
+              onRepAnalysisChange={onRepAnalysisChange}
+              onTimeChange={(time) => {
+                console.log('Time changed:', time);
+                // Sync video to chart click
+                if (videoPlayerRef.current) {
+                  // Convert time to frame and seek
+                  const frameRate = 30; // Assuming 30fps
+                  const frame = Math.floor(time * frameRate);
+                  videoPlayerRef.current.seekToFrame(frame);
+                }
+              }}
+              onDataReload={onDataReload}
+              currentTime={currentVideoTime}
+            />
           </div>
-        )}
+        </div>
       </div>
 
       {/* Key Frames */}

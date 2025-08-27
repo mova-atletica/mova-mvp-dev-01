@@ -555,4 +555,122 @@ function calculateSwayVelocity(positions: { x: number; y: number }[]): number {
   }
   
   return totalDistance / (positions.length - 1);
+}
+
+// Pose Analysis Functions (Phase 1.2 additions)
+export interface PoseComparisonResult {
+  pose: any | null;
+  confidence: number;
+  deviations: { [joint: string]: number };
+  overallScore: number;
+  isInRange: boolean;
+}
+
+/**
+ * Calculate pose comparison between current angles and target poses
+ * This function extends analysisUtils.ts to support pose-based exercises
+ */
+export function calculatePoseComparison(
+  currentAngles: { [joint: string]: number | null },
+  targetPoses: any[],
+  angleRanges: { [joint: string]: { min: number; max: number } } = {},
+  toleranceMultipliers: { [joint: string]: number } = {},
+  jointsOfInterest: string[] = []
+): PoseComparisonResult {
+  if (targetPoses.length === 0) {
+    return {
+      pose: null,
+      confidence: 0,
+      deviations: {},
+      overallScore: 0,
+      isInRange: false
+    };
+  }
+
+  let bestMatch: any = null;
+  let bestScore = -1;
+  let bestConfidence = 0;
+  let bestDeviations: { [joint: string]: number } = {};
+  let bestIsInRange = false;
+
+  // If no joints specified, use all available joints
+  const jointsToCheck = jointsOfInterest.length > 0 
+    ? jointsOfInterest 
+    : Object.keys(currentAngles).filter(key => currentAngles[key] !== null);
+
+  for (const targetPose of targetPoses) {
+    const deviations: { [joint: string]: number } = {};
+    let totalScore = 0;
+    let totalConfidence = 0;
+    let jointCount = 0;
+    let inRangeCount = 0;
+
+    for (const joint of jointsToCheck) {
+      const currentAngle = currentAngles[joint];
+      const targetAngle = targetPose.targetAngles?.[joint];
+      
+      if (currentAngle === null || targetAngle === undefined) continue;
+
+      // Calculate angle deviation
+      const deviation = Math.abs(currentAngle - targetAngle);
+      deviations[joint] = deviation;
+
+      // Get tolerance for this joint
+      const baseTolerance = targetPose.tolerance || 15; // Default 15 degrees
+      const rangeTolerance = angleRanges[joint] ? 
+        (angleRanges[joint].max - angleRanges[joint].min) / 2 : baseTolerance;
+      const toleranceMultiplier = toleranceMultipliers[joint] || 1.0;
+      const effectiveTolerance = Math.max(baseTolerance, rangeTolerance) * toleranceMultiplier;
+
+      // Calculate score for this joint (0-100)
+      let jointScore = 0;
+      if (deviation <= effectiveTolerance) {
+        jointScore = 100;
+        inRangeCount++;
+      } else if (deviation <= effectiveTolerance * 2) {
+        jointScore = Math.max(0, 100 - ((deviation - effectiveTolerance) / effectiveTolerance) * 50);
+      }
+
+      totalScore += jointScore;
+      totalConfidence += 1;
+      jointCount++;
+    }
+
+    const overallScore = jointCount > 0 ? totalScore / jointCount : 0;
+    const confidence = jointCount > 0 ? totalConfidence / jointCount : 0;
+    const isInRange = inRangeCount === jointCount && jointCount > 0;
+
+    if (overallScore > bestScore) {
+      bestScore = overallScore;
+      bestMatch = targetPose;
+      bestConfidence = confidence;
+      bestDeviations = deviations;
+      bestIsInRange = isInRange;
+    }
+  }
+
+  return {
+    pose: bestMatch,
+    confidence: bestConfidence,
+    deviations: bestDeviations,
+    overallScore: bestScore,
+    isInRange: bestIsInRange
+  };
+}
+
+/**
+ * Detect current pose from target poses using angle comparison
+ * This function provides a simplified interface for pose detection
+ */
+export function detectCurrentPose(
+  currentAngles: { [joint: string]: number | null },
+  targetPoses: any[]
+): { pose: any | null; confidence: number; deviations: any } {
+  const result = calculatePoseComparison(currentAngles, targetPoses);
+  
+  return {
+    pose: result.pose,
+    confidence: result.confidence,
+    deviations: result.deviations
+  };
 } 

@@ -31,6 +31,9 @@ class AnalysisRequest(BaseModel):
     reference_angles: Dict[str, List[float]]
     joints_of_interest: List[str]
     exercise_name: str
+    exercise_type: Optional[str] = "repetition"
+    exercise_data: Optional[Dict[str, Any]] = None
+    pose_analysis: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
 
 class AdvancedAnalysisResult(BaseModel):
@@ -41,6 +44,8 @@ class AdvancedAnalysisResult(BaseModel):
     tempo_analysis: Dict[str, Any]
     balance_metrics: Dict[str, Any]
     repetition_analysis: Dict[str, Any]
+    pose_analysis: Optional[Dict[str, Any]] = None
+    flow_analysis: Optional[Dict[str, Any]] = None
     improvement_suggestions: List[str]
     detailed_charts: Dict[str, str]  # Base64 encoded charts
 
@@ -50,6 +55,143 @@ class AdvancedAnalysisService:
     
     def analyze_exercise(self, request: AnalysisRequest) -> AdvancedAnalysisResult:
         """Main analysis function that orchestrates all analysis components"""
+        
+        # Check exercise type and route to appropriate analysis
+        if request.exercise_type == "pose":
+            return self._analyze_pose_exercise(request)
+        elif request.exercise_type == "flow":
+            return self._analyze_flow_exercise(request)
+        else:
+            return self._analyze_repetition_exercise(request)
+    
+    def _analyze_pose_exercise(self, request: AnalysisRequest) -> AdvancedAnalysisResult:
+        """Pose-specific analysis using target poses and angle ranges"""
+        
+        print(f"🔍 Backend: Analyzing pose exercise with data:")
+        print(f"  - User angles keys: {list(request.user_angles.keys()) if request.user_angles else 'None'}")
+        print(f"  - Pose analysis keys: {list(request.pose_analysis.keys()) if request.pose_analysis else 'None'}")
+        print(f"  - Target poses: {request.pose_analysis.get('targetPoses', {}) if request.pose_analysis else 'None'}")
+        print(f"  - Angle ranges: {request.pose_analysis.get('angleRanges', {}) if request.pose_analysis else 'None'}")
+        print(f"  - Joints of interest: {request.joints_of_interest}")
+        
+        # 1. Pose accuracy analysis
+        pose_accuracy = self._pose_accuracy_analysis(
+            request.user_angles, 
+            request.pose_analysis.get("targetPoses", {}),
+            request.pose_analysis.get("angleRanges", {}),
+            request.joints_of_interest
+        )
+        
+        # 2. Hold duration analysis
+        hold_analysis = self._hold_duration_analysis(
+            request.user_angles, 
+            request.pose_analysis.get("targetPoses", []),
+            request.pose_analysis.get("angleRanges", {}),
+            request.joints_of_interest
+        )
+        
+        # 3. Balance and stability analysis (reuse existing)
+        balance_metrics = self._balance_analysis(request.user_angles, request.joints_of_interest)
+        
+        # 4. Calculate overall pose score
+        overall_score, grade, confidence = self._calculate_pose_score(pose_accuracy, hold_analysis, balance_metrics)
+        
+        # 5. Generate pose-specific suggestions
+        suggestions = self._generate_pose_suggestions(pose_accuracy, hold_analysis, balance_metrics)
+        
+        # 6. Create pose-specific charts
+        charts = self._create_pose_charts(request.user_angles, pose_accuracy, hold_analysis)
+        
+        return AdvancedAnalysisResult(
+            overall_score=overall_score,
+            grade=grade,
+            confidence=confidence,
+            joint_analysis=self._combine_pose_joint_analysis(pose_accuracy),
+            tempo_analysis={},  # Not applicable for poses
+            balance_metrics=balance_metrics,
+            repetition_analysis={},  # Not applicable for poses
+            pose_analysis={
+                "overall_accuracy": pose_accuracy.get("overall_accuracy", 0),
+                "joint_accuracy": pose_accuracy.get("joint_accuracy", {}),
+                "hold_periods": hold_analysis.get("hold_periods", []),
+                "pose_quality": {
+                    "balance_score": balance_metrics.get("stability_score", 0),
+                    "symmetry_score": balance_metrics.get("symmetry_score", 0),
+                    "stability_score": balance_metrics.get("stability_score", 0)
+                }
+            },
+            improvement_suggestions=suggestions,
+            detailed_charts=charts
+        )
+    
+    def _analyze_flow_exercise(self, request: AnalysisRequest) -> AdvancedAnalysisResult:
+        """Flow-specific analysis using DTW and cosine similarity"""
+        
+        print(f"🌊 Backend: Analyzing flow exercise with data:")
+        print(f"  - User angles keys: {list(request.user_angles.keys()) if request.user_angles else 'None'}")
+        print(f"  - Reference angles keys: {list(request.reference_angles.keys()) if request.reference_angles else 'None'}")
+        print(f"  - Joints of interest: {request.joints_of_interest}")
+        
+        # 1. DTW analysis (already implemented)
+        dtw_analysis = self._dtw_analysis(
+            request.user_angles, 
+            request.reference_angles, 
+            request.joints_of_interest
+        )
+        
+        # 2. Cosine similarity analysis (already implemented)
+        cosine_analysis = self._cosine_similarity_analysis(
+            request.user_angles, 
+            request.reference_angles, 
+            request.joints_of_interest
+        )
+        
+        # 3. Movement quality analysis (removed for flow exercises)
+        movement_quality = {}
+        
+        # 4. Balance and stability analysis (not needed for flow exercises)
+        balance_metrics = {"stability_score": 0, "symmetry_score": 0, "balance_score": 0}
+        
+        # 5. Calculate overall flow score
+        overall_score, grade, confidence = self._calculate_flow_score(
+            dtw_analysis, cosine_analysis, balance_metrics
+        )
+        
+        # 6. Generate flow-specific suggestions
+        suggestions = self._generate_flow_suggestions(
+            dtw_analysis, cosine_analysis, balance_metrics
+        )
+        
+        # 7. Create flow-specific charts
+        charts = self._create_flow_charts(
+            request.user_angles, request.reference_angles, dtw_analysis, cosine_analysis
+        )
+        
+        return AdvancedAnalysisResult(
+            overall_score=overall_score,
+            grade=grade,
+            confidence=confidence,
+            joint_analysis=self._combine_flow_joint_analysis(dtw_analysis, cosine_analysis),
+            tempo_analysis={},  # Not applicable for flow
+            balance_metrics=balance_metrics,
+            repetition_analysis={},  # Not applicable for flow
+            pose_analysis={},  # Not applicable for flow
+            flow_analysis={  # NEW: Flow-specific analysis
+                "dtw_scores": dtw_analysis,
+                "cosine_scores": cosine_analysis,
+                "overall_flow_score": overall_score,
+                "flow_quality": {
+                    "balance_score": balance_metrics.get("stability_score", 0),
+                    "symmetry_score": balance_metrics.get("symmetry_score", 0),
+                    "stability_score": balance_metrics.get("stability_score", 0)
+                }
+            },
+            improvement_suggestions=suggestions,
+            detailed_charts=charts
+        )
+    
+    def _analyze_repetition_exercise(self, request: AnalysisRequest) -> AdvancedAnalysisResult:
+        """Repetition-specific analysis using reference video comparison"""
         
         # 1. DTW-based comparison
         dtw_results = self._dtw_analysis(request.user_angles, request.reference_angles, request.joints_of_interest)
@@ -529,6 +671,395 @@ class AdvancedAnalysisService:
             "repetition_analysis": "base64_placeholder",
             "tempo_analysis": "base64_placeholder"
         }
+    
+    def _pose_accuracy_analysis(self, user_angles: Dict[str, List[float]], 
+                               target_poses: List[Dict[str, Any]], 
+                               angle_ranges: Dict[str, Dict[str, float]], 
+                               joints_of_interest: List[str]) -> Dict[str, Any]:
+        """Analyze pose accuracy against target poses and angle ranges"""
+        
+        if not target_poses or len(target_poses) == 0:
+            return {"overall_accuracy": 0, "joint_accuracy": {}}
+        
+        # Extract target angles from the first pose
+        first_pose = target_poses[0]
+        target_angles = first_pose.get("targetAngles", {})
+        
+        joint_accuracy = {}
+        total_accuracy = 0
+        valid_joints = 0
+        
+        for joint in joints_of_interest:
+            joint_key = joint.replace("Angles", "")
+            user_seq = user_angles.get(f"{joint}Angles", [])
+            
+            if not user_seq or joint_key not in target_angles:
+                joint_accuracy[joint_key] = {
+                    "accuracy_score": 0,
+                    "target_angle": 0,
+                    "user_avg_angle": 0,
+                    "angle_deviation": 0,
+                    "in_range_percentage": 0,
+                    "hold_duration": 0,
+                    "stability_score": 0
+                }
+                continue
+            
+            target_angle = target_angles.get(joint_key, 0)
+            angle_range = angle_ranges.get(joint_key, {"min": target_angle - 10, "max": target_angle + 10})
+            
+            # Calculate accuracy for each frame
+            accuracies = []
+            in_range_frames = 0
+            
+            for angle in user_seq:
+                if angle is not None and not np.isnan(angle):
+                    deviation = abs(angle - target_angle)
+                    
+                    # Check if angle is within range
+                    if angle_range["min"] <= angle <= angle_range["max"]:
+                        in_range_frames += 1
+                        accuracy = 100  # Perfect score if within range
+                    else:
+                        # Calculate penalty based on distance from range
+                        distance_from_range = min(
+                            abs(angle - angle_range["min"]),
+                            abs(angle - angle_range["max"])
+                        )
+                        max_penalty = 20  # Maximum penalty distance
+                        accuracy = max(0, 100 - (distance_from_range / max_penalty) * 100)
+                    
+                    accuracies.append(accuracy)
+            
+            if accuracies:
+                avg_accuracy = np.mean(accuracies)
+                in_range_percentage = (in_range_frames / len(accuracies)) * 100
+                user_avg_angle = np.mean([a for a in user_seq if a is not None and not np.isnan(a)])
+                angle_deviation = abs(user_avg_angle - target_angle)
+                
+                joint_accuracy[joint_key] = {
+                    "accuracy_score": avg_accuracy,
+                    "target_angle": target_angle,
+                    "user_avg_angle": user_avg_angle,
+                    "angle_deviation": angle_deviation,
+                    "in_range_percentage": in_range_percentage,
+                    "hold_duration": 0,  # Will be calculated in balance analysis
+                    "stability_score": 0  # Will be calculated in balance analysis
+                }
+                
+                total_accuracy += avg_accuracy
+                valid_joints += 1
+        
+        overall_accuracy = total_accuracy / valid_joints if valid_joints > 0 else 0
+        
+        return {
+            "overall_accuracy": overall_accuracy,
+            "joint_accuracy": joint_accuracy
+        }
+    
+    def _hold_duration_analysis(self, user_angles: Dict[str, List[float]], 
+                               target_poses: List[Dict[str, Any]], 
+                               angle_ranges: Dict[str, Dict[str, float]], 
+                               joints_of_interest: List[str]) -> Dict[str, Any]:
+        """Analyze hold duration periods for pose exercises"""
+        
+        if not target_poses or len(target_poses) == 0:
+            return {"hold_periods": []}
+        
+        # Extract target angles from the first pose
+        first_pose = target_poses[0]
+        target_angles = first_pose.get("targetAngles", {})
+        hold_periods = []
+        
+        for joint in joints_of_interest:
+            joint_key = joint.replace("Angles", "")
+            user_seq = user_angles.get(f"{joint}Angles", [])
+            
+            if not user_seq or joint_key not in target_angles:
+                continue
+            
+            target_angle = target_angles.get(joint_key, 0)
+            angle_range = angle_ranges.get(joint_key, {"min": target_angle - 10, "max": target_angle + 10})
+            
+            # Find hold periods
+            hold_start = None
+            hold_end = None
+            
+            for i, angle in enumerate(user_seq):
+                if angle is not None and not np.isnan(angle):
+                    in_pose = angle_range["min"] <= angle <= angle_range["max"]
+                    
+                    if in_pose and hold_start is None:
+                        hold_start = i
+                    elif not in_pose and hold_start is not None:
+                        hold_end = i - 1
+                        if hold_end > hold_start:
+                            duration = (hold_end - hold_start + 1) / 30  # Assuming 30fps
+                            hold_periods.append({
+                                "joint": joint_key,
+                                "start_frame": hold_start,
+                                "end_frame": hold_end,
+                                "duration": duration,
+                                "accuracy": 85  # Placeholder
+                            })
+                        hold_start = None
+            
+            # Handle hold that extends to end of data
+            if hold_start is not None:
+                hold_end = len(user_seq) - 1
+                if hold_end > hold_start:
+                    duration = (hold_end - hold_start + 1) / 30
+                    hold_periods.append({
+                        "joint": joint_key,
+                        "start_frame": hold_start,
+                        "end_frame": hold_end,
+                        "duration": duration,
+                        "accuracy": 85  # Placeholder
+                    })
+        
+        return {"hold_periods": hold_periods}
+    
+    def _calculate_pose_score(self, pose_accuracy: Dict[str, Any], 
+                            hold_analysis: Dict[str, Any], 
+                            balance_metrics: Dict[str, Any]) -> tuple:
+        """Calculate overall pose score"""
+        
+        accuracy_score = pose_accuracy.get("overall_accuracy", 0)
+        
+        # Calculate hold score based on total hold duration
+        hold_periods = hold_analysis.get("hold_periods", [])
+        total_hold_duration = sum(period["duration"] for period in hold_periods)
+        hold_score = min(100, total_hold_duration * 10)  # 10 seconds = 100% score
+        
+        # Balance score
+        balance_score = balance_metrics.get("stability_score", 0)
+        
+        # Weighted combination
+        overall_score = (
+            accuracy_score * 0.6 +  # 60% weight for accuracy
+            hold_score * 0.3 +      # 30% weight for hold duration
+            balance_score * 0.1     # 10% weight for balance
+        )
+        
+        # Calculate confidence
+        confidence = min(100, overall_score * 0.8 + 20)
+        
+        # Determine grade
+        if overall_score >= 90:
+            grade = "A"
+        elif overall_score >= 80:
+            grade = "B"
+        elif overall_score >= 70:
+            grade = "C"
+        elif overall_score >= 60:
+            grade = "D"
+        else:
+            grade = "F"
+        
+        return overall_score, grade, confidence
+    
+    def _generate_pose_suggestions(self, pose_accuracy: Dict[str, Any], 
+                                 hold_analysis: Dict[str, Any], 
+                                 balance_metrics: Dict[str, Any]) -> List[str]:
+        """Generate pose-specific improvement suggestions"""
+        
+        suggestions = []
+        
+        # Accuracy-based suggestions
+        overall_accuracy = pose_accuracy.get("overall_accuracy", 0)
+        if overall_accuracy < 70:
+            suggestions.append("Focus on maintaining target pose angles more precisely")
+        
+        joint_accuracy = pose_accuracy.get("joint_accuracy", {})
+        for joint, accuracy in joint_accuracy.items():
+            if accuracy.get("accuracy_score", 0) < 70:
+                joint_name = joint.replace("Angles", "").replace("_", " ").title()
+                suggestions.append(f"Improve {joint_name} angle accuracy")
+        
+        # Hold duration suggestions
+        hold_periods = hold_analysis.get("hold_periods", [])
+        if not hold_periods:
+            suggestions.append("Try to hold the pose for longer periods")
+        elif len(hold_periods) < 2:
+            suggestions.append("Maintain pose holds more consistently")
+        
+        # Balance suggestions
+        if balance_metrics.get("stability_score", 0) < 70:
+            suggestions.append("Improve balance and stability during pose holds")
+        
+        return suggestions[:5]  # Limit to top 5 suggestions
+    
+    def _create_pose_charts(self, user_angles: Dict[str, List[float]], 
+                          pose_accuracy: Dict[str, Any], 
+                          hold_analysis: Dict[str, Any]) -> Dict[str, str]:
+        """Create pose-specific analysis charts"""
+        
+        # Placeholder for pose charts
+        return {
+            "pose_accuracy": "base64_placeholder",
+            "hold_duration": "base64_placeholder",
+            "angle_deviation": "base64_placeholder"
+        }
+    
+    def _combine_pose_joint_analysis(self, pose_accuracy: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """Combine pose joint analysis results"""
+        
+        joint_accuracy = pose_accuracy.get("joint_accuracy", {})
+        combined = {}
+        
+        for joint, accuracy in joint_accuracy.items():
+            combined[joint] = {
+                "pose_accuracy": accuracy.get("accuracy_score", 0),
+                "angle_compliance": accuracy.get("in_range_percentage", 0),
+                "hold_stability": accuracy.get("stability_score", 0)
+            }
+        
+        return combined
+    
+    def _movement_quality_analysis(self, user_angles: Dict[str, List[float]], 
+                                 joints_of_interest: List[str]) -> Dict[str, Any]:
+        """Analyze movement quality for flow exercises"""
+        
+        results = {}
+        
+        for joint in joints_of_interest:
+            angles = user_angles.get(f"{joint}Angles", [])
+            
+            if not angles or len(angles) < 10:
+                results[joint] = {"score": 0, "smoothness": 0, "consistency": 0}
+                continue
+            
+            # Convert to numpy array and remove NaN values
+            angle_array = np.array(angles)
+            clean_angles = angle_array[~np.isnan(angle_array)]
+            
+            if len(clean_angles) < 10:
+                results[joint] = {"score": 0, "smoothness": 0, "consistency": 0}
+                continue
+            
+            # Calculate movement smoothness (lower variance = smoother)
+            variance = np.var(clean_angles)
+            smoothness = max(0, 100 - (variance * 2))
+            
+            # Calculate movement consistency (how similar consecutive movements are)
+            if len(clean_angles) > 1:
+                differences = np.diff(clean_angles)
+                consistency = max(0, 100 - (np.std(differences) * 5))
+            else:
+                consistency = 100
+            
+            # Overall movement quality score
+            quality_score = (smoothness + consistency) / 2
+            
+            results[joint] = {
+                "score": quality_score,
+                "smoothness": smoothness,
+                "consistency": consistency,
+                "variance": variance,
+                "mean_angle": float(np.mean(clean_angles)),
+                "std_angle": float(np.std(clean_angles))
+            }
+        
+        return results
+    
+    def _calculate_flow_score(self, dtw_analysis: Dict[str, Any], 
+                            cosine_analysis: Dict[str, Any], 
+                            balance_metrics: Dict[str, Any]) -> tuple:
+        """Calculate overall flow score"""
+        
+        # Extract scores from each analysis
+        dtw_scores = [result["score"] for result in dtw_analysis.values() if "score" in result]
+        cosine_scores = [result["score"] for result in cosine_analysis.values() if "score" in result]
+        
+        # Calculate averages
+        avg_dtw = np.mean(dtw_scores) if dtw_scores else 0
+        avg_cosine = np.mean(cosine_scores) if cosine_scores else 0
+        
+        # Balance score
+        balance_score = balance_metrics.get("stability_score", 0)
+        
+        # Weighted combination for flow exercises (no balance)
+        overall_score = (
+            avg_dtw * 0.6 +        # 60% weight for DTW (sequence alignment)
+            avg_cosine * 0.4       # 40% weight for cosine similarity (pattern matching)
+        )
+        
+        # Calculate confidence
+        confidence = min(100, overall_score * 0.8 + 20)
+        
+        # Determine grade
+        if overall_score >= 90:
+            grade = "A"
+        elif overall_score >= 80:
+            grade = "B"
+        elif overall_score >= 70:
+            grade = "C"
+        elif overall_score >= 60:
+            grade = "D"
+        else:
+            grade = "F"
+        
+        return overall_score, grade, confidence
+    
+    def _generate_flow_suggestions(self, dtw_analysis: Dict[str, Any], 
+                                 cosine_analysis: Dict[str, Any], 
+                                 balance_metrics: Dict[str, Any]) -> List[str]:
+        """Generate flow-specific improvement suggestions"""
+        
+        suggestions = []
+        
+        # DTW-based suggestions (sequence alignment)
+        dtw_scores = [result["score"] for result in dtw_analysis.values() if "score" in result]
+        avg_dtw = np.mean(dtw_scores) if dtw_scores else 0
+        
+        if avg_dtw < 70:
+            suggestions.append("Work on matching the reference movement sequence more closely")
+        
+        # Cosine similarity suggestions (pattern matching)
+        cosine_scores = [result["score"] for result in cosine_analysis.values() if "score" in result]
+        avg_cosine = np.mean(cosine_scores) if cosine_scores else 0
+        
+        if avg_cosine < 70:
+            suggestions.append("Focus on maintaining similar movement patterns to the reference")
+        
+        # No movement quality suggestions for flow exercises
+        
+        # No balance suggestions for flow exercises
+        
+        return suggestions[:5]  # Limit to top 5 suggestions
+    
+    def _create_flow_charts(self, user_angles: Dict[str, List[float]], 
+                          reference_angles: Dict[str, List[float]],
+                          dtw_analysis: Dict[str, Any], 
+                          cosine_analysis: Dict[str, Any]) -> Dict[str, str]:
+        """Create flow-specific analysis charts"""
+        
+        # Placeholder for flow charts
+        return {
+            "flow_sequence": "base64_placeholder",
+            "movement_quality": "base64_placeholder",
+            "dtw_comparison": "base64_placeholder"
+        }
+    
+    def _combine_flow_joint_analysis(self, dtw_analysis: Dict[str, Any], 
+                                   cosine_analysis: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """Combine flow joint analysis results"""
+        
+        combined = {}
+        
+        # Get all unique joints from all analyses
+        all_joints = set(dtw_analysis.keys()) | set(cosine_analysis.keys())
+        
+        for joint in all_joints:
+            dtw_result = dtw_analysis.get(joint, {})
+            cosine_result = cosine_analysis.get(joint, {})
+            
+            combined[joint] = {
+                "dtw_score": dtw_result.get("score", 0),
+                "cosine_score": cosine_result.get("score", 0)
+            }
+        
+        return combined
 
 # Initialize the analysis service
 analysis_service = AdvancedAnalysisService()

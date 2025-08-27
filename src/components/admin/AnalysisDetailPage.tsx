@@ -6,8 +6,8 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import RepAnalysisEditor from './RepAnalysisEditor';
 import RepAnalysisVisualizer from './RepAnalysisVisualizer';
 import PatternAnalysisEditor from './PatternAnalysisEditor';
-import QualityAnalysisEditor from './QualityAnalysisEditor';
 import RepThresholdEditor from './RepThresholdEditor';
+import PoseAnalysisEditor from './PoseAnalysisEditor';
 
 interface Exercise {
   id: string;
@@ -23,6 +23,7 @@ interface Exercise {
 interface AnalysisData {
   repAnalysis?: any;
   patternAnalysis?: any;
+  poseAnalysis?: any;
   analysisQuality?: any;
   exerciseRules?: any;
 }
@@ -56,6 +57,11 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
     loadExerciseAndAnalysis();
   }, [exerciseId]);
 
+  // Debug: Log when selectedJoints changes
+  useEffect(() => {
+    console.log('selectedJoints state changed:', selectedJoints);
+  }, [selectedJoints]);
+
   const loadExerciseAndAnalysis = async () => {
     setLoading(true);
     setError(null);
@@ -65,13 +71,22 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
       const exerciseResponse = await fetch(`/api/exercises/${exerciseId}`);
       if (!exerciseResponse.ok) throw new Error('Failed to load exercise');
       const exerciseData = await exerciseResponse.json();
-      setExercise(exerciseData);
+      
+      // Extract exercise data from the response
+      const exercise = exerciseData.exercise || exerciseData;
+      console.log('Loaded exercise data:', exercise);
+      console.log('Exercise title:', exercise.title);
+      console.log('Exercise referenceVideoUrl:', exercise.referenceVideoUrl);
+      console.log('Exercise jointsOfInterest:', exercise.jointsOfInterest);
+      console.log('Exercise jointsOfInterest type:', typeof exercise.jointsOfInterest);
+      console.log('Exercise jointsOfInterest isArray:', Array.isArray(exercise.jointsOfInterest));
+      setExercise(exercise);
       
       // Set initial exercise type from exercise data
-      if (exerciseData.exerciseType) {
+      if (exercise.exerciseType) {
         // Map database values to UI values
         let exerciseType: 'rep-based' | 'pose-based' | 'flow-based';
-        switch (exerciseData.exerciseType) {
+        switch (exercise.exerciseType) {
           case 'repetition':
           case 'rep-based':
             exerciseType = 'rep-based';
@@ -89,7 +104,7 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
         }
         setSelectedExerciseType(exerciseType);
         setOriginalExerciseType(exerciseType);
-        console.log('Set exercise type from database:', exerciseData.exerciseType, '->', exerciseType);
+        console.log('Set exercise type from database:', exercise.exerciseType, '->', exerciseType);
       } else {
         // If no exercise type is set, default to rep-based for new exercises
         setSelectedExerciseType('rep-based');
@@ -98,22 +113,32 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
       }
 
       // Set initial joints of interest
-      if (exerciseData.jointsOfInterest) {
-        const joints = exerciseData.jointsOfInterest.split(',').map((j: string) => j.trim()).filter((j: string) => j);
+      if (exercise.jointsOfInterest && Array.isArray(exercise.jointsOfInterest)) {
+        const joints = exercise.jointsOfInterest.filter((j: string) => j && j.trim());
         setSelectedJoints(joints);
-        console.log('Set joints of interest from database:', joints);
+        console.log('Set joints of interest from database (array format):', joints);
+        console.log('Available joint options:', [
+          'leftKnee', 'rightKnee', 'leftHip', 'rightHip',
+          'leftElbow', 'rightElbow', 'leftShoulder', 'rightShoulder',
+          'leftAnkle', 'rightAnkle', 'leftWrist', 'rightWrist'
+        ]);
+      } else if (exercise.jointsOfInterest && typeof exercise.jointsOfInterest === 'string') {
+        // Fallback for string format
+        const joints = exercise.jointsOfInterest.split(',').map((j: string) => j.trim()).filter((j: string) => j);
+        setSelectedJoints(joints);
+        console.log('Set joints of interest from database (string format):', joints);
       } else {
         setSelectedJoints([]);
         console.log('No joints of interest in database');
       }
 
       // Load keypoints data if available
-      if (exerciseData.referenceKeypointsUrl) {
+      if (exercise.referenceKeypointsUrl) {
         try {
           const keypointsResponse = await fetch('/api/storage/proxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: exerciseData.referenceKeypointsUrl })
+            body: JSON.stringify({ fileName: exercise.referenceKeypointsUrl })
           });
           
           if (keypointsResponse.ok) {
@@ -134,16 +159,24 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
         
         // The API returns { exercise: parsedExercise }, so we need to extract the analysis data
         if (responseData.exercise) {
-          const { repAnalysis, patternAnalysis, analysisQuality, exerciseRules } = responseData.exercise;
+          const { repAnalysis, poseAnalysis } = responseData.exercise;
           const extractedAnalysisData = {
             repAnalysis,
-            patternAnalysis,
-            analysisQuality,
-            exerciseRules
+            poseAnalysis, // Keep poseAnalysis as poseAnalysis
+            patternAnalysis: null, // Keep patternAnalysis separate for flow-based exercises
+            analysisQuality: null, // Not currently used
+            exerciseRules: repAnalysis?.jointAngleRules || null
           };
           console.log('Extracted analysis data:', extractedAnalysisData);
           console.log('Rep analysis available:', !!extractedAnalysisData.repAnalysis);
+          console.log('Pose analysis available:', !!extractedAnalysisData.poseAnalysis);
           console.log('Pattern analysis available:', !!extractedAnalysisData.patternAnalysis);
+          console.log('Exercise title from analysis API:', responseData.exercise.title);
+          console.log('Rep analysis details:', {
+            repBoundaries: extractedAnalysisData.repAnalysis?.repBoundaries,
+            goldStandardRep: extractedAnalysisData.repAnalysis?.goldStandardRep,
+            jointAngleRules: extractedAnalysisData.repAnalysis?.jointAngleRules
+          });
           setAnalysisData(extractedAnalysisData);
         } else {
           console.log('No exercise data in response');
@@ -220,15 +253,27 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
       return;
     }
 
+    if (selectedJoints.length === 0) {
+      alert('Please select at least one joint of interest before generating rules');
+      return;
+    }
+
     setSaving(true);
     setIsGeneratingRules(true);
     try {
+      console.log('Generating rules with:', {
+        exerciseId,
+        exerciseType: selectedExerciseType,
+        jointsOfInterest: selectedJoints
+      });
+      
       const response = await fetch('/api/analysis/generate-rules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           exerciseId, 
-          exerciseType: selectedExerciseType 
+          exerciseType: selectedExerciseType,
+          jointsOfInterest: selectedJoints
         })
       });
 
@@ -290,39 +335,59 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
           databaseExerciseType = 'repetition';
       }
 
-      const dataToSave = {
+      // First, update the main exercise table with exerciseType and jointsOfInterest
+      const exerciseUpdateData = {
         exerciseType: databaseExerciseType,
-        jointsOfInterest: selectedJoints.join(','),
-        repAnalysis: analysisData?.repAnalysis,
-        patternAnalysis: analysisData?.patternAnalysis,
-        analysisQuality: analysisData?.analysisQuality,
-        exerciseRules: analysisData?.exerciseRules
+        jointsOfInterest: selectedJoints
       };
       
-      console.log('Saving analysis data:', dataToSave);
+      console.log('Updating exercise data:', exerciseUpdateData);
       
-      const response = await fetch(`/api/exercises/${exerciseId}/analysis`, {
+      const exerciseResponse = await fetch(`/api/exercises/${exerciseId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSave),
+        body: JSON.stringify(exerciseUpdateData),
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Save failed with status:', response.status);
+      if (!exerciseResponse.ok) {
+        const errorText = await exerciseResponse.text();
+        console.error('Exercise update failed with status:', exerciseResponse.status);
         console.error('Error response:', errorText);
-        throw new Error(`Failed to save: ${response.status} - ${errorText}`);
+        throw new Error(`Failed to update exercise: ${exerciseResponse.status} - ${errorText}`);
       }
-      
-      const result = await response.json();
-      console.log('Save successful:', result);
+
+      // Then, update the analysis data if it exists
+      if (analysisData?.repAnalysis || analysisData?.patternAnalysis || analysisData?.poseAnalysis) {
+        const analysisDataToSave = {
+          repAnalysis: analysisData?.repAnalysis,
+          patternAnalysis: analysisData?.patternAnalysis,
+          poseAnalysis: analysisData?.poseAnalysis,
+          analysisQuality: analysisData?.analysisQuality,
+          exerciseRules: analysisData?.exerciseRules
+        };
+        
+        console.log('Saving analysis data:', analysisDataToSave);
+        
+        const analysisResponse = await fetch(`/api/exercises/${exerciseId}/analysis`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(analysisDataToSave),
+        });
+        
+        if (!analysisResponse.ok) {
+          const errorText = await analysisResponse.text();
+          console.error('Analysis update failed with status:', analysisResponse.status);
+          console.error('Error response:', errorText);
+          throw new Error(`Failed to update analysis: ${analysisResponse.status} - ${errorText}`);
+        }
+      }
       
       setHasUnsavedChanges(false);
       setOriginalExerciseType(selectedExerciseType);
-      alert('Analysis data saved successfully!');
+      alert('Exercise type and analysis data saved successfully!');
     } catch (error) {
-      console.error('Error saving analysis data:', error);
-      alert(`Error saving analysis data: ${(error as Error).message}`);
+      console.error('Error saving data:', error);
+      alert(`Error saving data: ${(error as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -355,34 +420,6 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
     }));
     setEditingField(null);
     setHasUnsavedChanges(true);
-    
-    // Save to database immediately for rule changes
-    if (field === 'repAnalysis' && (data.jointAngleRules || data.repCountingRules)) {
-      try {
-        const response = await fetch(`/api/exercises/${exerciseId}/analysis`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            exerciseType: selectedExerciseType === 'rep-based' ? 'repetition' : selectedExerciseType === 'pose-based' ? 'pose' : 'flow',
-            jointsOfInterest: selectedJoints.join(','),
-            repAnalysis: data,
-            patternAnalysis: analysisData?.patternAnalysis,
-            analysisQuality: analysisData?.analysisQuality,
-            exerciseRules: analysisData?.exerciseRules
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to save rules to database');
-        }
-
-        console.log('Rules saved successfully to database');
-        setHasUnsavedChanges(false);
-      } catch (error) {
-        console.error('Error saving rules:', error);
-        alert('Error saving rules to database: ' + (error as Error).message);
-      }
-    }
     
     // Log the change for debugging
     if (process.env.NODE_ENV === 'development') {
@@ -469,7 +506,9 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
                         ? "No exercise type set. Select a type to begin analysis."
                         : selectedExerciseType === 'rep-based' && !analysisData?.repAnalysis
                         ? `No rep analysis data available. Generate analysis to get started.`
-                        : (selectedExerciseType === 'pose-based' || selectedExerciseType === 'flow-based') && !analysisData?.patternAnalysis
+                        : selectedExerciseType === 'pose-based' && !analysisData?.poseAnalysis
+                        ? `No pose analysis data available. Generate analysis to get started.`
+                        : selectedExerciseType === 'flow-based' && !analysisData?.patternAnalysis
                         ? `No pattern analysis data available. Generate analysis to get started.`
                         : analysisData?.exerciseRules 
                         ? `${selectedExerciseType} analysis complete. Rules generated and ready for real-time use.`
@@ -494,7 +533,17 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
                         {saving ? 'Generating...' : 'Generate Analysis'}
                       </button>
                     )}
-                    {(selectedExerciseType === 'pose-based' || selectedExerciseType === 'flow-based') && !analysisData?.patternAnalysis && (
+                    {selectedExerciseType === 'pose-based' && !analysisData?.poseAnalysis && (
+                      <button
+                        onClick={generateRealAnalysis}
+                        disabled={saving}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-500 disabled:opacity-50"
+                        title={`Generate ${selectedExerciseType} analysis from video data`}
+                      >
+                        {saving ? 'Generating...' : 'Generate Analysis'}
+                      </button>
+                    )}
+                    {selectedExerciseType === 'flow-based' && !analysisData?.patternAnalysis && (
                       <button
                         onClick={generateRealAnalysis}
                         disabled={saving}
@@ -512,7 +561,7 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
                         className="px-4 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 disabled:opacity-50"
                         title="Create real-time analysis rules from validated data"
                       >
-                        {saving ? 'Generating...' : 'Generate Rules'}
+                        {isGeneratingRules ? 'Generating Rules...' : 'Generate Rules'}
                       </button>
                     )}
                   </>
@@ -727,14 +776,32 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
                     <h5 className="font-medium text-gray-900">Rep Analysis Details</h5>
                   </div>
                   
+                  {(() => {
+                    console.log('Rendering RepAnalysisVisualizer with:', {
+                      exerciseTitle: exercise?.title,
+                      videoUrl: exercise?.referenceVideoUrl,
+                      repAnalysis: analysisData?.repAnalysis,
+                      keypointsData: keypointsData,
+                      selectedJoints: selectedJoints
+                    });
+                    return null;
+                  })()}
+                  
                   <RepAnalysisVisualizer
                     data={analysisData?.repAnalysis}
-                    exerciseTitle={exercise?.title || ''}
+                    exerciseTitle={exercise?.title || 'Unknown Exercise'}
                     exerciseId={exerciseId}
                     exerciseType={selectedExerciseType}
                     keypointsData={keypointsData}
                     selectedJoints={selectedJoints}
                     videoUrl={exercise?.referenceVideoUrl}
+                    // Debug logging
+                    // console.log('Passing to RepAnalysisVisualizer:', {
+                    //   exerciseTitle: exercise?.title,
+                    //   videoUrl: exercise?.referenceVideoUrl,
+                    //   repAnalysis: analysisData?.repAnalysis,
+                    //   keypointsData: keypointsData
+                    // })
                     onRepBoundaryChange={(boundaries) => {
                       console.log('Rep boundaries changed:', boundaries);
                       // Update rep boundaries in analysis data
@@ -743,7 +810,12 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
                           ...analysisData.repAnalysis,
                           repBoundaries: boundaries
                         };
-                        saveField('repAnalysis', updatedRepAnalysis);
+                        setAnalysisData(prev => ({
+                          ...prev,
+                          repAnalysis: updatedRepAnalysis
+                        }));
+
+                        setHasUnsavedChanges(true);
                       }
                     }}
                     onPhaseChange={(phases) => {
@@ -754,20 +826,43 @@ export default function AnalysisDetailPage({ exerciseId }: AnalysisDetailPagePro
                           ...analysisData.repAnalysis,
                           phases: phases
                         };
-                        saveField('repAnalysis', updatedRepAnalysis);
+                        setAnalysisData(prev => ({
+                          ...prev,
+                          repAnalysis: updatedRepAnalysis
+                        }));
+
+                        setHasUnsavedChanges(true);
                       }
                     }}
                     onRepAnalysisChange={(updatedData) => {
                       console.log('Rep analysis data updated:', updatedData);
                       // Update the entire rep analysis data
-                      saveField('repAnalysis', updatedData);
+                      setAnalysisData(prev => ({
+                        ...prev,
+                        repAnalysis: updatedData
+                      }));
+                      setHasUnsavedChanges(true);
                     }}
                     onDataReload={loadExerciseAndAnalysis}
                   />
                 </div>
               )}
 
-              {(selectedExerciseType === 'pose-based' || selectedExerciseType === 'flow-based') && (
+              {(selectedExerciseType === 'pose-based') && (
+                <div className="mb-6">
+                  <h5 className="font-medium text-gray-900 mb-3">Pose Analysis Details</h5>
+                  <PoseAnalysisEditor
+                    data={analysisData?.poseAnalysis}
+                    onSave={(data) => saveField('poseAnalysis', data)}
+                    exerciseId={exerciseId}
+                    videoUrl={exercise?.referenceVideoUrl}
+                    selectedJoints={selectedJoints}
+                    disabled={saving}
+                  />
+                </div>
+              )}
+
+              {(selectedExerciseType === 'flow-based') && (
                 <div className="mb-6">
                   <h5 className="font-medium text-gray-900 mb-3">Pattern Analysis Details</h5>
                   <PatternAnalysisEditor

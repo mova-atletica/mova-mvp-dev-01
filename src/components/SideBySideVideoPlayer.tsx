@@ -38,12 +38,24 @@ export default function SideBySideVideoPlayer({
   onSeekFrameHandled,
   userVideoDuration
 }: SideBySideVideoPlayerProps) {
+  console.log('🎬 SideBySideVideoPlayer props:', {
+    userVideoUrl,
+    referenceVideoUrl,
+    userPosesLength: userPoses?.length,
+    referencePosesLength: referencePoses?.length,
+    exerciseId: exercise?.id
+  });
+  
+  // PRESERVE: View mode and video switching functionality
   const [viewMode, setViewMode] = useState<'single' | 'side-by-side'>('single');
   const [activeVideo, setActiveVideo] = useState<'user' | 'reference'>('user');
-
-  // Ref for user video player
+  
+  // PRESERVE: Refs for video players
   const userVideoRef = useRef<VideoPlayerHandle>(null);
+  const referenceVideoRef = useRef<VideoPlayerHandle>(null);
+  const singleViewVideoRef = useRef<VideoPlayerHandle>(null);
 
+  // PRESERVE: View mode and video switching functions
   const toggleViewMode = useCallback(() => {
     setViewMode(prev => prev === 'single' ? 'side-by-side' : 'single');
   }, []);
@@ -52,15 +64,18 @@ export default function SideBySideVideoPlayer({
     setActiveVideo(prev => prev === 'user' ? 'reference' : 'user');
   }, []);
 
-  // Seek logic for chart->video sync
+  // PRESERVE: Seek logic for chart->video sync
   useEffect(() => {
-    if (seekFrame !== undefined && seekFrame !== null && userVideoRef.current) {
-      userVideoRef.current.seekToFrame(seekFrame);
-      if (onSeekFrameHandled) onSeekFrameHandled();
+    if (seekFrame !== undefined && seekFrame !== null) {
+      const currentRef = viewMode === 'single' ? singleViewVideoRef : userVideoRef;
+      if (currentRef.current) {
+        currentRef.current.seekToFrame(seekFrame);
+        if (onSeekFrameHandled) onSeekFrameHandled();
+      }
     }
-  }, [seekFrame, onSeekFrameHandled]);
+  }, [seekFrame, onSeekFrameHandled, viewMode]);
 
-  // Single view mode
+  // PRESERVE: Single view mode
   if (viewMode === 'single') {
     const currentVideoUrl = activeVideo === 'user' ? userVideoUrl : referenceVideoUrl;
     const currentPoses = activeVideo === 'user' ? userPoses : referencePoses;
@@ -69,7 +84,7 @@ export default function SideBySideVideoPlayer({
 
     return (
       <div className={`w-full ${className}`} style={maxHeight ? { maxHeight } : {}}>
-        {/* Toggle Controls */}
+        {/* PRESERVE: Toggle Controls */}
         <div className="flex items-center space-x-2 mb-4 px-0">
           <ToggleGroup.Root
             type="single"
@@ -86,34 +101,36 @@ export default function SideBySideVideoPlayer({
               Side-by-Side
             </ToggleGroup.Item>
           </ToggleGroup.Root>
-            <button
-              onClick={switchActiveVideo}
-            className="px-2 py-1 rounded text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
-            style={{ minWidth: 0 }}
-            >
-            Switch to {activeVideo === 'user' ? 'Reference' : 'User'}
-            </button>
+            {referenceVideoUrl && (
+              <button
+                onClick={switchActiveVideo}
+                className="px-2 py-1 rounded text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
+                style={{ minWidth: 0 }}
+              >
+                Switch to {activeVideo === 'user' ? 'Reference' : 'User'}
+              </button>
+            )}
         </div>
-        {/* Video Player Container */}
+        {/* PRESERVE: Video Player Container */}
         <div className="w-full" style={maxHeight ? { maxHeight } : {}}>
           <VideoPlayer
-            ref={activeVideo === 'user' ? userVideoRef : undefined}
-            videoUrl={currentVideoUrl || ""}
+            ref={singleViewVideoRef}
+            videoUrl={currentVideoUrl}
             keypointData={currentPoses}
             exercise={exercise}
             onFrameChange={currentOnFrameChange}
             onTimeUpdate={currentOnTimeUpdate}
-            duration={activeVideo === 'user' ? userVideoDuration : undefined}
+            className={className}
           />
         </div>
       </div>
     );
   }
 
-  // Side-by-side view mode
+  // PRESERVE: Side-by-side view mode
   return (
     <div className={`w-full ${className}`} style={maxHeight ? { maxHeight } : undefined}>
-      {/* Toggle Controls */}
+      {/* PRESERVE: Toggle Controls */}
       <div 
         className="flex items-center justify-between mb-4 px-0"
       >
@@ -127,41 +144,61 @@ export default function SideBySideVideoPlayer({
         </div>
       </div>
 
-      {/* Side-by-Side Videos Container - no overflow hidden */}
+      {/* PRESERVE: Side-by-Side Videos Container */}
       <div className="h-full">
-        {/* Responsive Grid Layout */}
+        {/* PRESERVE: Responsive Grid Layout */}
         <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
-          {/* User Video */}
+          {/* PRESERVE: User Video */}
           <div className="w-full flex flex-col">
             <div className="text-xs font-medium color: 'var(--results-summary-title)' mb-2 px-0">Your Video</div>
             <div>
               <VideoPlayer
                 ref={userVideoRef}
-                videoUrl={userVideoUrl || ""}
+                videoUrl={userVideoUrl}
                 keypointData={userPoses}
                 exercise={exercise}
                 onFrameChange={onUserFrameChange}
                 onTimeUpdate={onUserTimeUpdate}
-                duration={userVideoDuration}
+                className={className}
               />
             </div>
           </div>
 
-          {/* Reference Video */}
+          {/* PRESERVE: Reference Video */}
           <div className="w-full flex flex-col">
-            <div className="text-xs font-medium color: 'var(--results-summary-title)' mb-2 px-0">Reference Video</div>
+            <div className="text-xs font-medium color: 'var(--results-summary-title)' mb-2 px-0">
+              Reference Video {!referenceVideoUrl && '(Not Available)'}
+            </div>
             <div>
-              <VideoPlayer
-                videoUrl={referenceVideoUrl || ""}
-                keypointData={referencePoses}
-                exercise={exercise}
-                onFrameChange={onReferenceFrameChange}
-                onTimeUpdate={onReferenceTimeUpdate}
-              />
+              {referenceVideoUrl ? (
+                <VideoPlayer
+                  ref={referenceVideoRef}
+                  videoUrl={referenceVideoUrl}
+                  keypointData={referencePoses}
+                  exercise={exercise}
+                  onFrameChange={onReferenceFrameChange}
+                  onTimeUpdate={onReferenceTimeUpdate}
+                  className={className}
+                />
+              ) : (
+                <div style={{
+                  height: maxHeight || '80vh',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--vp-panel-bg)',
+                  color: 'var(--vp-panel-title)',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--vp-panel-border)'
+                }}>
+                  No reference video available
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}

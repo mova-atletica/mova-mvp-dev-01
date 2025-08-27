@@ -45,13 +45,15 @@ export default function ExerciseDetail({ params }: Props) {
   } as const;
 
   // Get level badge styling
-  const getLevelBadgeStyle = (level: string) => {
+  const getLevelBadgeStyle = (level: string | undefined | null) => {
+    if (!level) return LEVEL_COLORS.default;
     const levelKey = level.toLowerCase() as keyof typeof LEVEL_COLORS;
     return LEVEL_COLORS[levelKey] || LEVEL_COLORS.default;
   };
 
   // Helper function to capitalize first letter
-  const capitalizeFirst = (str: string) => {
+  const capitalizeFirst = (str: string | undefined | null) => {
+    if (!str) return 'Unknown';
     return str.charAt(0).toUpperCase() + str.slice(1);
   };
 
@@ -79,7 +81,10 @@ export default function ExerciseDetail({ params }: Props) {
           return;
         }
 
-        const exerciseData = await response.json();
+        const responseData = await response.json();
+        
+        // Extract exercise data from the response (same fix as in exerciseService.ts)
+        const exerciseData = responseData.exercise || responseData;
         
         // Convert string arrays back to arrays
         const formattedExercise: Exercise = {
@@ -235,17 +240,19 @@ export default function ExerciseDetail({ params }: Props) {
           <div style={{ border: '0px transparent', padding: '0rem', borderRadius: '0px', marginBottom: '0', flex: 1 }}>
             {/* Level Badge and Tags - moved above title */}
             <div className="flex flex-wrap gap-2 p-0" style={{ border: '0px transparent', margin: 0 }}>
-              <span 
-                className="px-2 py-1 rounded text-xs font-medium"
-                style={{
-                  backgroundColor: getLevelBadgeStyle(exercise.level).bg,
-                  color: getLevelBadgeStyle(exercise.level).text,
-                  margin: "0rem",
-                  border: '1px solid #f3f3f4'
-                }}
-              >
-                {capitalizeFirst(exercise.level)}
-              </span>
+              {exercise.level && (
+                <span 
+                  className="px-2 py-1 rounded text-xs font-medium"
+                  style={{
+                    backgroundColor: getLevelBadgeStyle(exercise.level).bg,
+                    color: getLevelBadgeStyle(exercise.level).text,
+                    margin: "0rem",
+                    border: '1px solid #f3f3f4'
+                  }}
+                >
+                  {capitalizeFirst(exercise.level)}
+                </span>
+              )}
             </div>
             <div style={{ border: '0px transparent', padding: '10px 0px 0px 0px', margin: 0 }}>
               <h1 className="text-4xl font-light text-onyx-10" style={{ padding: '0rem 0rem 0rem 0rem', margin: 0 }}>{exercise.title}</h1>

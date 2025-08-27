@@ -243,13 +243,40 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
   // --- Load pose detection model ---
   useEffect(() => {
     async function loadModel() {
-      await tf.setBackend("webgl");
-      await tf.ready();
-      const detector = await poseDetection.createDetector(
-        poseDetection.SupportedModels.MoveNet,
-        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
-      );
-      setDetector(detector);
+      try {
+        console.log('🔄 Loading TensorFlow backend...');
+        await tf.setBackend("webgl");
+        await tf.ready();
+        console.log('✅ TensorFlow backend ready');
+        
+        console.log('🔄 Loading pose detection model...');
+        const detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.MoveNet,
+          { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+        );
+        console.log('✅ Pose detection model loaded successfully');
+        setDetector(detector);
+      } catch (error) {
+        console.error('❌ Error loading pose detection model:', error);
+        
+        // Retry with different backend if WebGL fails
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('webgl') || errorMessage.includes('fetch')) {
+          console.log('🔄 Retrying with CPU backend...');
+          try {
+            await tf.setBackend("cpu");
+            await tf.ready();
+            const detector = await poseDetection.createDetector(
+              poseDetection.SupportedModels.MoveNet,
+              { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+            );
+            console.log('✅ Pose detection model loaded with CPU backend');
+            setDetector(detector);
+          } catch (retryError) {
+            console.error('❌ Failed to load model with CPU backend:', retryError);
+          }
+        }
+      }
     }
     loadModel();
   }, []);

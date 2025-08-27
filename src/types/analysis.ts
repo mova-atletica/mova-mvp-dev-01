@@ -51,7 +51,6 @@ export interface EnhancedRepAnalysis {
   
   // 🆕 PHASE-BASED JOINT ANGLE RULES
   jointAngleRules?: JointAngleRules;
-  repCountingRules?: RepCountingRules;
   
   // Validation
   validatedByAdmin: boolean;
@@ -80,74 +79,36 @@ export interface JointAngleRules {
   };
 }
 
-// Rep Counting Rules for Accurate Rep Detection
-export interface RepCountingRules {
-  countingMethod: 'phase_sequence' | 'angle_threshold' | 'hybrid';
-  angleThresholds: {
-    startThreshold: number;
-    completionThreshold: number;
-    returnThreshold: number;
-    hysteresis: number;
-  };
-  validation: {
-    minimumRepDuration: number;
-    maximumRepDuration: number;
-    requiredRangeOfMotion: number;
-  };
+// Target Pose Definition for Pose Exercises
+export interface TargetPose {
+  name: string;
+  targetAngles: { [joint: string]: number };
+  holdDuration: number; // seconds
+  tolerance: number; // degrees
 }
 
-// Enhanced Pattern Analysis
-export interface EnhancedPatternAnalysis {
-  // Existing fields
-  referencePatterns: { [joint: string]: number[] };
+// Feedback Messages for Pose Exercises
+export interface PoseFeedbackMessages {
+  achievement: string[];
+  holdProgress: string[];
+  formCorrection: string[];
+}
+
+// Enhanced Pose Analysis (replaces PatternAnalysis)
+export interface EnhancedPoseAnalysis {
+  // Pose criteria data
+  targetPoses: TargetPose[];
   angleRanges: { [joint: string]: { min: number; max: number } };
-  posePatterns?: any;
-  flowPatterns?: any;
-  patternQuality: number;
-  validatedByAdmin: boolean;
-  
-  // New fields
   primaryJoints?: string[];
   toleranceMultipliers?: { [joint: string]: number };
+  
+  // Feedback messages
+  feedbackMessages?: PoseFeedbackMessages;
+  
+  // Admin notes
   adminNotes?: string;
-}
-
-// Exercise Rules for Real-time Analysis
-export interface ExerciseRules {
-  id: string;
-  exerciseId: string;
-  rules: {
-    repDetection: {
-      primaryJoints: string[];
-      phaseThresholds: { [phase: string]: number };
-      repCompletionCriteria: string[];
-    };
-    formValidation: {
-      criticalJoints: string[];
-      angleTolerances: { [joint: string]: number };
-      stabilityThresholds: { [joint: string]: number };
-    };
-    feedbackRules: {
-      severityLevels: {
-        good: { min: number; max: number };
-        warning: { min: number; max: number };
-        poor: { min: number; max: number };
-      };
-      feedbackMessages: {
-        [joint: string]: {
-          good: string[];
-          warning: string[];
-          poor: string[];
-        };
-      };
-    };
-  };
-  thresholds: {
-    overallQuality: number;
-    repAccuracy: number;
-    formAccuracy: number;
-    tempoAccuracy: number;
-  };
+  
+  // Validation
   validatedByAdmin: boolean;
 }
 
@@ -161,32 +122,15 @@ export interface AdminAnalysisData {
     repBoundaries?: any[];
     adminNotes?: string;
     jointAngleRules?: any;
-    repCountingRules?: any;
     validatedByAdmin?: boolean;
   };
-  patternAnalysis?: {
-    referencePatterns?: any;
+  poseAnalysis?: {
+    targetPoses?: any;
     angleRanges?: any;
-    posePatterns?: any;
-    flowPatterns?: any;
-    patternQuality?: number;
-    validatedByAdmin?: boolean;
     primaryJoints?: string[];
     toleranceMultipliers?: any;
+    feedbackMessages?: any;
     adminNotes?: string;
-  };
-  analysisQuality?: {
-    classificationQuality?: number;
-    repAnalysisQuality?: number;
-    patternQuality?: number;
-    overallQuality?: number;
-    issues?: any[];
-    reviewedByAdmin?: boolean;
-    adminNotes?: string;
-  };
-  exerciseRules?: {
-    rules?: any;
-    thresholds?: any;
     validatedByAdmin?: boolean;
   };
 }
@@ -194,17 +138,14 @@ export interface AdminAnalysisData {
 // Validation Status
 export interface ValidationStatus {
   repAnalysisValidated: boolean;
-  patternAnalysisValidated: boolean;
-  qualityAnalysisValidated: boolean;
-  rulesGenerated: boolean;
-  rulesValidated: boolean;
+  poseAnalysisValidated: boolean;
   overallStatus: 'pending' | 'in_review' | 'validated' | 'needs_revision';
 }
 
 // Admin Analysis Workflow
 export interface AdminAnalysisWorkflow {
   exerciseId: string;
-  currentStep: 'data_review' | 'rep_definition' | 'pattern_validation' | 'rule_generation' | 'final_approval';
+  currentStep: 'data_review' | 'rep_definition' | 'pose_validation' | 'final_approval';
   validationStatus: ValidationStatus;
   adminNotes: string[];
   lastUpdated: Date;

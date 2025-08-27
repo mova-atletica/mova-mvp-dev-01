@@ -46,6 +46,8 @@ export default function Home() {
           fetchFeaturedContent()
         ]);
         
+
+        
         setSections(curatedSections);
         setFeaturedContent(featured);
         
@@ -285,8 +287,8 @@ export default function Home() {
                 {/* Tags - Show exercise tags if linked */}
                 {featuredExercise && (
                   <div className="flex flex-wrap gap-2 mb-8">
-                    {featuredExercise.tags.slice(0, 3).map(tag => (
-                      <span key={tag} className="px-3 py-1 rounded-full text-sm backdrop-blur-sm" style={{ 
+                    {featuredExercise.tags.slice(0, 3).map((tag, index) => (
+                      <span key={`${tag}-${index}`} className="px-3 py-1 rounded-full text-sm backdrop-blur-sm" style={{ 
                         backgroundColor: 'var(--featured-tag-bg)', 
                         color: 'var(--featured-tag-text)'
                       }}>
@@ -380,7 +382,7 @@ export default function Home() {
       {/* Exercise Categories */}
       <div className="mx-auto py-0 mt-[30px]" style={{ maxWidth: '2560px', marginLeft: '3%', marginRight: '3%', width: '94%' }}>
         {/* Exercise Carousels */}
-        {sections.map((section, index) => (
+        {sections.filter(section => section && section.id && section.exercises && section.exercises.length > 0).map((section, index) => (
           <div key={section.id} style={{ 
             marginTop: index === 0 ? '36px' : '36px', 
             marginBottom: index === 0 ? '36px' : '36px' 

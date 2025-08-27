@@ -42,7 +42,11 @@ export async function fetchCuratedSections(): Promise<CuratedSection[]> {
               try {
                 const exerciseResponse = await fetch(`/api/exercises/${item.id}`);
                 if (exerciseResponse.ok) {
-                  const exerciseData = await exerciseResponse.json();
+                  const responseData = await exerciseResponse.json();
+                  
+                  // Extract exercise data from the response
+                  const exerciseData = responseData.exercise || responseData;
+                  
                   return {
                     ...exerciseData,
                     tags: Array.isArray(exerciseData.tags) ? exerciseData.tags : (exerciseData.tags ? exerciseData.tags.split(',').filter(Boolean) : []),
@@ -105,9 +109,12 @@ export async function fetchExerciseById(id: string): Promise<Exercise | null> {
     if (!response.ok) {
       throw new Error('Failed to fetch exercise');
     }
-    const exerciseData = await response.json();
+    const responseData = await response.json();
 
-      return {
+    // Extract exercise data from the response
+    const exerciseData = responseData.exercise || responseData;
+
+    return {
       ...exerciseData,
       tags: Array.isArray(exerciseData.tags) ? exerciseData.tags : (exerciseData.tags ? exerciseData.tags.split(',').filter(Boolean) : []),
       equipment: Array.isArray(exerciseData.equipment) ? exerciseData.equipment : (exerciseData.equipment ? exerciseData.equipment.split(',').filter(Boolean) : []),

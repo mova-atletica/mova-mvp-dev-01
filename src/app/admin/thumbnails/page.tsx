@@ -5,8 +5,9 @@ import { generateAndUploadThumbnail } from '@/lib/thumbnailGenerator';
 interface Exercise {
   id: string;
   title: string;
-  image: string;
-  referenceVideoUrl: string;
+  image?: string;
+  referenceVideoUrl?: string;
+  referenceKeypointsUrl?: string;
   tags?: string[] | string;
   equipment?: string[] | string;
   muscleGroups?: string[] | string;
@@ -34,9 +35,11 @@ export default function ThumbnailGenerator() {
       const res = await fetch('/api/exercises');
       if (!res.ok) throw new Error('Failed to load exercises');
       const data = await res.json();
-      setExercises(data);
+      // The API returns { exercises: [...] }, so we need to extract the exercises array
+      setExercises(data.exercises || []);
     } catch (err) {
       console.error('Error loading exercises:', err);
+      setExercises([]); // Set empty array on error to prevent map errors
     }
   };
 
@@ -51,12 +54,12 @@ export default function ThumbnailGenerator() {
       console.log(`Generating thumbnail for exercise: ${exercise.title}`);
       console.log(`Video URL: ${exercise.referenceVideoUrl}`);
       
-      const thumbnailFileName = `${exercise.id}-thumbnail.jpg`;
-      const thumbnailUrl = await generateAndUploadThumbnail(
-        exercise.referenceVideoUrl, 
-        thumbnailFileName, 
-        2
-      );
+              const thumbnailFileName = `${exercise.id}-thumbnail.jpg`;
+        const thumbnailUrl = await generateAndUploadThumbnail(
+          exercise.referenceVideoUrl!, 
+          thumbnailFileName, 
+          2
+        );
 
       // Prepare exercise data for update (convert arrays to strings)
       const updateData = {
@@ -92,7 +95,7 @@ export default function ThumbnailGenerator() {
   };
 
   const generateAllThumbnails = async () => {
-    const exercisesWithVideos = exercises.filter(ex => ex.referenceVideoUrl);
+    const exercisesWithVideos = (exercises || []).filter(ex => ex.referenceVideoUrl);
     
     if (exercisesWithVideos.length === 0) {
       alert('No exercises with videos found');
@@ -110,7 +113,7 @@ export default function ThumbnailGenerator() {
         
         const thumbnailFileName = `${exercise.id}-thumbnail.jpg`;
         const thumbnailUrl = await generateAndUploadThumbnail(
-          exercise.referenceVideoUrl, 
+          exercise.referenceVideoUrl!, 
           thumbnailFileName, 
           2
         );
@@ -191,7 +194,7 @@ export default function ThumbnailGenerator() {
           </div>
 
           <div className="grid gap-4">
-            {exercises.map((exercise) => (
+            {(exercises || []).map((exercise) => (
                 <div key={exercise.id} className="bg-onyx-20 rounded-lg p-4 hover:bg-onyx-30 transition">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-4">
@@ -240,7 +243,7 @@ export default function ThumbnailGenerator() {
             ))}
           </div>
 
-          {exercises.length === 0 && (
+          {(exercises || []).length === 0 && (
             <div className="text-center py-8 text-onyx-30">
               <p>No exercises found. Create some exercises first!</p>
             </div>

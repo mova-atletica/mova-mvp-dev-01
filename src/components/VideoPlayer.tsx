@@ -3,10 +3,11 @@ import React, { useRef, useState, useEffect, useCallback, useImperativeHandle, f
 import { useTheme } from '../contexts/ThemeContext';
 import CoreVideoPlayer from './CoreVideoPlayer';
 import { getAngleWithConfidence } from '../lib/analysisUtils';
+import { analyzeCurrentPose, calculateAnglesForPoseAnalysis, calculatePoseHoldDuration } from '../lib/poseAnalysisUtils';
 
 
 interface VideoPlayerProps {
-  videoUrl: string;
+  videoUrl: string | null;
   aspectRatio?: 'landscape' | 'portrait' | 'auto';
   onFrameChange?: (frame: number) => void;
   onTimeUpdate?: (time: number) => void;
@@ -114,6 +115,37 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   const [selectedBones, setSelectedBones] = useState<string[]>(BONE_OPTIONS.map(b => b.key));
   // Add dropdown open state
   const [openDropdown, setOpenDropdown] = useState<'angles' | 'joints' | 'bones' | 'focus' | null>(null);
+  
+  // Refs for dropdown containers
+  const focusDropdownRef = useRef<HTMLDivElement>(null);
+  const anglesDropdownRef = useRef<HTMLDivElement>(null);
+  const jointsDropdownRef = useRef<HTMLDivElement>(null);
+  const bonesDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside dropdowns to close them
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      
+      if (openDropdown === 'focus' && focusDropdownRef.current && !focusDropdownRef.current.contains(target)) {
+        setOpenDropdown(null);
+      } else if (openDropdown === 'angles' && anglesDropdownRef.current && !anglesDropdownRef.current.contains(target)) {
+        setOpenDropdown(null);
+      } else if (openDropdown === 'joints' && jointsDropdownRef.current && !jointsDropdownRef.current.contains(target)) {
+        setOpenDropdown(null);
+      } else if (openDropdown === 'bones' && bonesDropdownRef.current && !bonesDropdownRef.current.contains(target)) {
+        setOpenDropdown(null);
+      }
+    }
+
+    if (openDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openDropdown]);
   // Add state for overlay theme controls
   const [boneColor, setBoneColor] = useState<string>('#00ff00');
   const [jointColor, setJointColor] = useState<string>('#00ff00');
@@ -195,13 +227,18 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   };
 
     // Simple real-time feedback state
-  const [audioEnabled, setAudioEnabled] = useState(true);
+
   const [repCountingEnabled, setRepCountingEnabled] = useState(false);
   const [currentRepCount, setCurrentRepCount] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<string | null>(null);
   const [isInRep, setIsInRep] = useState(false);
   const [lastBottomTime, setLastBottomTime] = useState<number | null>(null);
   const [repStates, setRepStates] = useState<{[joint: string]: RepState}>({});
+  
+  // Pose feedback state
+  const [poseFeedbackEnabled, setPoseFeedbackEnabled] = useState(false);
+  const [currentPoseResult, setCurrentPoseResult] = useState<any>(null);
+  const [poseHistory, setPoseHistory] = useState<any[]>([]);
   
   // Memoize current angles to prevent infinite loop
   const currentAngles = useMemo(() => {
@@ -211,11 +248,16 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
 
   
   // Simple feedback functions
-  const toggleAudio = (enabled: boolean) => setAudioEnabled(enabled);
+
   
   const toggleRepCounting = (enabled: boolean) => {
     setRepCountingEnabled(enabled);
-    if (!enabled) {
+    if (enabled) {
+      // Auto-enable skeleton and angles for rep counting feedback
+      setShowKeypoints(true);
+      setShowAngles(true);
+      console.log('🦴 Auto-enabled skeleton and angles for rep counting feedback');
+    } else {
       // Reset rep counting state when disabled
       setCurrentRepCount(0);
       setIsInRep(false);
@@ -234,6 +276,21 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     // Reset all rep states
     setRepStates({});
     console.log('🔄 Rep count and states reset');
+  };
+  
+  const togglePoseFeedback = (enabled: boolean) => {
+    setPoseFeedbackEnabled(enabled);
+    if (enabled) {
+      // Auto-enable skeleton and angles for pose feedback
+      setShowKeypoints(true);
+      setShowAngles(true);
+      console.log('🦴 Auto-enabled skeleton and angles for pose feedback');
+    } else {
+      // Reset pose feedback state when disabled
+      setCurrentPoseResult(null);
+      setPoseHistory([]);
+    }
+    console.log('🎯 Pose feedback:', enabled ? 'enabled' : 'disabled');
   };
   
 // Replace the entire processRepFeedback function with this Python-inspired approach:
@@ -527,6 +584,167 @@ const processRepFeedback = () => {
     repCount: currentRepCount
   });
 };
+
+// Pose feedback processing function
+const processPoseFeedback = () => {
+  console.log('🔍 processPoseFeedback called:', {
+    poseFeedbackEnabled,
+    currentKeypointFrame: !!currentKeypointFrame,
+    exercise: !!exercise,
+    exerciseType: exercise?.exerciseType,
+    poseAnalysis: !!exercise?.poseAnalysis
+  });
+  
+  if (!poseFeedbackEnabled || !currentKeypointFrame) {
+    console.log('❌ Early return - poseFeedbackEnabled:', poseFeedbackEnabled, 'no keypoint frame');
+    return;
+  }
+  
+  // Parse pose analysis data
+  const poseAnalysisData = exercise?.poseAnalysis 
+    ? (typeof exercise.poseAnalysis === 'string' 
+      ? JSON.parse(exercise.poseAnalysis) 
+      : exercise.poseAnalysis)
+    : null;
+  
+  console.log('🔍 Parsed pose analysis data:', poseAnalysisData);
+  console.log('🔍 targetPoses type:', typeof poseAnalysisData?.targetPoses);
+  console.log('🔍 targetPoses value:', poseAnalysisData?.targetPoses);
+  console.log('🔍 targetPoses is array:', Array.isArray(poseAnalysisData?.targetPoses));
+  
+  if (!poseAnalysisData?.targetPoses) {
+    console.log('❌ No targetPoses available - skipping pose detection');
+    return;
+  }
+  
+  // Parse nested JSON strings if they exist
+  let parsedTargetPoses = poseAnalysisData.targetPoses;
+  let parsedAngleRanges = poseAnalysisData.angleRanges || {};
+  let parsedToleranceMultipliers = poseAnalysisData.toleranceMultipliers || {};
+  
+  // Parse targetPoses if it's a JSON string
+  if (typeof parsedTargetPoses === 'string') {
+    try {
+      parsedTargetPoses = JSON.parse(parsedTargetPoses);
+      console.log('🔍 Parsed targetPoses:', parsedTargetPoses);
+    } catch (error) {
+      console.error('❌ Error parsing targetPoses JSON:', error);
+      return;
+    }
+  }
+  
+  // Parse angleRanges if it's a JSON string
+  if (typeof parsedAngleRanges === 'string') {
+    try {
+      parsedAngleRanges = JSON.parse(parsedAngleRanges);
+      console.log('🔍 Parsed angleRanges:', parsedAngleRanges);
+    } catch (error) {
+      console.error('❌ Error parsing angleRanges JSON:', error);
+      parsedAngleRanges = {};
+    }
+  }
+  
+  // Parse toleranceMultipliers if it's a JSON string
+  if (typeof parsedToleranceMultipliers === 'string') {
+    try {
+      parsedToleranceMultipliers = JSON.parse(parsedToleranceMultipliers);
+      console.log('🔍 Parsed toleranceMultipliers:', parsedToleranceMultipliers);
+    } catch (error) {
+      console.error('❌ Error parsing toleranceMultipliers JSON:', error);
+      parsedToleranceMultipliers = {};
+    }
+  }
+  
+  // Final validation
+  if (!Array.isArray(parsedTargetPoses) || parsedTargetPoses.length === 0) {
+    console.log('❌ No valid targetPoses array available - skipping pose detection');
+    console.log('❌ parsedTargetPoses:', parsedTargetPoses);
+    return;
+  }
+  
+  console.log('✅ All pose analysis data parsed successfully!');
+  console.log('✅ targetPoses count:', parsedTargetPoses.length);
+  console.log('✅ angleRanges keys:', Object.keys(parsedAngleRanges));
+  console.log('✅ toleranceMultipliers keys:', Object.keys(parsedToleranceMultipliers));
+  
+  // Calculate current angles from keypoints
+  const currentAngles = calculateAnglesForPoseAnalysis(currentKeypointFrame);
+  
+  console.log('🔍 Current angles from keypoints:', currentAngles);
+  console.log('🔍 Target pose angles:', parsedTargetPoses[0].targetAngles);
+  console.log('🔍 Angle ranges:', parsedAngleRanges);
+  console.log('🔍 Tolerance multipliers:', parsedToleranceMultipliers);
+  
+  // If calculateAnglesForPoseAnalysis returns empty, fall back to getCurrentAngles
+  if (Object.keys(currentAngles).length === 0) {
+    console.log('⚠️ calculateAnglesForPoseAnalysis returned empty, using getCurrentAngles fallback');
+    const fallbackAngles = getCurrentAngles(currentKeypointFrame);
+    console.log('🔍 Fallback angles from getCurrentAngles:', fallbackAngles);
+    
+    // Use the fallback angles for pose analysis
+    const poseResult = analyzeCurrentPose(
+      fallbackAngles,
+      parsedTargetPoses,
+      parsedAngleRanges,
+      parsedToleranceMultipliers,
+      poseAnalysisData.primaryJoints || []
+    );
+    
+    // Update pose history for hold duration tracking
+    setPoseHistory(prev => {
+      const newHistory = [...prev, poseResult];
+      // Keep only last 30 frames (1 second at 30fps)
+      return newHistory.slice(-30);
+    });
+    
+    // Calculate hold duration using the updated history
+    const updatedHistory = [...poseHistory, poseResult].slice(-30);
+    const holdDuration = calculatePoseHoldDuration(updatedHistory, parsedTargetPoses[0]);
+    
+    // Update pose result with calculated hold duration
+    const poseResultWithHoldDuration = {
+      ...poseResult,
+      holdDuration
+    };
+    
+    // Update current pose result
+    setCurrentPoseResult(poseResultWithHoldDuration);
+    
+    console.log('🎯 Pose analysis result (fallback):', poseResultWithHoldDuration);
+    return;
+  }
+  
+  // Analyze current pose
+  const poseResult = analyzeCurrentPose(
+    currentAngles,
+    parsedTargetPoses,
+    parsedAngleRanges,
+    parsedToleranceMultipliers,
+    poseAnalysisData.primaryJoints || []
+  );
+  
+  // Update pose history for hold duration tracking
+  setPoseHistory(prev => {
+    const newHistory = [...prev, poseResult];
+    // Keep only last 30 frames (1 second at 30fps)
+    return newHistory.slice(-30);
+  });
+  
+  // Calculate hold duration using the updated history
+  const updatedHistory = [...poseHistory, poseResult].slice(-30);
+  const holdDuration = calculatePoseHoldDuration(updatedHistory, parsedTargetPoses[0]);
+  
+  // Update pose result with calculated hold duration
+  const poseResultWithHoldDuration = {
+    ...poseResult,
+    holdDuration
+  };
+  
+  // Update current pose result
+  setCurrentPoseResult(poseResultWithHoldDuration);
+  
+  console.log('🎯 Pose analysis result:', poseResultWithHoldDuration);
+};
   
   // Process feedback on each frame
   useEffect(() => {
@@ -540,6 +758,13 @@ const processRepFeedback = () => {
       processRepFeedback();
     }
   }, [currentKeypointFrame, repCountingEnabled]); // Removed currentAngles and exercise?.repAnalysis?.jointAngleRules from dependencies
+
+  // Process pose feedback on each frame
+  useEffect(() => {
+    if (currentKeypointFrame && poseFeedbackEnabled) {
+      processPoseFeedback();
+    }
+  }, [currentKeypointFrame, poseFeedbackEnabled]);
 
   // Exercise-type-specific content renderer
   const renderExerciseTypeSpecificContent = () => {
@@ -561,7 +786,7 @@ const processRepFeedback = () => {
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
                 Rep Counting:
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: '#6b7280' }}>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: 'var(--vp-dropdown-item-text)' }}>
                 <input
                   type="checkbox"
                   checked={repCountingEnabled}
@@ -570,6 +795,9 @@ const processRepFeedback = () => {
                 />
                 Enable real-time rep counting
               </label>
+              <div style={{ fontSize: 9, color: 'var(--vp-dropdown-item-text)', marginTop: '2px', fontStyle: 'italic' }}>
+                Skeleton and angles will be automatically enabled
+              </div>
             </div>
 
             {/* Real-time Rep Analysis - Only show when enabled */}
@@ -618,28 +846,6 @@ const processRepFeedback = () => {
                 </div>
               </div>
             )}
-
-            {/* Audio Feedback Toggle - Separate from rep counting */}
-            <div style={{ 
-              background: 'var(--vp-dropdown-bg)', 
-              border: '1px solid var(--vp-dropdown-border)', 
-              borderRadius: '4px', 
-              padding: '8px', 
-              marginBottom: '8px' 
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
-                Audio Feedback:
-              </div>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: '#6b7280' }}>
-                <input
-                  type="checkbox"
-                  checked={audioEnabled}
-                  onChange={(e) => toggleAudio(e.target.checked)}
-                  style={{ marginRight: '6px' }}
-                />
-                Enable rep completion audio cues
-              </label>
-            </div>
           </>
         );
         
@@ -647,7 +853,7 @@ const processRepFeedback = () => {
       case 'pose-based':
         return (
           <>
-            {/* Audio Feedback Toggle for Pose-based */}
+            {/* Pose Feedback Toggle */}
             <div style={{ 
               background: 'var(--vp-dropdown-bg)', 
               border: '1px solid var(--vp-dropdown-border)', 
@@ -656,18 +862,56 @@ const processRepFeedback = () => {
               marginBottom: '8px' 
             }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
-                Audio Feedback:
+                Pose Feedback:
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: '#6b7280' }}>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: 'var(--vp-dropdown-item-text)' }}>
                 <input
                   type="checkbox"
-                  checked={audioEnabled}
-                  onChange={(e) => toggleAudio(e.target.checked)}
+                  checked={poseFeedbackEnabled}
+                  onChange={(e) => togglePoseFeedback(e.target.checked)}
                   style={{ marginRight: '6px' }}
                 />
-                Enable pose achievement & hold audio cues
+                Enable real-time pose feedback
               </label>
+              <div style={{ fontSize: 9, color: '#9ca3af', marginTop: '2px', fontStyle: 'italic' }}>
+                Skeleton and angles will be automatically enabled
+              </div>
             </div>
+
+            {/* Real-time Pose Analysis - Only show when enabled */}
+            {poseFeedbackEnabled && (
+              <div style={{ 
+                background: 'var(--vp-dropdown-bg)', 
+                border: '1px solid var(--vp-dropdown-border)', 
+                borderRadius: '4px', 
+                padding: '8px', 
+                marginBottom: '8px',
+                width: '100%',
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
+                  Real-time Pose Analysis:
+                </div>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+                  Current Pose: <span style={{ color: '#3b82f6', fontWeight: 500 }}>
+                    {currentPoseResult?.currentPose || 'None'}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+                  Hold Duration: <span style={{ color: '#10b981', fontWeight: 500 }}>
+                    {currentPoseResult?.holdDuration?.toFixed(1) || '0'}s
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px', maxWidth: '200px' }}>
+                  Feedback: <span style={{ 
+                    color: currentPoseResult?.severity === 'good' ? '#10b981' : 
+                           currentPoseResult?.severity === 'warning' ? '#f59e0b' : '#ef4444', 
+                    fontWeight: 500 
+                  }}>
+                    {currentPoseResult?.feedback || 'No feedback'}
+                  </span>
+                </div>
+              </div>
+            )}
           </>
         );
         
@@ -675,32 +919,27 @@ const processRepFeedback = () => {
       case 'flow-based':
         return (
           <>
-            {/* Audio Feedback Toggle for Flow-based */}
-            <div style={{ 
-              background: 'var(--vp-dropdown-bg)', 
-              border: '1px solid var(--vp-dropdown-border)', 
-              borderRadius: '4px', 
-              padding: '8px', 
-              marginBottom: '8px' 
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
-                Audio Feedback:
-              </div>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: '#6b7280' }}>
-                <input
-                  type="checkbox"
-                  checked={audioEnabled}
-                  onChange={(e) => toggleAudio(e.target.checked)}
-                  style={{ marginRight: '6px' }}
-                />
-                Enable sequence transition audio cues
-              </label>
-            </div>
+
           </>
         );
         
       default:
-        return null;
+        return (
+          <div style={{ 
+            background: 'var(--vp-dropdown-bg)', 
+            border: '1px solid var(--vp-dropdown-border)', 
+            borderRadius: '4px', 
+            padding: '8px', 
+            marginBottom: '8px' 
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
+              Exercise Type: {exercise?.exerciseType || 'Unknown'}
+            </div>
+            <div style={{ fontSize: 10, color: '#6b7280' }}>
+              No feedback system configured for this exercise type.
+            </div>
+          </div>
+        );
     }
   };
 
@@ -885,6 +1124,16 @@ const processRepFeedback = () => {
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
+        // Don't handle spacebar if user is typing in an input field
+        const activeElement = document.activeElement;
+        if (activeElement && (
+          activeElement.tagName === 'INPUT' || 
+          activeElement.tagName === 'TEXTAREA' || 
+          (activeElement as HTMLElement).contentEditable === 'true'
+        )) {
+          return; // Let the input field handle the spacebar
+        }
+        
         e.preventDefault();
         togglePlay();
       }
@@ -1198,7 +1447,7 @@ const processRepFeedback = () => {
   // --- SHARED UI/LOGIC MOVED TO CoreVideoPlayer ---
 
 // Video element for playback
-const videoElement = (
+const videoElement = videoUrl ? (
   <div style={{ overflow: 'hidden', position: 'relative' }}>
     <video
       ref={videoRef}
@@ -1223,6 +1472,20 @@ const videoElement = (
       preload="metadata"
     />
   </div>
+) : (
+  <div style={{ 
+    overflow: 'hidden', 
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: hasHeightClass(className) ? extractHeightFromClassName(className) : '80vh',
+    background: 'var(--vp-panel-bg)',
+    color: 'var(--vp-panel-title)',
+    fontSize: '16px'
+  }}>
+    No video available
+  </div>
 );
 
   // Overlays (e.g., feedback, angles) - currently handled by canvas drawing, so pass null
@@ -1236,7 +1499,7 @@ const videoElement = (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--vp-panel-title)', marginBottom: '3px' }}>Focus Selection</div>
       {/* Focus Dropdown */}
-      <div className="flex flex-col" style={{ position: 'relative', minWidth: '100px' }}>
+      <div ref={focusDropdownRef} className="flex flex-col" style={{ position: 'relative', minWidth: '100px' }}>
         <button
           className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
           style={{
@@ -1260,7 +1523,13 @@ const videoElement = (
               default: return zoomTarget;
             }
           })()}
-          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+          <span style={{ 
+            marginLeft: '8px', 
+            display: 'flex', 
+            alignItems: 'center',
+            transform: openDropdown === 'focus' ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease-in-out'
+          }}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -1296,7 +1565,7 @@ const videoElement = (
         )}
       </div>
       {/* Angles Dropdown */}
-      <div className="flex flex-col" style={{ position: 'relative' }}>
+      <div ref={anglesDropdownRef} className="flex flex-col" style={{ position: 'relative' }}>
         <button
           className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
           style={{
@@ -1310,7 +1579,13 @@ const videoElement = (
           type="button"
         >
           Angles
-          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+          <span style={{ 
+            marginLeft: '8px', 
+            display: 'flex', 
+            alignItems: 'center',
+            transform: openDropdown === 'angles' ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease-in-out'
+          }}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -1335,7 +1610,7 @@ const videoElement = (
         }
       </div>
       {/* Joints Dropdown */}
-      <div className="flex flex-col" style={{ position: 'relative' }}>
+      <div ref={jointsDropdownRef} className="flex flex-col" style={{ position: 'relative' }}>
         <button
           className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
           style={{
@@ -1349,7 +1624,13 @@ const videoElement = (
           type="button"
         >
           Joints
-          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+          <span style={{ 
+            marginLeft: '8px', 
+            display: 'flex', 
+            alignItems: 'center',
+            transform: openDropdown === 'joints' ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease-in-out'
+          }}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -1374,7 +1655,7 @@ const videoElement = (
         )}
       </div>
       {/* Bones Dropdown */}
-      <div className="flex flex-col" style={{ position: 'relative' }}>
+      <div ref={bonesDropdownRef} className="flex flex-col" style={{ position: 'relative' }}>
         <button
           className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
           style={{
@@ -1388,7 +1669,13 @@ const videoElement = (
           type="button"
         >
           Bones
-          <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
+          <span style={{ 
+            marginLeft: '8px', 
+            display: 'flex', 
+            alignItems: 'center',
+            transform: openDropdown === 'bones' ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease-in-out'
+          }}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 8L10 12L14 8" stroke="var(--vp-dropdown-chevron, #353839)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -1482,7 +1769,7 @@ const videoElement = (
   // Analysis Panel for recorded videos
   const analysisPanel = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '300px' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Exercise Analysis</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Motion Analysis</div>
       
       {/* Exercise Type and Classification */}
       <div style={{ 
@@ -1492,7 +1779,7 @@ const videoElement = (
         padding: '8px', 
         marginBottom: '8px' 
       }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Exercise Classification:</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Motion Classification:</div>
         <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
           Type: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exercise?.exerciseType || 'Unknown'}</span>
         </div>
@@ -1541,6 +1828,47 @@ const videoElement = (
   else if (openMenu === 'export') panelContent = exportPanel;
   else if (openMenu === 'analysis') panelContent = analysisPanel; // Added analysis panel
 
+  // Strategy pattern for feedback overlay based on exercise type
+  const renderFeedbackOverlay = () => {
+    if (exercise?.exerciseType === 'pose' || exercise?.exerciseType === 'pose-based') {
+      // Only show pose feedback overlay when pose feedback is enabled
+      if (!poseFeedbackEnabled) {
+        console.log('🎭 Pose feedback overlay: HIDDEN (pose feedback disabled)');
+        return { type: null };
+      }
+      
+      console.log('🎭 Pose feedback overlay: SHOWN (pose feedback enabled)');
+      return {
+        type: 'pose' as const,
+        currentPose: currentPoseResult?.currentPose || 'No pose detected',
+        holdDuration: currentPoseResult?.holdDuration || 0,
+        feedback: currentPoseResult?.feedback || 'No feedback',
+        severity: currentPoseResult?.severity || 'poor'
+      };
+    } else if (exercise?.exerciseType === 'repetition' || exercise?.exerciseType === 'rep-based') {
+      // Only show rep feedback overlay when rep counting is enabled
+      if (!repCountingEnabled) {
+        console.log('🔄 Rep feedback overlay: HIDDEN (rep counting disabled)');
+        return { type: null };
+      }
+      
+      console.log('🔄 Rep feedback overlay: SHOWN (rep counting enabled)');
+      return {
+        type: 'rep' as const,
+        repCount: currentRepCount,
+        onResetRep: resetRepCount
+      };
+    } else if (exercise?.exerciseType === 'flow' || exercise?.exerciseType === 'flow-based') {
+      // Only show flow feedback overlay when flow feedback is enabled (placeholder for future)
+      // For now, always return null since flow feedback isn't implemented yet
+      console.log('🌊 Flow feedback overlay: HIDDEN (not implemented yet)');
+      return { type: null };
+    } else {
+      console.log('❓ No feedback overlay: exercise type not supported');
+      return { type: null };
+    }
+  };
+
   return (
     <CoreVideoPlayer
       videoElement={videoElement}
@@ -1562,6 +1890,7 @@ const videoElement = (
       isPlaying={isPlaying}
       onPlayPause={togglePlay}
       onSeek={seekTo}
+      feedbackOverlay={renderFeedbackOverlay()}
     />
   );
 });

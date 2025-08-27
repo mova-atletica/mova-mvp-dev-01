@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Exercise {
-  id                       String                    @id @default(cuid())
+  id                       String        @id @default(cuid())
   title                    String
   description              String
   image                    String
@@ -20,106 +20,44 @@ model Exercise {
   muscleGroups             String
   jointsOfInterest         String
   createdBy                String
-  dateAdded                DateTime                  @default(now())
+  dateAdded                DateTime      @default(now())
   instructions             String
   authorName               String
   authorProfileUrl         String?
   relatedExercises         String
-  exerciseType             String                    @default("repetition")
+  exerciseType             String        @default("repetition")
   exerciseSubtype          String?
   classificationConfidence Float?
-  
-  // Enhanced analysis relations
+  poseAnalysis             PoseAnalysis?
   repAnalysis              RepAnalysis?
-  patternAnalysis          PatternAnalysis?
-  analysisQuality          AnalysisQuality?
-  exerciseRules            ExerciseRules?
 }
 
 model RepAnalysis {
-  id                    String   @id @default(cuid())
-  exerciseId            String   @unique
-  exercise              Exercise @relation(fields: [exerciseId], references: [id])
-  
-  // focused fields for admin analysis
-  goldStandardRep       String?  // JSON: {startTime: 0, endTime: 5, bottomTime: 2.3, phases: [{name: "eccentric", startTime: 0, endTime: 2.3}, {name: "concentric", startTime: 2.3, endTime: 5}]}
-  repBoundaries         String?  // JSON: [{id: "rep-1", startTime: 0, endTime: 5, bottomTime: 2.3, phases: [{name: "eccentric", startTime: 0, endTime: 2.3}, {name: "concentric", startTime: 2.3, endTime: 5}]}]
-  adminNotes            String?  // Admin notes and validation comments
-  
-  // 🆕 ENHANCED JOINT ANGLE RULES (replaces repCountingRules)
-  jointAngleRules       String?  // JSON: Enhanced joint angle thresholds and rep completion logic for real-time feedback
-  
-  // Validation
-  validatedByAdmin      Boolean  @default(false)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id               String   @id @default(cuid())
+  exerciseId       String   @unique
+  goldStandardRep  String?
+  repBoundaries    String?
+  adminNotes       String?
+  jointAngleRules  String?
+  validatedByAdmin Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  exercise         Exercise @relation(fields: [exerciseId], references: [id])
 }
 
-model PatternAnalysis {
-  id                    String   @id @default(cuid())
-  exerciseId            String   @unique
-  exercise              Exercise @relation(fields: [exerciseId], references: [id])
-  
-  // Reference patterns for real-time comparison
-  referencePatterns     String   // JSON: {joints: {leftKnee: [...], ...}}
-  
-  // Angle ranges for form validation
-  angleRanges           String   // JSON: {leftKnee: {min: 90, max: 180}, ...}
-  
-  // Exercise-type-specific patterns
-  posePatterns          String?  // JSON: for pose exercises
-  flowPatterns          String?  // JSON: for flow exercises
-  
-  // Enhanced fields for admin analysis
-  primaryJoints         String?  // JSON: ["leftKnee", "rightKnee"] - most important joints for this exercise
-  toleranceMultipliers  String?  // JSON: joint-specific tolerance adjustments
-  adminNotes            String?  // Admin notes and validation comments
-  
-  // Quality metrics
-  patternQuality        Float
-  validatedByAdmin      Boolean  @default(false)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-}
-
-model AnalysisQuality {
-  id                    String   @id @default(cuid())
-  exerciseId            String   @unique
-  exercise              Exercise @relation(fields: [exerciseId], references: [id])
-  
-  // Quality scores
-  classificationQuality Float
-  repAnalysisQuality    Float
-  patternQuality        Float
-  overallQuality        Float
-  
-  // Issues and warnings
-  issues                String   // JSON: [{type: "low_confidence", message: "..."}]
-  
-  // Admin review status
-  reviewedByAdmin       Boolean  @default(false)
-  adminNotes            String?
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-}
-
-model ExerciseRules {
-  id                    String   @id @default(cuid())
-  exerciseId            String   @unique
-  exercise              Exercise @relation(fields: [exerciseId], references: [id])
-  
-  // Rule definitions for real-time analysis
-  rules                 String   // JSON: comprehensive rule set for real-time analysis
-  thresholds            String   // JSON: quality thresholds and tolerances
-  
-  // Validation
-  validatedByAdmin      Boolean  @default(false)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+model PoseAnalysis {
+  id                   String   @id @default(cuid())
+  exerciseId           String   @unique
+  targetPoses          String
+  angleRanges          String
+  primaryJoints        String?
+  toleranceMultipliers String?
+  feedbackMessages     String?
+  adminNotes           String?
+  validatedByAdmin     Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  exercise             Exercise @relation(fields: [exerciseId], references: [id])
 }
 
 model CuratedSection {
@@ -147,5 +85,3 @@ model FeaturedContent {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
-
-

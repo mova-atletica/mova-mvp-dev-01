@@ -25,6 +25,24 @@ interface CoreVideoPlayerProps {
   onPlayPause?: () => void;
   onSeek?: (time: number) => void;
   hidePlayBar?: boolean; // New prop to hide the play bar
+  
+  // Remove: repCountOverlay?: { enabled: boolean; count: number; onReset: () => void };
+  
+  // Add: unified feedback system
+  feedbackOverlay?: {
+    type: 'rep' | 'pose' | 'flow' | null;
+    // Rep-based data
+    repCount?: number;
+    onResetRep?: () => void;
+    // Pose-based data
+    currentPose?: string;
+    holdDuration?: number;
+    feedback?: string;
+    severity?: 'good' | 'warning' | 'poor';
+    // Flow-based data (placeholder)
+    flowPhase?: string;
+    flowProgress?: number;
+  };
 }
 
 // Custom SVG Icons
@@ -92,6 +110,7 @@ export default function CoreVideoPlayer({
   onPlayPause,
   onSeek,
   hidePlayBar = false, // New prop to hide the play bar
+  feedbackOverlay, // New prop for unified feedback overlay
 }: CoreVideoPlayerProps) {
   // If controlled props are provided, use them; otherwise, use local state (for backward compatibility)
   const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<null | 'export' | 'style' | 'focus' | 'analysis'>(null);
@@ -217,6 +236,91 @@ export default function CoreVideoPlayer({
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
                       <div className="text-sm">Loading video...</div>
                     </div>
+                  </div>
+                )}
+                {/* Unified Feedback Overlay */}
+                {feedbackOverlay?.type && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 12,
+                      left: 12,
+                      zIndex: 30,
+                      background: 'rgba(0, 0, 0, 0.7)',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)'
+                    }}
+                  >
+                    {/* Rep-based Feedback */}
+                    {feedbackOverlay.type === 'rep' && (
+                      <>
+                        <span style={{ color: 'white', fontSize: '9px', fontWeight: '500' }}>
+                          Rep Count:
+                        </span>
+                        <span style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '15px' }}>
+                          {feedbackOverlay.repCount}
+                        </span>
+                        <button
+                          onClick={feedbackOverlay.onResetRep}
+                          style={{
+                            fontSize: '10px',
+                            padding: '2px 6px',
+                            background: '#c0c9cc',
+                            color: '#181a1a',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                          }}
+                          title="Reset rep count"
+                        >
+                          Reset
+                        </button>
+                      </>
+                    )}
+                    
+                    {/* Pose-based Feedback */}
+                    {feedbackOverlay.type === 'pose' && (
+                      <>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ color: 'white', fontSize: '9px', fontWeight: '500' }}>
+                            {feedbackOverlay.currentPose}
+                          </span>
+                          <span style={{ 
+                            color: feedbackOverlay.severity === 'good' ? '#10b981' : 
+                                   feedbackOverlay.severity === 'warning' ? '#f59e0b' : '#ef4444', 
+                            fontSize: '8px', 
+                            fontWeight: '500' 
+                          }}>
+                            {feedbackOverlay.holdDuration?.toFixed(1)}s
+                          </span>
+                        </div>
+                        <div style={{ 
+                          color: 'white', 
+                          fontSize: '8px', 
+                          maxWidth: '120px',
+                          lineHeight: '1.2'
+                        }}>
+                          {feedbackOverlay.feedback}
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Flow-based Feedback (placeholder) */}
+                    {feedbackOverlay.type === 'flow' && (
+                      <>
+                        <span style={{ color: 'white', fontSize: '9px', fontWeight: '500' }}>
+                          {feedbackOverlay.flowPhase}
+                        </span>
+                        <span style={{ color: '#3b82f6', fontSize: '8px', fontWeight: '500' }}>
+                          {feedbackOverlay.flowProgress}%
+                        </span>
+                      </>
+                    )}
                   </div>
                 )}
                 {/* Playback Bar - Simplified and more visible */}

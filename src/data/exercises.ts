@@ -1,3 +1,5 @@
+import { Exercise } from '../types';
+
 export type Exercise = {
   id: string;
   title: string;
@@ -15,4 +17,7 @@ export type Exercise = {
   instructions: string[];
   author: { name: string; profileUrl?: string };
   relatedExercises: string[];
+  exerciseType: 'repetition' | 'pose' | 'flow';
+  exerciseSubtype?: string;
+  classificationConfidence?: number;
 };
