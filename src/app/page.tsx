@@ -178,15 +178,15 @@ export default function Home() {
     <main style={{ backgroundColor: 'var(--background)' }}>
       {/* Page Header */}
       <div
-        className="px-0 mb-8 pt-2"
+        className="px-0 mb-8 pt-0"
         style={{
           marginLeft: '3%',
           marginRight: '3%',
-          marginTop: '21px',
+          marginTop: '18px',
         }}
       >
           <h1 className="text-3xl font-light mb-2" style={{ color: 'var(--section-title)' }}>
-            Mova Exercise Library
+            Mova Motion Library
           </h1>
           <p className="text-l" style={{ color: 'var(--section-subtitle)' }}>
             Discover curated exercises with biomechanical analysis and real-time feedback.

@@ -128,6 +128,17 @@ function compareAngles(current: number | null, reference: number | null, toleran
 
 // Calculate overall comparison results
 function calculateComparison(userAngles: any, referenceAngles: any, jointsOfInterest: string[]) {
+  // Add null checks for flow exercises
+  if (!userAngles || !referenceAngles) {
+    console.warn('Missing angle data for comparison calculation:', { userAngles: !!userAngles, referenceAngles: !!referenceAngles });
+    return {
+      overall: {
+        score: 0,
+        grade: 'N/A'
+      }
+    };
+  }
+  
   const results: any = {};
   let totalScore = 0;
   let totalComparisons = 0;
@@ -230,7 +241,8 @@ function ResultsTabs({
   enhancedSessionStats,
   exerciseType = 'repetition',
   repAnalysis = null,
-  poseAnalysis = null
+  poseAnalysis = null,
+  onResetAnalysis
 }: any) {
   const [activeTab, setActiveTab] = useState<'charts' | 'feedback' | 'summary'>('summary');
   
@@ -243,10 +255,10 @@ function ResultsTabs({
 
 
   // Prepare rep boundary and phase data using unified rep counting
-  const userFrameData = poses?.map((pose: any, index: number) => ({
+  const userFrameData = poses?.filter((pose: any) => pose !== null && pose !== undefined)?.map((pose: any, index: number) => ({
     frameIndex: index,
     time: index / 30, // Assume 30fps
-    angles: pose.angles || {}
+    angles: pose?.angles || {}
   })) || [];
   
   // Create exercise object from available data for rep counting
@@ -300,10 +312,40 @@ function ResultsTabs({
 
   // Prepare data for angle comparison chart using utility function
   const getAngleComparisonData = () => {
+    // Add null checks for userAngles and referenceAngles
+    if (!userAngles || !referenceAngles) {
+      console.warn('Missing angle data for chart preparation:', { userAngles: !!userAngles, referenceAngles: !!referenceAngles });
+      return [];
+    }
+    
     if (exerciseType === 'repetition' && repBoundaries.length > 0) {
       return prepareRepAngleComparisonData(userAngles, referenceAngles, jointsOfInterest, repBoundaries, repPhases);
     }
     return prepareAngleComparisonData(userAngles, referenceAngles, jointsOfInterest);
+  };
+
+  // Prepare data for flow sequence timeline chart
+  const getFlowSequenceData = () => {
+    if (exerciseType !== 'flow') {
+      return [];
+    }
+    
+    // For flow exercises, use the same angle comparison data as other exercises
+    // This shows actual joint angles over time for user vs reference
+    return getAngleComparisonData();
+  };
+
+  // Prepare data for flow analysis bar chart (DTW and Cosine scores)
+  const getFlowAnalysisData = () => {
+    if (exerciseType !== 'flow' || !advancedAnalysis?.flow_analysis) {
+      return [];
+    }
+
+    return jointsOfInterest.map((joint: string) => ({
+      joint: joint.replace(/([A-Z])/g, ' $1').trim(),
+      dtw_score: advancedAnalysis.flow_analysis.dtw_scores[joint]?.score || 0,
+      cosine_score: advancedAnalysis.flow_analysis.cosine_scores[joint]?.score || 0,
+    }));
   };
 
   // Handler for chart click/seek
@@ -499,7 +541,7 @@ function ResultsTabs({
         charts.push(
           <BaseAngleComparisonChart
             key="flow-sequence"
-            data={getAngleComparisonData()}
+            data={getFlowSequenceData()}
             jointsOfInterest={jointsOfInterest}
             currentFrame={currentFrame}
             onChartClick={handleChartClick}
@@ -507,6 +549,21 @@ function ResultsTabs({
             showReference={true}
             showRepBoundaries={false}
             holdPeriods={[]}
+          />
+        );
+        break;
+
+      case 'flow-analysis':
+        charts.push(
+          <BaseJointAnalysisChart
+            key="flow-analysis"
+            data={getFlowAnalysisData()}
+            title="Flow Analysis (DTW & Cosine Scores)"
+            metrics={['dtw_score', 'cosine_score']}
+            metricLabels={{
+              dtw_score: 'DTW Score',
+              cosine_score: 'Cosine Score'
+            }}
           />
         );
         break;
@@ -953,6 +1010,7 @@ function ResultsTabs({
             repAnalysis={repAnalysis}
             poseAnalysis={poseAnalysis}
             unifiedRepCount={unifiedRepCount}
+            onResetAnalysis={onResetAnalysis}
           />
         )}
       </div>
@@ -974,6 +1032,7 @@ function SessionSummaryTab({
   exerciseType = 'repetition',
   repAnalysis = null,
   poseAnalysis = null,
+  onResetAnalysis,
   unifiedRepCount = 0
 }: any) {
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
@@ -1397,7 +1456,7 @@ function SessionSummaryTab({
             Download Motion Data
           </button>
           <button 
-            onClick={() => window.location.reload()}
+            onClick={onResetAnalysis || (() => window.location.reload())}
             className="px-2 py-2 border-2 rounded-md font-medium text-xs"
             style={{ background: 'transparent', borderColor: '#5B05FF', color: '--primary-button-text' , cursor: 'pointer' }}
           >
@@ -1463,6 +1522,25 @@ export default function ResultsPage() {
     console.log('🎬 Reference video URL updated:', referenceVideoUrl);
   }, [referenceVideoUrl]);
   const [referencePoses, setReferencePoses] = useState<any[]>([]);
+
+  // Function to reset all analysis state when starting a new recording
+  const resetAnalysisState = () => {
+    console.log('🔄 Resetting analysis state for new recording');
+    setPoses([]);
+    setAngles(null);
+    setReferenceAngles(null);
+    setComparisonResults(null);
+    setAdvancedAnalysis(null);
+    setIsLoadingAdvanced(false);
+    setAdvancedAnalysisError(null);
+    setRealTimeAnalysisData([]);
+    setEnhancedSessionStats(null);
+    setCurrentFrame(0);
+    setSeekFrame(null);
+    setReferenceFrame(0);
+    setReferenceVideoUrl(null);
+    setReferencePoses([]);
+  };
 
   // Fetch exercise data
   useEffect(() => {
@@ -2195,6 +2273,7 @@ export default function ResultsPage() {
             exerciseType={exercise.exerciseType}
             repAnalysis={exercise.repAnalysis}
             poseAnalysis={exercise.poseAnalysis}
+            onResetAnalysis={resetAnalysisState}
           />
           </div>
         </div>

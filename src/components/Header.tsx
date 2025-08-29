@@ -1,9 +1,12 @@
 "use client";
 import Link from "next/link";
 import ThemeToggle from './ThemeToggle';
-import Logo from './Logo';
+import Image from 'next/image';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Header() {
+  const { theme } = useTheme();
+  
   return (
     <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-sm py-4 flex items-center justify-between mx-auto rounded-lg" style={{ 
       backgroundColor: 'var(--header-bg)', 
@@ -19,7 +22,17 @@ export default function Header() {
       //width: 'calc(100vw - 6vw)'
     }}>
       <Link href="/" className="flex items-center">
-        <Logo className="w-24" style={{ height: 'auto' }} />
+        <Image
+          src="/images/brand/logo/Logo_Horizontal.svg"
+          alt="Mova Atletica Logo"
+          width={120}
+          height={32}
+          className="w-24 transition-all duration-300"
+          style={{ 
+            height: 'auto',
+            filter: theme === 'dark' ? 'invert(1) brightness(0.9)' : 'invert(0) brightness(1)',
+          }}
+        />
       </Link>
       <div className="flex items-center gap-4">
         <ThemeToggle />

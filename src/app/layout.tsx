@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Roboto } from 'next/font/google'
 import Header from '../components/Header'
+import ConditionalFooter from '../components/ConditionalFooter'
 import { ThemeProvider } from '../contexts/ThemeContext'
 
 const geistSans = Geist({
@@ -33,10 +34,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${roboto.variable} antialiased`}>
-      <body className="font-sans pt-32">
+      <body className="font-sans pt-32 flex flex-col min-h-screen">
         <ThemeProvider>
-        <Header />
-        {children}
+          <Header />
+          <main className="flex-1">
+            {children}
+          </main>
+          <ConditionalFooter />
         </ThemeProvider>
       </body>
     </html>

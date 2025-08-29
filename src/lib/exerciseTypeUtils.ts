@@ -33,6 +33,7 @@ export const getChartOptionsForExerciseType = (type: ExerciseType) => {
     case 'flow':
       return [
         { value: 'flow-sequence', label: 'Flow Sequence Timeline' },
+        { value: 'flow-analysis', label: 'Flow Analysis' },
       ];
     default:
       return [
@@ -104,6 +105,8 @@ export const getChartTitleForExerciseType = (chartType: string, exerciseType: Ex
       switch(chartType) {
         case 'flow-sequence':
           return 'Flow Sequence Timeline';
+        case 'flow-analysis':
+          return 'Flow Analysis';
         case 'radar':
           return 'Flow Performance Radar';
         case 'joint-analysis':

@@ -34,7 +34,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--foreground', '#eef0f1'); // onyx-40
       root.style.setProperty('--surface', '#353839'); // onyx-90
       root.style.setProperty('--surface-hover', '#555950'); // onyx-80
-      root.style.setProperty('--muted', '#9b9a5a'); // onyx-60
+      root.style.setProperty('--muted', '#9ba2a5'); // onyx-60
       
       // Accent colors
       root.style.setProperty('--accent', '#3b82f6'); // blue-50
@@ -216,7 +216,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--foreground', '#353839'); // onyx-90
       root.style.setProperty('--surface', '#353839'); // onyx-90
       root.style.setProperty('--surface-hover', '#f4eedd'); // ap-30
-      root.style.setProperty('--muted', '#7d765f'); // ap-70
+      root.style.setProperty('--muted', '#9ba2a5'); // ap-70
       
       // Accent colors
       root.style.setProperty('--accent', '#3b82f6'); // blue-50
