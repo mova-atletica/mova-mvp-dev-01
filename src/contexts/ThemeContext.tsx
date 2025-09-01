@@ -224,7 +224,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--info', '#3b82f6'); // blue-50
       
       // Borders
-      root.style.setProperty('--border', '#c0c9cc'); // onyx-50
+      root.style.setProperty('--border', '#D7D8D9'); // onyx-50
       
       // Header & Navigation
       root.style.setProperty('--header-bg', 'rgba(238, 240, 241, 0.9)'); // ap-10 with opacity

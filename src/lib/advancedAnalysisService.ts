@@ -317,15 +317,64 @@ class AdvancedAnalysisService {
   }
 
   async checkBackendHealth(): Promise<boolean> {
-    try {
-      console.log('🔍 Checking backend health at:', `${this.baseUrl}/health`);
-      const response = await fetch(`${this.baseUrl}/health`);
-      console.log('🔍 Backend health response:', response.status, response.ok);
-      return response.ok;
-    } catch (error) {
-      console.error('Backend health check failed:', error);
-      return false;
+    const maxRetries = 3;
+    const timeoutMs = 6000; // 6 second timeout
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      let timeoutId: NodeJS.Timeout | undefined;
+      
+      try {
+        console.log(`🔍 Checking backend health (attempt ${attempt}/${maxRetries}) at:`, `${this.baseUrl}/health`);
+        
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        
+        const response = await fetch(`${this.baseUrl}/health`, {
+          signal: controller.signal,
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (timeoutId) clearTimeout(timeoutId);
+        console.log(`🔍 Backend health response (attempt ${attempt}):`, response.status, response.ok);
+        
+        if (response.ok) {
+          return true;
+        }
+        
+        // If response is not ok, wait before retry (exponential backoff)
+        if (attempt < maxRetries) {
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 3000); // Max 3 seconds
+          console.log(`⏳ Backend health check failed, retrying in ${waitTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+        
+      } catch (error: unknown) {
+        if (timeoutId) clearTimeout(timeoutId);
+        
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.warn(`⏰ Backend health check timed out (attempt ${attempt}/${maxRetries})`);
+        } else {
+          console.warn(`⚠️ Backend health check failed (attempt ${attempt}/${maxRetries}):`, error);
+        }
+        
+        // If this is the last attempt, return false
+        if (attempt === maxRetries) {
+          console.log('❌ All backend health check attempts failed, falling back to mock data');
+          return false;
+        }
+        
+        // Wait before retry (exponential backoff)
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 3000);
+        console.log(`⏳ Retrying backend health check in ${waitTime}ms...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
     }
+    
+    return false;
   }
 
   private convertNullsToNaN(angles: { [key: string]: (number | null)[] }): { [key: string]: number[] } {

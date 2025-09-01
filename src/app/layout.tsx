@@ -34,10 +34,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${roboto.variable} antialiased`}>
-      <body className="font-sans pt-32 flex flex-col min-h-screen">
+      <body className="font-sans pt-32">
         <ThemeProvider>
           <Header />
-          <main className="flex-1">
+          <main>
             {children}
           </main>
           <ConditionalFooter />

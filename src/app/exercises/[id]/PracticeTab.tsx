@@ -16,69 +16,6 @@ export type PracticeTabProps = {
   router: AppRouterInstance; 
 };
 
-// Utility to compare angles and provide feedback
-function compareAngles(current: number | null, reference: number | null, tolerance: number = 15): 'good' | 'warning' | 'poor' | null {
-  if (current === null || reference === null) return null;
-  
-  const difference = Math.abs(current - reference);
-  if (difference <= tolerance) return 'good';
-  if (difference <= tolerance * 2) return 'warning';
-  return 'poor';
-}
-
-// Utility to get feedback message based on joint and comparison
-function getFeedbackMessage(joint: string, comparison: 'good' | 'warning' | 'poor'): string {
-  const messages = {
-    'leftKnee': {
-      good: 'Left knee angle looks good!',
-      warning: 'Adjust left knee angle slightly',
-      poor: 'Fix left knee position'
-    },
-    'rightKnee': {
-      good: 'Right knee angle looks good!',
-      warning: 'Adjust right knee angle slightly', 
-      poor: 'Fix right knee position'
-    },
-    'leftHip': {
-      good: 'Left hip position is correct',
-      warning: 'Adjust left hip slightly',
-      poor: 'Fix left hip alignment'
-    },
-    'rightHip': {
-      good: 'Right hip position is correct',
-      warning: 'Adjust right hip slightly',
-      poor: 'Fix right hip alignment'
-    },
-    'leftElbow': {
-      good: 'Left elbow angle is good',
-      warning: 'Adjust left elbow slightly',
-      poor: 'Fix left elbow position'
-    },
-    'rightElbow': {
-      good: 'Right elbow angle is good',
-      warning: 'Adjust right elbow slightly',
-      poor: 'Fix right elbow position'
-    },
-    'leftShoulder': {
-      good: 'Left shoulder position is good',
-      warning: 'Adjust left shoulder slightly',
-      poor: 'Fix left shoulder position'
-    },
-    'rightShoulder': {
-      good: 'Right shoulder position is good',
-      warning: 'Adjust right shoulder slightly',
-      poor: 'Fix right shoulder position'
-    },
-    'trunk': {
-      good: 'Trunk alignment is correct',
-      warning: 'Adjust trunk position slightly',
-      poor: 'Fix trunk alignment'
-    }
-  };
-  
-  return messages[joint as keyof typeof messages]?.[comparison] || 'Keep going!';
-}
-
 // Calculate overall comparison results
 const calculateComparison = (userAngles: any, referenceAngles: any, jointsOfInterest: string[]) => {
   //console.log('calculateComparison called with:', { userAngles, referenceAngles, jointsOfInterest });

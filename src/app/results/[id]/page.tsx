@@ -116,16 +116,6 @@ function getTrunkAngle(shoulder: { x: number; y: number }, hip: { x: number; y: 
   return getAngle(vertical, shoulder, hip);
 }
 
-// Utility to compare angles and provide feedback
-function compareAngles(current: number | null, reference: number | null, tolerance: number = 15): 'good' | 'warning' | 'poor' | null {
-  if (current === null || reference === null) return null;
-  
-  const difference = Math.abs(current - reference);
-  if (difference <= tolerance) return 'good';
-  if (difference <= tolerance * 2) return 'warning';
-  return 'poor';
-}
-
 // Calculate overall comparison results
 function calculateComparison(userAngles: any, referenceAngles: any, jointsOfInterest: string[]) {
   // Add null checks for flow exercises
@@ -2223,8 +2213,8 @@ export default function ResultsPage() {
   };
 
   return (
-    <main className="bg-onyx-100 flex flex-col items-center px-0 pb-0" style={{ maxWidth: '2560px', marginLeft: '3%', marginRight: '3%' }}>
-      <div className="w-full max-w-6xl flex flex-row" style={{ maxWidth: '2560px', minHeight: '70vh' }}>
+    <main className="bg-onyx-100 flex flex-col items-center px-0 pb-4" style={{ maxWidth: '2560px', marginLeft: '3%', marginRight: '3%' }}>
+      <div className="w-full max-w-6xl flex flex-row" style={{ maxWidth: '2560px', minHeight: '100vh' }}>
         {/* Left: Side-by-Side Video Player (50%) */}
         <div className="flex-1 min-w-0 max-w-[50%] flex flex-col justify-start" style={{ maxWidth: '50%'}}>
           <SideBySideVideoPlayer
@@ -2281,7 +2271,7 @@ export default function ResultsPage() {
         </div>
       </div>
       {/* Navigation */}
-      <div className="mt-8 mb-6 text-center" style={{ border: 'transparent' }}>
+      <div className="mt-8 mb-2 text-center" style={{ border: 'transparent' }}>
         <Link href={`/exercises/${exercise.id}`} className="text-sm font-regular text-blue-70">
           ← Back to {exercise.title} details
         </Link>

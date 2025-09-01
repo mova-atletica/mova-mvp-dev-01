@@ -17,6 +17,7 @@ import { Exercise } from '../../../data/exercises';
 import { getAngleWithConfidence, getTrunkAngleWithConfidence } from '../../../lib/analysisUtils';
 import { runAnalysisPipeline } from '../../../lib/exerciseAnalysisPipeline';
 import UnifiedExerciseManager from '../../../components/admin/UnifiedExerciseManager';
+import { generateAndUploadThumbnail } from '@/lib/thumbnailGenerator';
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "letmein";
 
@@ -46,7 +47,11 @@ export default function AdminUpload() {
     exercises: [] as string[]
   });
   const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
-  const [viewMode, setViewMode] = useState<'upload' | 'exercises' | 'curate' | 'featured'>('upload');
+  const [viewMode, setViewMode] = useState<'upload' | 'exercises' | 'curate' | 'featured' | 'thumbnails'>('upload');
+
+  // Thumbnail generation state
+  const [thumbnailLoading, setThumbnailLoading] = useState(false);
+  const [thumbnailProcessing, setThumbnailProcessing] = useState<string | null>(null);
 
   // Featured content state
   const [featuredContent, setFeaturedContent] = useState<any[]>([]);
@@ -1153,14 +1158,128 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
     }));
   };
 
-    return (
+  // Thumbnail generation functions
+  const generateThumbnailForExercise = async (exercise: any) => {
+    if (!exercise.referenceVideoUrl) {
+      alert(`No video URL found for exercise: ${exercise.title}`);
+      return;
+    }
+
+    setThumbnailProcessing(exercise.id);
+    try {
+      console.log(`Generating thumbnail for exercise: ${exercise.title}`);
+      console.log(`Video URL: ${exercise.referenceVideoUrl}`);
+      
+      const thumbnailFileName = `${exercise.id}-thumbnail.jpg`;
+      const thumbnailUrl = await generateAndUploadThumbnail(
+        exercise.referenceVideoUrl!, 
+        thumbnailFileName, 
+        2
+      );
+
+      // Prepare exercise data for update (convert arrays to strings)
+      const updateData = {
+        ...exercise,
+        image: thumbnailUrl,
+        tags: Array.isArray(exercise.tags) ? exercise.tags.join(',') : exercise.tags,
+        equipment: Array.isArray(exercise.equipment) ? exercise.equipment.join(',') : exercise.equipment,
+        muscleGroups: Array.isArray(exercise.muscleGroups) ? exercise.muscleGroups.join(',') : exercise.muscleGroups,
+        jointsOfInterest: Array.isArray(exercise.jointsOfInterest) ? exercise.jointsOfInterest.join(',') : exercise.jointsOfInterest,
+        instructions: Array.isArray(exercise.instructions) ? JSON.stringify(exercise.instructions) : exercise.instructions,
+        relatedExercises: Array.isArray(exercise.relatedExercises) ? exercise.relatedExercises.join(',') : exercise.relatedExercises,
+      };
+
+      // Update the exercise with the new thumbnail
+      const updateResponse = await fetch(`/api/exercises/${exercise.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+
+      if (updateResponse.ok) {
+        alert(`Thumbnail generated successfully for: ${exercise.title}`);
+        loadExercises(); // Refresh the list
+      } else {
+        throw new Error('Failed to update exercise');
+      }
+    } catch (error) {
+      console.error('Error generating thumbnail:', error);
+      alert(`Error generating thumbnail for ${exercise.title}: ${(error as Error).message}`);
+    } finally {
+      setThumbnailProcessing(null);
+    }
+  };
+
+  const generateAllThumbnails = async () => {
+    const exercisesWithVideos = (exercises || []).filter(ex => ex.referenceVideoUrl);
+    
+    if (exercisesWithVideos.length === 0) {
+      alert('No exercises with videos found');
+      return;
+    }
+
+    setThumbnailLoading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const exercise of exercisesWithVideos) {
+      try {
+        setThumbnailProcessing(exercise.id);
+        console.log(`Processing exercise: ${exercise.title}`);
+        
+        const thumbnailFileName = `${exercise.id}-thumbnail.jpg`;
+        const thumbnailUrl = await generateAndUploadThumbnail(
+          exercise.referenceVideoUrl!, 
+          thumbnailFileName, 
+          2
+        );
+
+        // Prepare exercise data for update (convert arrays to strings)
+        const updateData = {
+          ...exercise,
+          image: thumbnailUrl,
+          tags: Array.isArray(exercise.tags) ? exercise.tags.join(',') : exercise.tags,
+          equipment: Array.isArray(exercise.equipment) ? exercise.equipment.join(',') : exercise.equipment,
+          muscleGroups: Array.isArray(exercise.muscleGroups) ? exercise.muscleGroups.join(',') : exercise.muscleGroups,
+          jointsOfInterest: Array.isArray(exercise.jointsOfInterest) ? exercise.jointsOfInterest.join(',') : exercise.jointsOfInterest,
+          instructions: Array.isArray(exercise.instructions) ? JSON.stringify(exercise.instructions) : exercise.instructions,
+          relatedExercises: Array.isArray(exercise.relatedExercises) ? exercise.relatedExercises.join(',') : exercise.relatedExercises,
+        };
+
+        // Update the exercise with the new thumbnail
+        const updateResponse = await fetch(`/api/exercises/${exercise.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData),
+        });
+
+        if (updateResponse.ok) {
+          successCount++;
+          console.log(`Successfully generated thumbnail for: ${exercise.title}`);
+        } else {
+          errorCount++;
+          console.error(`Failed to update exercise: ${exercise.title}`);
+        }
+      } catch (error) {
+        console.error(`Error generating thumbnail for ${exercise.title}:`, error);
+        errorCount++;
+      }
+    }
+
+    setThumbnailLoading(false);
+    setThumbnailProcessing(null);
+    alert(`Thumbnail generation complete!\nSuccess: ${successCount}\nErrors: ${errorCount}`);
+    loadExercises(); // Refresh the list
+  };
+
+  return (
     <main className="bg-onyx-100">
       {/* Spacer for sticky header */}
       <div style={{ height: '24px', marginTop: '0' }}></div>
-      <div className="pt-8">
+      <div className="pt-0">
         <div className="mx-auto py-4" style={{ maxWidth: '2560px', marginLeft: '45px', marginRight: '45px' }}>
           {/* Header */}
-          <div className="px-4 mb-4">
+          <div className="px-4 mb-2">
             <h1 className="text-3xl font-bold text-onyx-10 mb-2">Admin Panel</h1>
             <p className="text-onyx-30 text-lg">
               Upload and manage exercises, curated sections, and featured content
@@ -1231,12 +1350,15 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
         >
                     Featured Content
         </button>
-        
         <button
-          onClick={() => window.location.href = '/admin/thumbnails'}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition"
+          onClick={() => setViewMode('thumbnails')}
+          className={`px-4 py-2 rounded-lg font-medium transition ${
+            viewMode === 'thumbnails'
+              ? 'bg-blue-100 text-white'
+              : 'bg-onyx-20 text-onyx-10 hover:bg-onyx-30'
+          }`}
         >
-                    Generate Thumbnails
+          Thumbnails
         </button>
       </div>
 
@@ -1453,6 +1575,85 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                   </div>
                 ))}
                     </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'thumbnails' && (
+        <div className="bg-onyx-20 rounded-lg p-6">
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-onyx-10 mb-6">Thumbnail Generator</h2>
+            <p className="text-onyx-30 text-lg mb-6">
+              Generate video thumbnails for exercises automatically
+            </p>
+            <div className="mb-6">
+              <button
+                onClick={generateAllThumbnails}
+                disabled={thumbnailLoading}
+                className="bg-blue-100 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-blue-90 transition disabled:opacity-50"
+              >
+                {thumbnailLoading ? 'Generating All Thumbnails...' : 'Generate All Thumbnails'}
+              </button>
+              <p className="text-sm text-onyx-30 mt-2">
+                This will generate thumbnails for all exercises that have videos but no custom images.
+              </p>
+            </div>
+
+            <div className="grid gap-4">
+              {(exercises || []).map((exercise) => (
+                <div key={exercise.id} className="bg-onyx-20 rounded-lg p-4 hover:bg-onyx-30 transition">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-white rounded flex items-center justify-center">
+                        {exercise.image && exercise.image !== '/images/squat.jpg' ? (
+                          <img 
+                            src={exercise.image} 
+                            alt={exercise.title} 
+                            className="w-full h-full object-cover rounded"
+                          />
+                        ) : (
+                          <span className="text-onyx-30 text-xs">No Image</span>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-onyx-10">{exercise.title}</h3>
+                        <p className="text-sm text-onyx-30">
+                          {exercise.referenceVideoUrl ? 'Has Video' : 'No Video'}
+                        </p>
+                        {exercise.referenceVideoUrl && (
+                          <p className="text-xs text-onyx-40 mt-1">
+                            Video: {exercise.referenceVideoUrl.substring(0, 50)}...
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {exercise.referenceVideoUrl && (
+                        <button
+                          onClick={() => generateThumbnailForExercise(exercise)}
+                          disabled={thumbnailProcessing === exercise.id}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition disabled:opacity-50"
+                        >
+                          {thumbnailProcessing === exercise.id ? 'Generating...' : 'Generate Thumbnail'}
+                        </button>
+                      )}
+                      <button
+                        onClick={loadExercises}
+                        className="px-4 py-2 bg-blue-100 text-white rounded-lg text-sm hover:bg-blue-90 transition"
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {(exercises || []).length === 0 && (
+              <div className="text-center py-8 text-onyx-30">
+                <p>No exercises found. Create some exercises first!</p>
               </div>
             )}
           </div>

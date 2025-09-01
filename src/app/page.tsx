@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import ExerciseCarousel from '../components/ExerciseCarousel';
 import { fetchCuratedSections, fetchFeaturedContent, fetchExerciseById, CuratedSection, FeaturedContent } from '../lib/exerciseService';
 import { Exercise } from '../data/exercises';
 
 export default function Home() {
+  const router = useRouter();
   const [sections, setSections] = useState<CuratedSection[]>([]);
   const [featuredContent, setFeaturedContent] = useState<FeaturedContent | null>(null);
   const [featuredExercise, setFeaturedExercise] = useState<Exercise | null>(null);
@@ -13,6 +15,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isFeaturedHovered, setIsFeaturedHovered] = useState(false);
   const [isFeaturedVideoLoaded, setIsFeaturedVideoLoaded] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const featuredVideoRef = useRef<HTMLVideoElement>(null);
   const [featuredVideoUrl, setFeaturedVideoUrl] = useState<string | null>(null);
 
@@ -35,6 +39,25 @@ export default function Home() {
     return str.charAt(0).toUpperCase() + str.slice(1);
   };
 
+  // Navigation handler with loading state
+  const handleExerciseNavigation = (exerciseId: string) => {
+    setIsNavigating(true);
+    setNavigatingTo(exerciseId);
+    router.push(`/exercises/${exerciseId}`);
+  };
+
+  const handleExercisesNavigation = () => {
+    setIsNavigating(true);
+    setNavigatingTo('exercises');
+    router.push('/exercises');
+  };
+
+  const handleExternalNavigation = (url: string) => {
+    setIsNavigating(true);
+    setNavigatingTo('external');
+    window.location.href = url;
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -45,8 +68,6 @@ export default function Home() {
           fetchCuratedSections(),
           fetchFeaturedContent()
         ]);
-        
-
         
         setSections(curatedSections);
         setFeaturedContent(featured);
@@ -96,6 +117,14 @@ export default function Home() {
     loadData();
   }, []);
 
+  // Reset navigation state when component unmounts
+  useEffect(() => {
+    return () => {
+      setIsNavigating(false);
+      setNavigatingTo(null);
+    };
+  }, []);
+
   useEffect(() => {
     if (featuredExercise?.referenceVideoUrl) {
       let url = featuredExercise.referenceVideoUrl;
@@ -142,7 +171,7 @@ export default function Home() {
   if (loading) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--background)' }}>
-        <div style={{ color: 'var(--foreground)' }} className="text-xl">Loading exercise library...</div>
+        <div style={{ color: 'var(--foreground)' }} className="text-2xl font-thin">Loading motion library...</div>
       </main>
     );
   }
@@ -176,6 +205,21 @@ export default function Home() {
 
   return (
     <main style={{ backgroundColor: 'var(--background)' }}>
+      {/* Navigation Loading Overlay */}
+      {isNavigating && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 text-center shadow-2xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <div className="text-2xl font-thin text-gray-700">
+              {navigatingTo === 'exercises' ? 'Loading exercise library...' : 'Loading motion video...'}
+            </div>
+            <div className="text-sm text-gray-500 mt-2">
+              Preparing your exercise experience
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
       <div
         className="px-0 mb-8 pt-0"
@@ -214,6 +258,7 @@ export default function Home() {
           <div
             className="absolute inset-0 w-full h-full"
             style={{ borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', zIndex: 1, position: 'absolute' }}
+            onClick={() => featuredContent.exerciseId && handleExerciseNavigation(featuredContent.exerciseId)}
           >
             {featuredVideoUrl && isFeaturedHovered && (
               <video
@@ -303,7 +348,7 @@ export default function Home() {
                   {featuredContent.exerciseId ? (
                     <>
                       <button 
-                        onClick={() => window.location.href = `/exercises/${featuredContent.exerciseId}`}
+                        onClick={() => featuredContent.exerciseId && handleExerciseNavigation(featuredContent.exerciseId)}
                         className="px-6 py-3 rounded-lg font-medium transition-all duration-200 cursor-pointer"
                         style={{ 
                           backgroundColor: '#eef0f1', 
@@ -327,7 +372,7 @@ export default function Home() {
                     </>
                   ) : featuredContent.ctaUrl ? (
                     <button 
-                      onClick={() => window.location.href = featuredContent.ctaUrl!}
+                      onClick={() => handleExternalNavigation(featuredContent.ctaUrl!)}
                       className="px-8 py-3 rounded-lg font-bold transition-all duration-300 cursor-pointer"
                       style={{ 
                         backgroundColor: 'var(--button-bg)', 
@@ -350,7 +395,7 @@ export default function Home() {
                     </button>
                   ) : (
                     <button 
-                      onClick={() => window.location.href = '/exercises'}
+                      onClick={() => handleExercisesNavigation()}
                       className="px-8 py-3 rounded-lg font-bold transition-all duration-300 cursor-pointer"
                       style={{ 
                         backgroundColor: 'var(--button-bg)', 

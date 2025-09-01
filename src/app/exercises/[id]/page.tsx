@@ -207,16 +207,16 @@ export default function ExerciseDetail({ params }: Props) {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-onyx-100 flex flex-col items-center justify-center px-4 py-8">
-        <div className="text-onyx-10 text-xl">Loading exercise...</div>
+      <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--background)' }}>
+        <div style={{ color: 'var(--header-text)' }} className="text-2xl font-thin">Loading motion video...</div>
       </main>
     );
   }
 
   if (error || !exercise) {
     return (
-      <main className="min-h-screen bg-onyx-100 flex flex-col items-center justify-center px-4 py-8">
-        <div className="text-red-600 text-xl mb-4">{error || 'Exercise not found'}</div>
+      <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--background)' }}>
+        <div style={{ color: 'var(--error)' }} className="text-2xl font-thin mb-4">{error || 'Exercise not found'}</div>
         <Link href="/" className="text-blue-70 underline">
           ← Back to Library
         </Link>
