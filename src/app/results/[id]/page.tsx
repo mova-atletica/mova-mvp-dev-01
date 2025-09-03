@@ -268,11 +268,7 @@ function ResultsTabs({
     unifiedRepCount = advancedAnalysis.unified_rep_analysis.rep_count;
     repBoundaries = advancedAnalysis.unified_rep_analysis.rep_boundaries;
     repPhases = advancedAnalysis.unified_rep_analysis.rep_phases;
-    console.log('🎯 Using unified rep data from advanced analysis:', {
-      repCount: unifiedRepCount,
-      repBoundariesCount: repBoundaries.length,
-      repPhasesCount: repPhases.length
-    });
+    
   } else if (userFrameData.length > 0 && exerciseForRepCounting.repAnalysis) {
     // Fallback: calculate unified rep counting on the fly
     try {
@@ -281,11 +277,7 @@ function ResultsTabs({
       repBoundaries = unifiedRepAnalysis.repBoundaries;
       repPhases = unifiedRepAnalysis.repPhases;
       unifiedRepCount = unifiedRepAnalysis.repCount;
-      console.log('🎯 Charts using calculated unified rep data:', {
-        repCount: unifiedRepCount,
-        repBoundariesCount: repBoundaries.length,
-        repPhasesCount: repPhases.length
-      });
+      
     } catch (error) {
       console.warn('Failed to calculate unified rep data for charts:', error);
       // Fallback to old method
@@ -356,17 +348,7 @@ function ResultsTabs({
   // Prepare data for Bar Chart (Joint Analysis) using utility function
   const getJointScoresData = () => {
     const data = prepareJointScoresData(advancedAnalysis, jointsOfInterest, exerciseType);
-    if (exerciseType === 'pose') {
-      console.log('🔍 Joint scores data for pose exercise:', {
-        exerciseType,
-        dataLength: data.length,
-        sampleData: data[0],
-        allData: data,
-        advancedAnalysisKeys: advancedAnalysis ? Object.keys(advancedAnalysis) : null,
-        poseAnalysisKeys: advancedAnalysis?.pose_analysis ? Object.keys(advancedAnalysis.pose_analysis) : null,
-        jointAccuracyKeys: advancedAnalysis?.pose_analysis?.joint_accuracy ? Object.keys(advancedAnalysis.pose_analysis.joint_accuracy) : null
-      });
-    }
+    
     return data;
   };
 
@@ -1085,26 +1067,22 @@ function SessionSummaryTab({
       // For pose exercises, return hold duration instead of rep count
       if (exerciseType === 'pose') {
         const holdDuration = advancedAnalysis?.pose_analysis?.hold_periods?.reduce((total: number, period: any) => total + period.duration, 0) || 0;
-        console.log('🎯 Pose exercise - total hold duration:', holdDuration);
         return holdDuration;
       }
       
       // For flow exercises, return flow sequence score instead of rep count
       if (exerciseType === 'flow') {
         const flowScore = advancedAnalysis?.flow_analysis?.overall_flow_score || 0;
-        console.log('🌊 Flow exercise - overall flow score:', flowScore);
         return flowScore;
       }
       
       // First, try to use unified rep analysis from advanced analysis
       if (advancedAnalysis?.unified_rep_analysis?.rep_count) {
-        console.log('🎯 Using unified rep count from advanced analysis:', advancedAnalysis.unified_rep_analysis.rep_count);
         return advancedAnalysis.unified_rep_analysis.rep_count;
       }
       
       // Fallback to unified rep count passed as prop
       if (unifiedRepCount > 0) {
-        console.log('🎯 Using unified rep count from prop:', unifiedRepCount);
         return unifiedRepCount;
       }
       
@@ -1113,7 +1091,6 @@ function SessionSummaryTab({
         Object.values(advancedAnalysis.repetition_analysis || {})
           .reduce((sum: number, analysis: any) => sum + (analysis.rep_count || 0), 0) : 0;
       
-      console.log('🎯 Using fallback rep count:', fallbackCount);
       return fallbackCount;
     })(),
     // Enhanced real-time analysis stats
@@ -1476,7 +1453,7 @@ export default function ResultsPage() {
   const videoUrl = searchParams.get("video");
   const videoDuration = searchParams.get("duration");
   
-  console.log('🔍 URL params:', { params, id, videoUrl, videoDuration });
+  
 
 //  console.log('Results page - videoUrl:', videoUrl);
 //  console.log('Results page - videoDuration:', videoDuration);
@@ -1509,13 +1486,12 @@ export default function ResultsPage() {
   
   // Debug reference video URL changes
   useEffect(() => {
-    console.log('🎬 Reference video URL updated:', referenceVideoUrl);
+    // referenceVideoUrl updated
   }, [referenceVideoUrl]);
   const [referencePoses, setReferencePoses] = useState<any[]>([]);
 
   // Function to reset all analysis state when starting a new recording
   const resetAnalysisState = () => {
-    console.log('🔄 Resetting analysis state for new recording');
     setPoses([]);
     setAngles(null);
     setReferenceAngles(null);
@@ -1536,7 +1512,7 @@ export default function ResultsPage() {
   useEffect(() => {
     const fetchExercise = async () => {
       try {
-        console.log('🔍 Fetching exercise data for ID:', id);
+        
         setLoading(true);
         const response = await fetch(`/api/exercises/${id}`);
         if (!response.ok) {
@@ -1549,7 +1525,7 @@ export default function ResultsPage() {
         }
 
         const exerciseData = await response.json();
-        console.log('📋 Raw API response:', exerciseData);
+        
         
         // Check if the response has the expected structure
         if (!exerciseData.exercise) {
@@ -1559,12 +1535,7 @@ export default function ResultsPage() {
         }
         
         const exercise = exerciseData.exercise;
-        console.log('📋 Exercise data received:', {
-          id: exercise.id,
-          title: exercise.title,
-          referenceVideoUrl: exercise.referenceVideoUrl,
-          referenceKeypointsUrl: exercise.referenceKeypointsUrl
-        });
+        
         
         // Convert string arrays back to arrays
         const formattedExercise: Exercise = {
@@ -1582,14 +1553,7 @@ export default function ResultsPage() {
         };
 
         setExercise(formattedExercise);
-        console.log('✅ Exercise state set:', {
-          id: formattedExercise.id,
-          title: formattedExercise.title,
-          referenceVideoUrl: formattedExercise.referenceVideoUrl,
-          referenceKeypointsUrl: formattedExercise.referenceKeypointsUrl,
-          jointsOfInterest: formattedExercise.jointsOfInterest,
-          exerciseType: formattedExercise.exerciseType
-        });
+        
 
         // Get signed URL for image if it's a Google Cloud Storage path
         if (formattedExercise.image && !formattedExercise.image.startsWith('http') && !formattedExercise.image.startsWith('/')) {
@@ -1647,7 +1611,6 @@ export default function ResultsPage() {
       
       // Load reference angles and video
       if (!exercise?.referenceKeypointsUrl) {
-        console.log('No reference keypoints URL found');
         return;
       }
       
@@ -1732,12 +1695,12 @@ export default function ResultsPage() {
         }
 
         // Load reference video URL
-        console.log('🔍 Loading reference video URL:', exercise.referenceVideoUrl);
+        
         if (exercise.referenceVideoUrl) {
           // Get signed URL for reference video if it's a Google Cloud Storage path
           if (!exercise.referenceVideoUrl.startsWith('http') && !exercise.referenceVideoUrl.startsWith('/')) {
             try {
-              console.log('🔍 Getting signed URL for reference video:', exercise.referenceVideoUrl);
+              
               const signedUrlResponse = await fetch('/api/storage/signed-url', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1746,10 +1709,10 @@ export default function ResultsPage() {
               
               if (signedUrlResponse.ok) {
                 const { signedUrl } = await signedUrlResponse.json();
-                console.log('✅ Got signed URL for reference video:', signedUrl);
+                
                 setReferenceVideoUrl(signedUrl);
               } else {
-                console.log('⚠️ Failed to get signed URL, using original:', exercise.referenceVideoUrl);
+                
                 setReferenceVideoUrl(exercise.referenceVideoUrl);
               }
             } catch (error) {
@@ -1757,11 +1720,11 @@ export default function ResultsPage() {
               setReferenceVideoUrl(exercise.referenceVideoUrl);
             }
           } else {
-            console.log('✅ Using direct reference video URL:', exercise.referenceVideoUrl);
+            
             setReferenceVideoUrl(exercise.referenceVideoUrl);
           }
         } else {
-          console.log('⚠️ No reference video URL found in exercise');
+          
         }
       } catch (error) {
         console.error('Failed to load reference data:', error);
@@ -1783,9 +1746,8 @@ export default function ResultsPage() {
     try {
       // Check if backend is available
       const isBackendHealthy = await advancedAnalysisService.checkBackendHealth();
-      console.log('🔍 Backend health check result:', isBackendHealthy);
       if (!isBackendHealthy) {
-        console.log('Python backend not available, using mock pose analysis for testing');
+        
         
         // For pose exercises, create a mock analysis result for testing
         if (exercise.exerciseType === 'pose') {
@@ -1891,32 +1853,15 @@ export default function ResultsPage() {
         if (analysisResponse.ok) {
           const responseData = await analysisResponse.json();
           exerciseAnalysisData = responseData.exercise;
-          console.log('📋 Exercise analysis data loaded for rep counting:', {
-            hasRepAnalysis: !!exerciseAnalysisData?.repAnalysis,
-            jointAngleRules: exerciseAnalysisData?.repAnalysis?.jointAngleRules
-          });
+          
         }
       } catch (error) {
         console.warn('Failed to fetch exercise analysis data:', error);
       }
       
-      console.log('🔍 Debug - Exercise data being passed to analysis:', {
-        exerciseId: exercise.id,
-        exerciseType: exercise.exerciseType,
-        jointsOfInterest: exercise.jointsOfInterest,
-        hasExerciseAnalysisData: !!exerciseAnalysisData,
-        exerciseAnalysisDataKeys: exerciseAnalysisData ? Object.keys(exerciseAnalysisData) : null,
-        repAnalysis: exerciseAnalysisData?.repAnalysis,
-        poseAnalysis: exerciseAnalysisData?.poseAnalysis,
-        jointAngleRules: exerciseAnalysisData?.repAnalysis?.jointAngleRules
-      });
       
-      console.log('🔍 Debug - User angles data:', {
-        userAnglesKeys: Object.keys(userAngles),
-        userAnglesSample: Object.fromEntries(
-          Object.entries(userAngles).map(([key, value]) => [key, Array.isArray(value) ? value.length : value])
-        )
-      });
+      
+      
       
       // Prepare analysis data
       const analysisData = advancedAnalysisService.prepareAnalysisData(
@@ -1933,30 +1878,15 @@ export default function ResultsPage() {
         }
       );
       
-      console.log('🔍 Analysis data prepared:', {
-        exerciseType: exercise.exerciseType,
-        hasPoseAnalysis: !!exerciseAnalysisData?.poseAnalysis,
-        poseAnalysisKeys: exerciseAnalysisData?.poseAnalysis ? Object.keys(exerciseAnalysisData.poseAnalysis) : null,
-        analysisDataKeys: analysisData ? Object.keys(analysisData) : null
-      });
+      
       
       if (!analysisData) {
-        console.log('Could not prepare analysis data');
         setIsLoadingAdvanced(false);
         return;
       }
       
       // Run advanced analysis
       const result = await advancedAnalysisService.analyzeExercise(analysisData);
-      console.log('🔍 Advanced analysis result for pose exercise:', {
-        exerciseType: exercise.exerciseType,
-        hasPoseAnalysis: !!result.pose_analysis,
-        poseAnalysisKeys: result.pose_analysis ? Object.keys(result.pose_analysis) : null,
-        overallScore: result.overall_score,
-        grade: result.grade,
-        jointAnalysis: result.joint_analysis,
-        poseAnalysisData: result.pose_analysis
-      });
       setAdvancedAnalysis(result);
       
     } catch (error) {
@@ -2019,8 +1949,6 @@ export default function ResultsPage() {
         if (storedData) {
           const parsedData = JSON.parse(storedData);
           setRealTimeAnalysisData(parsedData);
-          console.log('📊 Loaded real-time analysis data:', parsedData.length, 'frames');
-          
           // Calculate enhanced session stats
           calculateEnhancedSessionStats(parsedData);
         }
@@ -2126,7 +2054,6 @@ export default function ResultsPage() {
     }
 
     setEnhancedSessionStats(stats);
-    console.log('📊 Enhanced session stats calculated:', stats);
   };
 
   if (loading) {

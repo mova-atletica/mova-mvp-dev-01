@@ -18,14 +18,14 @@ export type PracticeTabProps = {
 
 // Calculate overall comparison results
 const calculateComparison = (userAngles: any, referenceAngles: any, jointsOfInterest: string[]) => {
-  //console.log('calculateComparison called with:', { userAngles, referenceAngles, jointsOfInterest });
+
   
   const results: any = {};
   let totalScore = 0;
   let totalComparisons = 0;
   
   jointsOfInterest.forEach(joint => {
-    //console.log(`Processing joint: ${joint}`);
+
     let userAngleArray: (number | null)[] = [];
     let refAngleArray: (number | null)[] = [];
     
@@ -68,9 +68,7 @@ const calculateComparison = (userAngles: any, referenceAngles: any, jointsOfInte
         break;
     }
     
-    //console.log(`${joint} - User angles: ${userAngleArray.length} frames, Reference angles: ${refAngleArray.length} frames`);
-    //console.log(`${joint} - Sample user angles:`, userAngleArray.slice(0, 5));
-    //console.log(`${joint} - Sample reference angles:`, refAngleArray.slice(0, 5));
+
     
     // Calculate average difference with better handling of different lengths
     let totalDifference = 0;
@@ -94,7 +92,7 @@ const calculateComparison = (userAngles: any, referenceAngles: any, jointsOfInte
     // Adjust scoring: 15 degrees = 100%, 30 degrees = 70%, 45 degrees = 40%, 60+ degrees = 10%
     const score = validComparisons > 0 ? Math.max(0, Math.min(100, 100 - (avgDifference * 1.5))) : 0;
     
-    //console.log(`${joint} - Valid comparisons: ${validComparisons}, Avg difference: ${avgDifference}, Score: ${score}`);
+
     
     results[joint] = {
       avgDifference: Math.round(avgDifference * 10) / 10,
@@ -181,17 +179,17 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
   useEffect(() => {
     async function loadModel() {
       try {
-        console.log('🔄 Loading TensorFlow backend...');
+    
         await tf.setBackend("webgl");
         await tf.ready();
-        console.log('✅ TensorFlow backend ready');
+
         
-        console.log('🔄 Loading pose detection model...');
+
         const detector = await poseDetection.createDetector(
           poseDetection.SupportedModels.MoveNet,
           { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
         );
-        console.log('✅ Pose detection model loaded successfully');
+
         setDetector(detector);
       } catch (error) {
         console.error('❌ Error loading pose detection model:', error);
@@ -199,7 +197,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
         // Retry with different backend if WebGL fails
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('webgl') || errorMessage.includes('fetch')) {
-          console.log('🔄 Retrying with CPU backend...');
+
           try {
             await tf.setBackend("cpu");
             await tf.ready();
@@ -207,7 +205,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
               poseDetection.SupportedModels.MoveNet,
               { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
             );
-            console.log('✅ Pose detection model loaded with CPU backend');
+
             setDetector(detector);
           } catch (retryError) {
             console.error('❌ Failed to load model with CPU backend:', retryError);
@@ -403,21 +401,14 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
 
   // --- Video processing for recorded videos (called automatically when recording stops) ---
   const processRecordedVideo = async (videoUrlParam?: string) => {
-    console.log('processRecordedVideo called', videoUrlParam);
+
 
     if (!videoRef.current || !detector || !canvasRef.current) {
-      console.log('processRecordedVideo: missing requirements', {
-        videoRef: !!videoRef.current,
-        detector: !!detector,
-        canvasRef: !!canvasRef.current
-      });
+
       return;
     }
 
-    console.log('processRecordedVideo: starting analysis loop');
-    console.log('videoRef.current:', videoRef.current);
-    console.log('detector:', detector);
-    console.log('canvasRef.current:', canvasRef.current);
+
 
     if (typeof window !== "undefined") {
       localStorage.removeItem("lastAngles");
@@ -511,7 +502,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
         processedFrames++;
         const progress = Math.round((processedFrames / totalFrames) * 100);
         setAnalysisProgress(progress);
-        console.log('processRecordedVideo: progress updated', progress);
+
       }
       setAllPoses(poses);
       setLeftKneeAngles(angles.leftKneeAngles);
@@ -546,7 +537,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
     } finally {
       setIsAnalyzing(false);
       setAnalysisProgress(0);
-      console.log('processRecordedVideo: analysis complete');
+
     }
   };
 
@@ -709,33 +700,23 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
     const runPoseDetection = async () => {
       // COMPLETELY DISABLE pose detection when LiveVideoPlayer is active
       if (cameraActive) {
-        console.log('[DEBUG] PracticeTab pose detection DISABLED - LiveVideoPlayer is active');
         return;
       }
 
       if (!detector || !webcamRef.current || !webcamRef.current.video) {
-        console.log('[DEBUG] Missing requirements for pose detection', {
-          cameraActive,
-          detectorLoaded: !!detector,
-          webcam: !!webcamRef.current,
-          video: !!webcamRef.current?.video
-        });
         return;
       }
 
       const video = webcamRef.current.video;
       if (video.readyState !== 4) {
-        console.log('[DEBUG] Video not ready', { readyState: video.readyState });
         return;
       }
 
       try {
         const poses = await detector.estimatePoses(video);
-        console.log('[DEBUG] detector.estimatePoses called', { poses });
         const pose = poses[0] || null;
         setAllPoses(prev => {
           const updated = [...prev.slice(-29), pose];
-          console.log('[DEBUG] setAllPoses', { updated });
           return updated;
         });
         setCurrentAnalysisPose(pose);
@@ -751,15 +732,11 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
 
     // COMPLETELY DISABLE pose detection when LiveVideoPlayer is active
     if (!cameraActive && detector) {
-      console.log('[DEBUG] Starting PracticeTab pose detection (LiveVideoPlayer inactive)');
       animationFrameId = requestAnimationFrame(runPoseDetection);
-    } else {
-      console.log('[DEBUG] PracticeTab pose detection DISABLED - LiveVideoPlayer active or no detector');
     }
     
     return () => {
       if (animationFrameId) {
-        console.log('[DEBUG] Cleaning up PracticeTab pose detection');
         cancelAnimationFrame(animationFrameId);
       }
     };
@@ -768,15 +745,13 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
 
   // Handle recording completion from LiveVideoPlayer
   const handleRecordingComplete = (videoUrl: string, duration: number, realTimeAnalysisData?: any[]) => {
-    console.log('🎬 handleRecordingComplete called with:', videoUrl, duration, realTimeAnalysisData);
     
     setLiveRecordingUrl(videoUrl);
     setLiveRecordingDuration(duration);
     
     // Store real-time analysis data for use in results
-    if (realTimeAnalysisData && realTimeAnalysisData.length > 0) {
-      console.log('📊 Real-time analysis data collected:', realTimeAnalysisData.length, 'frames');
-      // Store in localStorage for access in results page
+          if (realTimeAnalysisData && realTimeAnalysisData.length > 0) {
+        // Store in localStorage for access in results page
       if (typeof window !== "undefined") {
         localStorage.setItem("realTimeAnalysisData", JSON.stringify(realTimeAnalysisData));
       }
@@ -793,8 +768,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
       return;
     }
 
-    console.log('🔍 Starting analysis of live recording:', liveRecordingUrl);
-    console.log('🔍 Detector available:', !!detector);
+
     
     // Clear previous analysis data
     if (typeof window !== "undefined") {
@@ -827,11 +801,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
           // readyState 4 means HAVE_ENOUGH_DATA, which is sufficient for processing
           // We'll handle duration calculation differently
           if (tempVideo.readyState >= 4 && tempVideo.videoWidth > 0 && tempVideo.videoHeight > 0) {
-            console.log('✅ Video ready for processing:', {
-              duration: tempVideo.duration,
-              width: tempVideo.videoWidth,
-              height: tempVideo.videoHeight
-            });
+
             resolve(true);
       } else {
             //console.log('⏳ Video not ready yet, retrying...');
@@ -953,7 +923,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
         processedFrames++;
         const progress = Math.round((processedFrames / totalFrames) * 100);
         setAnalysisProgress(progress);
-        console.log('🎬 Progress:', progress + '%');
+
       }
       
       // Store results
@@ -986,7 +956,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
       
       // Navigate to results
       if (exercise && exercise.id && liveRecordingUrl) {
-        console.log('✅ Analysis complete, navigating to results');
+
         const urlParams = new URLSearchParams();
         urlParams.set('video', liveRecordingUrl);
         if (liveRecordingDuration) {
@@ -1001,7 +971,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
     } finally {
       setIsAnalyzing(false);
       setAnalysisProgress(0);
-      console.log('🎬 Live recording analysis complete');
+
     }
   };
 
@@ -1272,7 +1242,6 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
                         className="rounded w-full h-auto video-controls-limited"
                         style={{ maxHeight: '60vh', objectFit: 'contain' }}
                         onLoadedMetadata={() => {
-                          console.log('video onLoadedMetadata fired');
                           if (videoRef.current && canvasRef.current) {
                             canvasRef.current.width = videoRef.current.videoWidth;
                             canvasRef.current.height = videoRef.current.videoHeight;

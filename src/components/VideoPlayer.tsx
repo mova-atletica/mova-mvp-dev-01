@@ -158,14 +158,10 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
 
   // Helper function to get current angles from keypoint frame
   const getCurrentAngles = (keypointFrame: any) => {
-    console.log('📐 getCurrentAngles called:', {
-      hasKeypoints: !!keypointFrame?.keypoints,
-      keypointsLength: keypointFrame?.keypoints?.length,
-      keypoints: keypointFrame?.keypoints?.slice(0, 3) // Show first 3 keypoints
-    });
+
     
     if (!keypointFrame?.keypoints) {
-      console.log('❌ getCurrentAngles early return - missing keypoints');
+
       return {};
     }
     
@@ -222,7 +218,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
       angles.torso = (leftTorso + rightTorso) / 2;
     }
     
-    console.log('📐 getCurrentAngles result:', angles);
+
     return angles;
   };
 
@@ -256,7 +252,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
       // Auto-enable skeleton and angles for rep counting feedback
       setShowKeypoints(true);
       setShowAngles(true);
-      console.log('🦴 Auto-enabled skeleton and angles for rep counting feedback');
+
     } else {
       // Reset rep counting state when disabled
       setCurrentRepCount(0);
@@ -265,7 +261,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
       setLastBottomTime(null);
       setRepStates({}); // Reset all rep states
     }
-    console.log('🔢 Rep counting:', enabled ? 'enabled' : 'disabled');
+
   };
   
   const resetRepCount = () => {
@@ -275,7 +271,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     setLastBottomTime(null);
     // Reset all rep states
     setRepStates({});
-    console.log('🔄 Rep count and states reset');
+
   };
   
   const togglePoseFeedback = (enabled: boolean) => {
@@ -284,32 +280,22 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
       // Auto-enable skeleton and angles for pose feedback
       setShowKeypoints(true);
       setShowAngles(true);
-      console.log('🦴 Auto-enabled skeleton and angles for pose feedback');
+
     } else {
       // Reset pose feedback state when disabled
       setCurrentPoseResult(null);
       setPoseHistory([]);
     }
-    console.log('🎯 Pose feedback:', enabled ? 'enabled' : 'disabled');
+
   };
   
 // Replace the entire processRepFeedback function with this Python-inspired approach:
 
 const processRepFeedback = () => {
-  console.log('🔍 processRepFeedback called:', {
-    repCountingEnabled,
-    currentAnglesKeys: Object.keys(currentAngles),
-    currentAngles,
-    currentKeypointFrame: !!currentKeypointFrame,
-    exercise: !!exercise,
-    exerciseType: exercise?.exerciseType,
-    jointsOfInterest: exercise?.jointsOfInterest,
-    repAnalysis: !!exercise?.repAnalysis,
-    jointAngleRules: !!exercise?.repAnalysis?.jointAngleRules
-  });
+
   
   if (!repCountingEnabled || Object.keys(currentAngles).length === 0) {
-    console.log('❌ Early return - repCountingEnabled:', repCountingEnabled, 'currentAngles empty:', Object.keys(currentAngles).length === 0);
+
     return;
   }
   
@@ -317,25 +303,25 @@ const processRepFeedback = () => {
   const jointsOfInterest = (exercise?.jointsOfInterest && Array.isArray(exercise.jointsOfInterest)) 
     ? exercise.jointsOfInterest 
     : ['leftKnee', 'rightKnee', 'leftHip', 'rightHip'];
-  console.log('🎯 Exercise joints of interest:', jointsOfInterest);
+
   
   // Find available joints of interest that we have angle data for
   const availableJointsOfInterest = jointsOfInterest.filter((joint: string) => 
     currentAngles[joint] !== undefined
   );
   
-  console.log('🎯 Available joints of interest:', availableJointsOfInterest);
+
   
   if (availableJointsOfInterest.length === 0) {
-    console.log('❌ No joints of interest available - trying all available angles');
+
     // Fallback: use any available angle data
     const allAvailableJoints = Object.keys(currentAngles);
     if (allAvailableJoints.length === 0) {
-      console.log('❌ No angle data available at all - skipping rep detection');
+
       return;
     }
     availableJointsOfInterest.push(allAvailableJoints[0]);
-    console.log('🎯 Using fallback joint:', availableJointsOfInterest[0]);
+
   }
   
   // ALWAYS use joints of interest - prioritize joints that have generated rules
@@ -355,7 +341,7 @@ const processRepFeedback = () => {
       if (jointAngleRules.repCompletion[joint] && currentAngles[joint] !== undefined) {
         trackingJoint = joint;
         currentAngle = currentAngles[joint];
-        console.log('🎯 Selected joint with generated rules:', trackingJoint);
+
         break;
       }
     }
@@ -365,12 +351,12 @@ const processRepFeedback = () => {
   if (!trackingJoint || currentAngle === null || currentAngle === undefined) {
     trackingJoint = availableJointsOfInterest[0];
     currentAngle = currentAngles[trackingJoint];
-    console.log('🎯 Selected first available joint of interest:', trackingJoint);
+
   }
   
   // Safety check - if we still don't have a valid angle, skip rep detection
   if (currentAngle === null || currentAngle === undefined) {
-    console.log('❌ No valid angle found for tracking joint - skipping rep detection');
+
     return;
   }
   
@@ -386,7 +372,7 @@ const processRepFeedback = () => {
       returnThreshold: jointRule.returnThreshold || 120,
       hysteresis: jointRule.hysteresis || 5
     };
-    console.log('📋 Using enhanced joint angle rules for', trackingJoint, ':', angleThresholds);
+
   } else {
     // Fallback thresholds for testing
     angleThresholds = {
@@ -395,7 +381,7 @@ const processRepFeedback = () => {
       returnThreshold: 120,
       hysteresis: 5
     };
-    console.log('📋 Using fallback thresholds for', trackingJoint, ':', angleThresholds);
+
   }
   
   // Get or create rep state for this joint (Python-style persistent flags)
@@ -418,9 +404,7 @@ const processRepFeedback = () => {
   // Determine exercise pattern based on threshold relationships
   const isDownwardExercise = angleThresholds.completionThreshold < angleThresholds.startThreshold; // Like squat
   
-  console.log('🎯 Exercise pattern:', isDownwardExercise ? 'Downward' : 'Upward');
-  console.log('📊 Thresholds:', angleThresholds);
-  console.log('📐 Current angle:', currentAngle.toFixed(1));
+
   
   // Python-style state logic with persistent flags
   let s1_completed = currentRepState.s1_completed;
@@ -435,26 +419,23 @@ const processRepFeedback = () => {
       s1_completed = true;
       s2_completed = false; // Clear S2 and S3 when returning to start
       s3_completed = false;
-      console.log('📍 S1 (Start): Set s1_completed = true, cleared s2 & s3');
     }
     
     // S2: Mid position (medium angle) - only if S1 was completed
     else if (currentAngle <= (angleThresholds.completionThreshold + (angleThresholds.hysteresis*1)) && s1_completed) {
       s2_completed = true;
-      console.log('📍 S2 (Bottom): Set s2_completed = true');
     }
     
     // S3: Return position (high angle) - only if S1 AND S2 were completed
     else if (currentAngle >= (angleThresholds.returnThreshold + (angleThresholds.hysteresis*1)) && s1_completed && s2_completed) {
       s3_completed = true;
-      console.log('📍 S3 (Return): Set s3_completed = true');
     }
     
     // Check for complete rep OUTSIDE the state conditions (Python style)
     if (s1_completed && s2_completed && s3_completed) {
       setCurrentRepCount(prev => {
         const newCount = prev + 1;
-        console.log(`✅ Rep ${newCount} completed! (Downward pattern)`);
+
         return newCount;
       });
       
@@ -462,7 +443,7 @@ const processRepFeedback = () => {
       s1_completed = false;
       s2_completed = false;
       s3_completed = false;
-      console.log('🔄 All states reset after successful rep');
+
       
       // IMPORTANT: Update the state immediately after resetting
       setRepStates(prev => ({
@@ -482,7 +463,7 @@ const processRepFeedback = () => {
     
     // Error handling: Return to S1 without completing S3 (incomplete rep)
     if (currentAngle >= angleThresholds.startThreshold && s1_completed && s2_completed && !s3_completed) {
-      console.log('❌ Incomplete rep detected - returned to start without completing');
+
       // Reset all states
       s1_completed = false;
       s2_completed = false;
@@ -497,34 +478,25 @@ const processRepFeedback = () => {
       s1_completed = true;
       s2_completed = false; // Clear S2 and S3 when returning to start
       s3_completed = false;
-      console.log('📍 S1 (Start): Set s1_completed = true, cleared s2 & s3');
     }
     
     // S2: Peak position (high angle) - only if S1 was completed
     else if (currentAngle >= (angleThresholds.completionThreshold + (angleThresholds.hysteresis*1)) && s1_completed) {
       s2_completed = true;
-      console.log('📍 S2 (Peak): Set s2_completed = true');
     }
     
     // S3: Return position (low angle) - only if S1 AND S2 were completed
     else if (currentAngle <= (angleThresholds.returnThreshold + (angleThresholds.hysteresis*1)) && s1_completed && s2_completed) {
       s3_completed = true;
-      console.log('📍 S3 (Return): Set s3_completed = true');
     }
     
-    // Debug: Show why no state is being set
-    if (!s1_completed && !s2_completed && !s3_completed) {
-      console.log('🔍 Debug - No state set because:');
-      console.log('  - S1 condition (angle <= 135):', currentAngle <= angleThresholds.startThreshold, `(${currentAngle} <= ${angleThresholds.startThreshold})`);
-      console.log('  - S2 condition (angle >= 171 AND s1_completed):', currentAngle >= angleThresholds.completionThreshold && s1_completed, `(${currentAngle} >= ${angleThresholds.completionThreshold} AND ${s1_completed})`);
-      console.log('  - S3 condition (angle <= 176 AND s1_completed AND s2_completed):', currentAngle <= angleThresholds.returnThreshold && s1_completed && s2_completed, `(${currentAngle} <= ${angleThresholds.returnThreshold} AND ${s1_completed} AND ${s2_completed})`);
-    }
+
     
     // Check for complete rep OUTSIDE the state conditions (Python style)
     if (s1_completed && s2_completed && s3_completed) {
       setCurrentRepCount(prev => {
         const newCount = prev + 1;
-        console.log(`✅ Rep ${newCount} completed! (Upward pattern)`);
+
         return newCount;
       });
       
@@ -532,7 +504,7 @@ const processRepFeedback = () => {
       s1_completed = false;
       s2_completed = false;
       s3_completed = false;
-      console.log('🔄 All states reset after successful rep');
+
       
       // IMPORTANT: Update the state immediately after resetting
       setRepStates(prev => ({
@@ -552,7 +524,7 @@ const processRepFeedback = () => {
     
     // Error handling: Return to S1 without completing S3
     if (currentAngle <= angleThresholds.startThreshold && s1_completed && s2_completed && !s3_completed) {
-      console.log('❌ Incomplete rep detected - returned to start without completing');
+
       // Reset all states
       s1_completed = false;
       s2_completed = false;
@@ -573,30 +545,15 @@ const processRepFeedback = () => {
   }));
   
   // Enhanced debugging
-  console.log('🎯 State:', {
-    joint: trackingJoint,
-    s1_completed,
-    s2_completed,
-    s3_completed,
-    angle: currentAngle.toFixed(1),
-    pattern: isDownwardExercise ? 'Downward' : 'Upward',
-    thresholds: angleThresholds,
-    repCount: currentRepCount
-  });
+
 };
 
 // Pose feedback processing function
 const processPoseFeedback = () => {
-  console.log('🔍 processPoseFeedback called:', {
-    poseFeedbackEnabled,
-    currentKeypointFrame: !!currentKeypointFrame,
-    exercise: !!exercise,
-    exerciseType: exercise?.exerciseType,
-    poseAnalysis: !!exercise?.poseAnalysis
-  });
+
   
   if (!poseFeedbackEnabled || !currentKeypointFrame) {
-    console.log('❌ Early return - poseFeedbackEnabled:', poseFeedbackEnabled, 'no keypoint frame');
+
     return;
   }
   
@@ -607,13 +564,10 @@ const processPoseFeedback = () => {
       : exercise.poseAnalysis)
     : null;
   
-  console.log('🔍 Parsed pose analysis data:', poseAnalysisData);
-  console.log('🔍 targetPoses type:', typeof poseAnalysisData?.targetPoses);
-  console.log('🔍 targetPoses value:', poseAnalysisData?.targetPoses);
-  console.log('🔍 targetPoses is array:', Array.isArray(poseAnalysisData?.targetPoses));
+
   
   if (!poseAnalysisData?.targetPoses) {
-    console.log('❌ No targetPoses available - skipping pose detection');
+
     return;
   }
   
@@ -626,7 +580,7 @@ const processPoseFeedback = () => {
   if (typeof parsedTargetPoses === 'string') {
     try {
       parsedTargetPoses = JSON.parse(parsedTargetPoses);
-      console.log('🔍 Parsed targetPoses:', parsedTargetPoses);
+
     } catch (error) {
       console.error('❌ Error parsing targetPoses JSON:', error);
       return;
@@ -637,7 +591,7 @@ const processPoseFeedback = () => {
   if (typeof parsedAngleRanges === 'string') {
     try {
       parsedAngleRanges = JSON.parse(parsedAngleRanges);
-      console.log('🔍 Parsed angleRanges:', parsedAngleRanges);
+
     } catch (error) {
       console.error('❌ Error parsing angleRanges JSON:', error);
       parsedAngleRanges = {};
@@ -648,7 +602,7 @@ const processPoseFeedback = () => {
   if (typeof parsedToleranceMultipliers === 'string') {
     try {
       parsedToleranceMultipliers = JSON.parse(parsedToleranceMultipliers);
-      console.log('🔍 Parsed toleranceMultipliers:', parsedToleranceMultipliers);
+
     } catch (error) {
       console.error('❌ Error parsing toleranceMultipliers JSON:', error);
       parsedToleranceMultipliers = {};
@@ -657,29 +611,20 @@ const processPoseFeedback = () => {
   
   // Final validation
   if (!Array.isArray(parsedTargetPoses) || parsedTargetPoses.length === 0) {
-    console.log('❌ No valid targetPoses array available - skipping pose detection');
-    console.log('❌ parsedTargetPoses:', parsedTargetPoses);
+
     return;
   }
   
-  console.log('✅ All pose analysis data parsed successfully!');
-  console.log('✅ targetPoses count:', parsedTargetPoses.length);
-  console.log('✅ angleRanges keys:', Object.keys(parsedAngleRanges));
-  console.log('✅ toleranceMultipliers keys:', Object.keys(parsedToleranceMultipliers));
+
   
   // Calculate current angles from keypoints
   const currentAngles = calculateAnglesForPoseAnalysis(currentKeypointFrame);
   
-  console.log('🔍 Current angles from keypoints:', currentAngles);
-  console.log('🔍 Target pose angles:', parsedTargetPoses[0].targetAngles);
-  console.log('🔍 Angle ranges:', parsedAngleRanges);
-  console.log('🔍 Tolerance multipliers:', parsedToleranceMultipliers);
+
   
   // If calculateAnglesForPoseAnalysis returns empty, fall back to getCurrentAngles
   if (Object.keys(currentAngles).length === 0) {
-    console.log('⚠️ calculateAnglesForPoseAnalysis returned empty, using getCurrentAngles fallback');
     const fallbackAngles = getCurrentAngles(currentKeypointFrame);
-    console.log('🔍 Fallback angles from getCurrentAngles:', fallbackAngles);
     
     // Use the fallback angles for pose analysis
     const poseResult = analyzeCurrentPose(
@@ -710,7 +655,7 @@ const processPoseFeedback = () => {
     // Update current pose result
     setCurrentPoseResult(poseResultWithHoldDuration);
     
-    console.log('🎯 Pose analysis result (fallback):', poseResultWithHoldDuration);
+
     return;
   }
   
@@ -743,16 +688,12 @@ const processPoseFeedback = () => {
   // Update current pose result
   setCurrentPoseResult(poseResultWithHoldDuration);
   
-  console.log('🎯 Pose analysis result:', poseResultWithHoldDuration);
+
 };
   
   // Process feedback on each frame
   useEffect(() => {
-    console.log('🎬 useEffect triggered:', {
-      hasCurrentKeypointFrame: !!currentKeypointFrame,
-      currentAnglesKeys: Object.keys(currentAngles),
-      repCountingEnabled
-    });
+
     
     if (currentKeypointFrame && repCountingEnabled) {
       processRepFeedback();
@@ -1833,11 +1774,11 @@ const videoElement = videoUrl ? (
     if (exercise?.exerciseType === 'pose' || exercise?.exerciseType === 'pose-based') {
       // Only show pose feedback overlay when pose feedback is enabled
       if (!poseFeedbackEnabled) {
-        console.log('🎭 Pose feedback overlay: HIDDEN (pose feedback disabled)');
+
         return { type: null };
       }
       
-      console.log('🎭 Pose feedback overlay: SHOWN (pose feedback enabled)');
+
       return {
         type: 'pose' as const,
         currentPose: currentPoseResult?.currentPose || 'No pose detected',
@@ -1848,11 +1789,11 @@ const videoElement = videoUrl ? (
     } else if (exercise?.exerciseType === 'repetition' || exercise?.exerciseType === 'rep-based') {
       // Only show rep feedback overlay when rep counting is enabled
       if (!repCountingEnabled) {
-        console.log('🔄 Rep feedback overlay: HIDDEN (rep counting disabled)');
+
         return { type: null };
       }
       
-      console.log('🔄 Rep feedback overlay: SHOWN (rep counting enabled)');
+
       return {
         type: 'rep' as const,
         repCount: currentRepCount,
@@ -1861,10 +1802,10 @@ const videoElement = videoUrl ? (
     } else if (exercise?.exerciseType === 'flow' || exercise?.exerciseType === 'flow-based') {
       // Only show flow feedback overlay when flow feedback is enabled (placeholder for future)
       // For now, always return null since flow feedback isn't implemented yet
-      console.log('🌊 Flow feedback overlay: HIDDEN (not implemented yet)');
+
       return { type: null };
     } else {
-      console.log('❓ No feedback overlay: exercise type not supported');
+
       return { type: null };
     }
   };

@@ -9,7 +9,6 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    console.log('🔍 API: Fetching exercise with ID:', id);
     
     const exercise = await prisma.exercise.findUnique({
       where: { id },
@@ -19,21 +18,7 @@ export async function GET(
       }
     });
 
-    console.log('🔍 API: Exercise found:', exercise ? 'Yes' : 'No');
-    if (exercise) {
-      console.log('🔍 API: Exercise data:', {
-        id: exercise.id,
-        title: exercise.title,
-        exerciseType: exercise.exerciseType,
-        referenceVideoUrl: exercise.referenceVideoUrl,
-        referenceKeypointsUrl: exercise.referenceKeypointsUrl,
-        hasPoseAnalysis: !!exercise.poseAnalysis,
-        poseAnalysisKeys: exercise.poseAnalysis ? Object.keys(exercise.poseAnalysis) : null
-      });
-    }
-
     if (!exercise) {
-      console.log('❌ API: Exercise not found for ID:', id);
       return NextResponse.json({ error: 'Exercise not found' }, { status: 404 });
     }
 
@@ -57,17 +42,6 @@ export async function GET(
       } : null,
     };
 
-    // Debug parsed pose analysis data
-    if (parsedExercise.poseAnalysis) {
-      console.log('🔍 Parsed pose analysis data:', {
-        targetPoses: parsedExercise.poseAnalysis.targetPoses,
-        angleRanges: parsedExercise.poseAnalysis.angleRanges,
-        primaryJoints: parsedExercise.poseAnalysis.primaryJoints,
-        toleranceMultipliers: parsedExercise.poseAnalysis.toleranceMultipliers,
-        feedbackMessages: parsedExercise.poseAnalysis.feedbackMessages
-      });
-    }
-
     return NextResponse.json({ exercise: parsedExercise });
   } catch (error) {
     console.error('Error fetching exercise:', error);
@@ -82,8 +56,6 @@ export async function PUT(
   try {
     const { id } = await params;
     const updateData = await request.json();
-    
-    console.log('Updating exercise:', id, 'with data:', updateData);
 
     // Convert array fields to strings for database storage
     const processedData = {
@@ -106,15 +78,12 @@ export async function PUT(
       classificationConfidence: updateData.classificationConfidence,
     };
 
-    console.log('Processed data for database:', processedData);
-
     // Update the exercise
     const updatedExercise = await prisma.exercise.update({
       where: { id },
       data: processedData
     });
 
-    console.log('Exercise updated successfully:', updatedExercise.id);
     return NextResponse.json({ success: true, exercise: updatedExercise });
   } catch (error) {
     console.error('Error updating exercise:', error);

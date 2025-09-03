@@ -90,11 +90,9 @@ export default function Home() {
                 const { signedUrl } = await signedUrlResponse.json();
                 setHeroImageUrl(signedUrl);
               } else {
-                console.error('Failed to get signed URL for hero image');
                 setHeroImageUrl(featured.heroImage); // Fallback to original
               }
             } catch (error) {
-              console.error('Error getting signed URL:', error);
               setHeroImageUrl(featured.heroImage); // Fallback to original
             }
           }
@@ -108,7 +106,6 @@ export default function Home() {
         
       } catch (err) {
         setError('Failed to load content');
-        console.error('Error loading content:', err);
       } finally {
         setLoading(false);
       }
@@ -179,7 +176,7 @@ export default function Home() {
   if (error) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--background)' }}>
-        <div style={{ color: 'var(--error)' }} className="text-xl">{error}</div>
+        <div style={{ color: 'var(--error)' }} className="text-xl font-light">{error}</div>
         <button 
           onClick={() => window.location.reload()} 
           className="mt-4 px-4 py-2 rounded hover:transition-all duration-300"
@@ -210,7 +207,7 @@ export default function Home() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 text-center shadow-2xl">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <div className="text-2xl font-thin text-gray-700">
+            <div className="text-2xl font-light text-gray-700">
               {navigatingTo === 'exercises' ? 'Loading exercise library...' : 'Loading motion video...'}
             </div>
             <div className="text-sm text-gray-500 mt-2">
@@ -269,7 +266,7 @@ export default function Home() {
                 loop
                 playsInline
                 onLoadedData={e => { handleFeaturedVideoLoad(); }}
-                onError={e => { console.error('Featured video error:', e); }}
+                onError={e => { /* Video error handled silently */ }}
               />
             )}
             {heroImageUrl && (!isFeaturedHovered || !featuredVideoUrl) && (

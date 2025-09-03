@@ -208,7 +208,7 @@ export default function ExerciseDetail({ params }: Props) {
   if (loading) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--background)' }}>
-        <div style={{ color: 'var(--header-text)' }} className="text-2xl font-thin">Loading motion video...</div>
+        <div style={{ color: 'var(--foreground)' }} className="text-2xl font-light">Loading motion video...</div>
       </main>
     );
   }
@@ -216,7 +216,7 @@ export default function ExerciseDetail({ params }: Props) {
   if (error || !exercise) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--background)' }}>
-        <div style={{ color: 'var(--error)' }} className="text-2xl font-thin mb-4">{error || 'Exercise not found'}</div>
+        <div style={{ color: 'var(--error)' }} className="text-2xl font-light mb-4">{error || 'Exercise not found'}</div>
         <Link href="/" className="text-blue-70 underline">
           ← Back to Library
         </Link>
@@ -258,7 +258,7 @@ export default function ExerciseDetail({ params }: Props) {
               <h1 className="text-4xl font-light text-onyx-10" style={{ padding: '0rem 0rem 0rem 0rem', margin: 0 }}>{exercise.title}</h1>
               {/* Author Info - moved here */}
               <div className="pt-0" style={{ marginBottom: '12px' , padding: 0}}>
-                <span className="text-xs font-thin" style={{ color: 'var(--accordion-text)' }}>by: </span>
+                <span className="text-xs font-light" style={{ color: 'var(--accordion-text)' }}>by: </span>
                 {exercise.author.profileUrl ? (
                   <a href={exercise.author.profileUrl} target="_blank" rel="noopener noreferrer" className="text-onyx-30 underline text-xs font-medium">
                     {exercise.author.name}

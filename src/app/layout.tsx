@@ -8,17 +8,19 @@ import { ThemeProvider } from '../contexts/ThemeContext'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
+  weight: ['100', '300', '400', '500', '700', '900'],
   subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  weight: ['100', '300', '400', '500', '700', '900'],
   subsets: ["latin"],
 });
 
 const roboto = Roboto({
   subsets: ['latin'],
-  weight: ['400', '500', '700', '900'],
+  weight: ['100', '300', '400', '500', '700', '900'],
   variable: '--font-roboto',
 })
 
@@ -34,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${roboto.variable} antialiased`}>
-      <body className="font-sans pt-32">
+      <body className="font-roboto pt-32">
         <ThemeProvider>
           <Header />
           <main>

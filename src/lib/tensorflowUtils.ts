@@ -74,7 +74,7 @@ export async function loadPoseDetectionModel(
 /**
  * Checks if TensorFlow.js is available and ready
  */
-export async function checkTensorFlowAvailability(): Promise<boolean> {
+/* export async function checkTensorFlowAvailability(): Promise<boolean> {
   try {
     await tf.ready();
     return true;
@@ -82,11 +82,11 @@ export async function checkTensorFlowAvailability(): Promise<boolean> {
     console.error('TensorFlow.js not available:', error);
     return false;
   }
-}
+} */
 
 /**
  * Gets the current TensorFlow backend
  */
-export function getCurrentBackend(): string {
+/* export function getCurrentBackend(): string {
   return tf.getBackend();
-}
+} */
