@@ -25,6 +25,34 @@ function loadLogo(): Promise<void> {
 // Pre-load the logo when the module is imported
 loadLogo().catch(console.warn);
 
+// PoseNet keypoint name to index mapping (COCO-17 format)
+const KEYPOINT_NAME_TO_INDEX: { [key: string]: number } = {
+  'nose': 0,
+  'left_eye': 1, 'right_eye': 2,
+  'left_ear': 3, 'right_ear': 4,
+  'left_shoulder': 5, 'right_shoulder': 6,
+  'left_elbow': 7, 'right_elbow': 8,
+  'left_wrist': 9, 'right_wrist': 10,
+  'left_hip': 11, 'right_hip': 12,
+  'left_knee': 13, 'right_knee': 14,
+  'left_ankle': 15, 'right_ankle': 16
+};
+
+// Helper function to get keypoint by name (supports both named and indexed formats)
+function getKeypointByName(keypoints: any[], name: string): any {
+  // First try to find by name property (AssetGenerationModal format)
+  const namedKeypoint = keypoints.find((kp: any) => kp.name === name);
+  if (namedKeypoint) return namedKeypoint;
+  
+  // Fallback to index-based lookup (motion-explore localStorage format)
+  const keypointIndex = KEYPOINT_NAME_TO_INDEX[name];
+  if (keypointIndex !== undefined && keypoints[keypointIndex]) {
+    return keypoints[keypointIndex];
+  }
+  
+  return null;
+}
+
 export interface StatsConfig {
   // Joint Angle Display
   showJointAngles: boolean;
@@ -54,6 +82,9 @@ export interface StatsConfig {
   // Safe Zone Settings
   safeZoneEnabled: boolean;
   canvasAspectRatio: '9:16' | '16:9' | 'custom';
+  
+  // Export mode flag
+  isExport?: boolean;
 }
 
 export interface SafeZone {
@@ -207,9 +238,9 @@ export function extractJointAngles(poses: any[], frameIndex: number): JointAngle
   for (const joint of jointDefinitions) {
     const [point1Name, jointName, point3Name] = joint.points;
     
-    const point1 = keypoints.find((kp: any) => kp.name === point1Name);
-    const jointPoint = keypoints.find((kp: any) => kp.name === jointName);
-    const point3 = keypoints.find((kp: any) => kp.name === point3Name);
+    const point1 = getKeypointByName(keypoints, point1Name);
+    const jointPoint = getKeypointByName(keypoints, jointName);
+    const point3 = getKeypointByName(keypoints, point3Name);
     
     if (point1 && jointPoint && point3 && 
         point1.score > 0.3 && jointPoint.score > 0.3 && point3.score > 0.3) {
@@ -296,7 +327,38 @@ export function renderJointAngles(
   ctx.fillStyle = config.angleColor || '#00ff00';
   ctx.strokeStyle = config.angleColor || '#00ff00';
   ctx.lineWidth = 2;
-  ctx.font = `bold ${config.angleSize || 18}px 'Roboto', sans-serif`;
+  
+  // Scale text size based on canvas dimensions
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  
+  // During export, the canvas context is already scaled by resolutionMultiplier
+  // We need to account for this to prevent double-scaling
+  let scaleFactor = 1;
+  if (config.isExport) {
+    // Detect if we're in a scaled context by checking the transform
+    const transform = ctx.getTransform();
+    const contextScale = transform.a; // a and d should be equal for uniform scaling
+    
+    if (contextScale !== 1) {
+      // The context is already scaled, so we don't need additional scaling
+      scaleFactor = 1;
+    } else {
+      // Use a reference size that matches typical video display dimensions
+      const referenceWidth = 400;
+      const referenceHeight = 711;
+      scaleFactor = Math.min(canvasWidth / referenceWidth, canvasHeight / referenceHeight);
+    }
+  } else {
+    // Use a reference size that matches typical video display dimensions
+    const referenceWidth = 400;
+    const referenceHeight = 711;
+    scaleFactor = Math.min(canvasWidth / referenceWidth, canvasHeight / referenceHeight);
+  }
+  
+  const scaledAngleSize = Math.round((config.angleSize || 18) * scaleFactor);
+  
+  ctx.font = `bold ${scaledAngleSize}px 'Roboto', sans-serif`;
   ctx.textAlign = 'center';
   
   for (const joint of jointAngles) {
@@ -307,7 +369,7 @@ export function renderJointAngles(
     // Draw rounded background for text with proportional padding
     const text = `${joint.angle}°`;
     const textWidth = ctx.measureText(text).width;
-    const fontSize = config.angleSize || 18;
+    const fontSize = scaledAngleSize;
     const padding = Math.max(8, fontSize * 0.5); // Increased padding for larger text
     const backgroundHeight = fontSize + padding * 2; // Full padding top and bottom
     const borderRadius = Math.round(fontSize * 0.2);
@@ -342,7 +404,38 @@ export function renderROMStats(
   
   ctx.save();
   ctx.fillStyle = config.romColor || '#ff6b35';
-  ctx.font = `bold ${config.angleSize || 16}px 'Roboto', sans-serif`;
+  
+  // Scale text size based on canvas dimensions
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  
+  // During export, the canvas context is already scaled by resolutionMultiplier
+  // We need to account for this to prevent double-scaling
+  let scaleFactor = 1;
+  if (config.isExport) {
+    // Detect if we're in a scaled context by checking the transform
+    const transform = ctx.getTransform();
+    const contextScale = transform.a; // a and d should be equal for uniform scaling
+    
+    if (contextScale !== 1) {
+      // The context is already scaled, so we don't need additional scaling
+      scaleFactor = 1;
+    } else {
+      // Use a reference size that matches typical video display dimensions
+      const referenceWidth = 400;
+      const referenceHeight = 711;
+      scaleFactor = Math.min(canvasWidth / referenceWidth, canvasHeight / referenceHeight);
+    }
+  } else {
+    // Use a reference size that matches typical video display dimensions
+    const referenceWidth = 400;
+    const referenceHeight = 711;
+    scaleFactor = Math.min(canvasWidth / referenceWidth, canvasHeight / referenceHeight);
+  }
+  
+  const scaledAngleSize = Math.round((config.angleSize || 16) * scaleFactor);
+  
+  ctx.font = `bold ${scaledAngleSize}px 'Roboto', sans-serif`;
   ctx.textAlign = 'center';
   
   for (const rom of romData) {
@@ -353,7 +446,7 @@ export function renderROMStats(
     if (config.romDisplayStyle === 'min_max' || config.romDisplayStyle === 'both') {
       const text = `ROM: ${rom.minAngle}° - ${rom.maxAngle}°`;
       const textWidth = ctx.measureText(text).width;
-      const fontSize = config.angleSize || 16;
+      const fontSize = scaledAngleSize;
       const padding = Math.max(8, fontSize * 0.5); // Increased padding for larger text
       const backgroundHeight = fontSize + padding * 2; // Full padding top and bottom
       const borderRadius = Math.round(fontSize * 0.2);
@@ -376,10 +469,10 @@ export function renderROMStats(
     
     if (config.romDisplayStyle === 'range_bar' || config.romDisplayStyle === 'both') {
       // Draw range bar
-      const barWidth = 60;
-      const barHeight = 4;
+      const barWidth = 60 * scaleFactor;
+      const barHeight = 4 * scaleFactor;
       const barX = x - barWidth/2;
-      const barY = y + 25;
+      const barY = y + 25 * scaleFactor;
       
       // Background bar
       ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
@@ -406,17 +499,31 @@ export function renderGlobalOverlays(
 ): void {
   if (!config.showGlobalStats) return;
   
+  // Get the actual canvas dimensions
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  
+  // Check if we're in export mode by looking for scaling in the context
+  // The context transform matrix will show if scaling has been applied
+  const transform = ctx.getTransform();
+  const scaleX = transform.a;
+  const scaleY = transform.d;
+  
+  // If the context is scaled (export mode), use the original dimensions
+  const effectiveWidth = scaleX !== 1 ? canvasWidth / scaleX : canvasWidth;
+  const effectiveHeight = scaleY !== 1 ? canvasHeight / scaleY : canvasHeight;
+  
   const safeZone = config.safeZoneEnabled 
-    ? calculateSafeZone(ctx.canvas.width, ctx.canvas.height)
+    ? calculateSafeZone(effectiveWidth, effectiveHeight)
     : {
         top: 20,
-        bottom: ctx.canvas.height - 20,
+        bottom: effectiveHeight - 20,
         left: 20,
-        right: ctx.canvas.width - 20,
-        centerX: ctx.canvas.width / 2,
-        centerY: ctx.canvas.height / 2,
-        safeWidth: ctx.canvas.width - 40,
-        safeHeight: ctx.canvas.height - 40
+        right: effectiveWidth - 20,
+        centerX: effectiveWidth / 2,
+        centerY: effectiveHeight / 2,
+        safeWidth: effectiveWidth - 40,
+        safeHeight: effectiveHeight - 40
       };
   
   ctx.save();
@@ -439,10 +546,6 @@ export function renderGlobalOverlays(
     const borderRadius = Math.round(fontSize * 0.25);
     const lineSpacing = Math.round(fontSize * 0.6); // Even more spacing between title and muscle groups
     
-    // Get canvas dimensions first
-    const canvasWidth = ctx.canvas.width;
-    const canvasHeight = ctx.canvas.height;
-    
     ctx.textAlign = 'center';
     
     // Measure text dimensions
@@ -454,15 +557,15 @@ export function renderGlobalOverlays(
     
     // Calculate container dimensions with bounds checking
     const maxWidth = Math.max(titleMetrics.width, muscleMetrics.width);
-    const containerWidth = Math.min(maxWidth + padding * 2, canvasWidth - 40); // Ensure it fits within canvas
+    const containerWidth = Math.min(maxWidth + padding * 2, effectiveWidth - 40); // Ensure it fits within canvas
     const totalTextHeight = (titleText ? titleFontSize : 0) + 
                            (muscleText ? muscleFontSize : 0) + 
                            (titleText && muscleText ? lineSpacing : 0);
     const containerHeight = totalTextHeight + padding * 2.5;
     
     // Position container - ensure it stays within canvas bounds
-    const containerX = Math.max(20, Math.min(canvasWidth - containerWidth - 20, canvasWidth / 2 - containerWidth / 2));
-    const containerY = Math.max(20, Math.min(canvasHeight - containerHeight - 20, safeZone.top + 20));
+    const containerX = Math.max(20, Math.min(effectiveWidth - containerWidth - 20, effectiveWidth / 2 - containerWidth / 2));
+    const containerY = Math.max(20, Math.min(effectiveHeight - containerHeight - 20, safeZone.top + 20));
     
     // Draw rounded background with custom color and opacity
     const r = parseInt(backgroundColor.slice(1, 3), 16);
@@ -482,7 +585,7 @@ export function renderGlobalOverlays(
     if (titleText) {
       ctx.font = `100 ${titleFontSize}px 'Roboto', sans-serif`; // Thin Roboto font
       currentY += titleFontSize;
-      ctx.fillText(titleText, canvasWidth / 2, currentY);
+      ctx.fillText(titleText, effectiveWidth / 2, currentY);
       currentY += lineSpacing;
     }
     
@@ -490,7 +593,7 @@ export function renderGlobalOverlays(
     if (muscleText) {
       ctx.font = `${muscleFontSize}px 'Roboto', sans-serif`;
       currentY += muscleFontSize;
-      ctx.fillText(muscleText, canvasWidth / 2, currentY);
+      ctx.fillText(muscleText, effectiveWidth / 2, currentY);
     }
   }
   

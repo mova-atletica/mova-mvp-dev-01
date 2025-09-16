@@ -1,3 +1,31 @@
+// PoseNet keypoint name to index mapping (COCO-17 format)
+const KEYPOINT_NAME_TO_INDEX: { [key: string]: number } = {
+  'nose': 0,
+  'left_eye': 1, 'right_eye': 2,
+  'left_ear': 3, 'right_ear': 4,
+  'left_shoulder': 5, 'right_shoulder': 6,
+  'left_elbow': 7, 'right_elbow': 8,
+  'left_wrist': 9, 'right_wrist': 10,
+  'left_hip': 11, 'right_hip': 12,
+  'left_knee': 13, 'right_knee': 14,
+  'left_ankle': 15, 'right_ankle': 16
+};
+
+// Helper function to get keypoint by name (supports both named and indexed formats)
+function getKeypointByName(keypoints: any[], name: string): any {
+  // First try to find by name property (AssetGenerationModal format)
+  const namedKeypoint = keypoints.find((kp: any) => kp.name === name);
+  if (namedKeypoint) return namedKeypoint;
+  
+  // Fallback to index-based lookup (motion-explore localStorage format)
+  const keypointIndex = KEYPOINT_NAME_TO_INDEX[name];
+  if (keypointIndex !== undefined && keypoints[keypointIndex]) {
+    return keypoints[keypointIndex];
+  }
+  
+  return null;
+}
+
 export interface MotionTrailsConfig {
   trailLength: number; // Number of frames to trail
   trailOpacity: number; // Opacity of the trail (0-1)
@@ -54,8 +82,22 @@ export function renderMotionTrails(
 
   // Scale factors for canvas
   // Ensure motion trails align with the video as it's drawn on canvas
-  const scaleX = ctx.canvas.width / video.videoWidth;
-  const scaleY = ctx.canvas.height / video.videoHeight;
+  let scaleX = ctx.canvas.width / video.videoWidth;
+  let scaleY = ctx.canvas.height / video.videoHeight;
+  
+  // During export, the canvas context is already scaled by resolutionMultiplier
+  // We need to account for this to prevent double-scaling
+  if (isExport) {
+    // Detect if we're in a scaled context by checking the transform
+    const transform = ctx.getTransform();
+    const contextScale = transform.a; // a and d should be equal for uniform scaling
+    
+    if (contextScale !== 1) {
+      // The context is already scaled, so we need to use the original video dimensions
+      scaleX = 1;
+      scaleY = 1;
+    }
+  }
 
   ctx.save();
   ctx.lineWidth = thickness;
@@ -96,8 +138,8 @@ export function renderMotionTrails(
       // Collect bone positions over time
       trailPoses.forEach((pose, index) => {
         if (pose && pose.keypoints) {
-          const startPoint = pose.keypoints.find((kp: any) => kp.name === startKeypoint);
-          const endPoint = pose.keypoints.find((kp: any) => kp.name === endKeypoint);
+          const startPoint = getKeypointByName(pose.keypoints, startKeypoint);
+          const endPoint = getKeypointByName(pose.keypoints, endKeypoint);
           
           if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
             boneTrail.push({
@@ -131,7 +173,7 @@ export function renderMotionTrails(
     // Collect keypoint positions over time
     trailPoses.forEach((pose, index) => {
       if (pose && pose.keypoints) {
-        const keypoint = pose.keypoints.find((kp: any) => kp.name === keypointName);
+        const keypoint = getKeypointByName(pose.keypoints, keypointName);
         if (keypoint && keypoint.score > 0.3) {
           keypointTrail.push({
             x: keypoint.x * scaleX,

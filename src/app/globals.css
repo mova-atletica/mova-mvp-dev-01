@@ -236,3 +236,22 @@ html {
   --webkit-media-controls-picture-in-picture-button-display: none;
   --webkit-media-controls-download-button-display: none;
 }
+
+/* Effect pills container scrollbar styling */
+.effect-pills-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.effect-pills-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.effect-pills-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.effect-pills-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}

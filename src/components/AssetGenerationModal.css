@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Modal fade-in */
 .animate-fade-in {
   animation: fadeIn 0.3s ease;

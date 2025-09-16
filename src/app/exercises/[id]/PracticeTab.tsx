@@ -1227,7 +1227,7 @@ export default function PracticeTab({ exercise, router }: PracticeTabProps) {
                 </svg>
               </button>
               <div className="flex flex-col items-center w-full h-full relative overflow-hidden">
-                <Dialog.Title className="text-sm font-normal pt-6 pb-4 text-white" style={{ maxWidth: '400px', textAlign: 'center' }}>Click below to analyze your video. Ensure your body is in frame and you are in a well-light environment for best results.</Dialog.Title>
+                <Dialog.Title className="text-sm font-normal pt-6 pb-4 text-white" style={{ maxWidth: '400px', textAlign: 'center' }}>Click below to analyze your video. Ensure your body is in frame and you are in a well-lit environment for best results.</Dialog.Title>
                 <div className="flex-1 flex flex-col items-center w-full max-w-4xl px-4 min-h-0">
                   
                   {/* Video Player Section */}

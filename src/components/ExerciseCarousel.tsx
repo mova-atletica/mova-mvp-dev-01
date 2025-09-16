@@ -1,7 +1,9 @@
 "use client";
-import { useState, useRef, useEffect } from 'react';
-import ExerciseCard from './ExerciseCard';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { Exercise } from '../data/exercises';
+
+// Lazy load ExerciseCard for better performance
+const ExerciseCard = lazy(() => import('./ExerciseCard'));
 
 interface ExerciseCarouselProps {
   title: string;
@@ -116,7 +118,18 @@ export default function ExerciseCarousel({ title, exercises, className = "" }: E
         >
           {exercises.filter(exercise => exercise && exercise.id).map((exercise, index) => (
             <div key={exercise.id} className="flex-shrink-0" style={{ width: '200px', padding: '0px' }}>
-              <ExerciseCard exercise={exercise} />
+              <Suspense fallback={
+                <div 
+                  className="rounded-lg animate-pulse" 
+                  style={{ 
+                    width: '200px', 
+                    height: '355px', 
+                    backgroundColor: 'var(--surface-hover)'
+                  }}
+                />
+              }>
+                <ExerciseCard exercise={exercise} />
+              </Suspense>
             </div>
           ))}
         </div>

@@ -1,9 +1,11 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import ExerciseCarousel from '../components/ExerciseCarousel';
 import { fetchCuratedSections, fetchFeaturedContent, fetchExerciseById, CuratedSection, FeaturedContent } from '../lib/exerciseService';
 import { Exercise } from '../data/exercises';
+
+// Lazy load components for better performance
+const ExerciseCarousel = lazy(() => import('../components/ExerciseCarousel'));
 
 export default function Home() {
   const router = useRouter();
@@ -421,6 +423,40 @@ export default function Home() {
         </div>
       )}
 
+      {/* Open Move Section */}
+      <div className="mx-auto py-0 mt-[30px]" style={{ maxWidth: '2560px', marginLeft: '3%', marginRight: '3%', width: '94%' }}>
+        <div className="mb-6">
+          <h2 className="text-2xl font-regular mb-2" style={{ color: 'var(--section-title)' }}>Open Move</h2>
+          <div className="w-16 h-1 rounded-full" style={{ backgroundColor: 'var(--section-accent)' }}></div>
+        </div>
+        
+        <div 
+          className="relative overflow-hidden rounded-lg cursor-pointer transition-all duration-300 hover:scale-[1.02]"
+          style={{
+            height: '200px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '8px'
+          }}
+          onClick={() => router.push('/open-move')}
+        >
+          <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+          <div className="relative z-10 p-8 h-full flex flex-col justify-center text-white">
+            <div className="text-4xl mb-4">🎬</div>
+            <h3 className="text-2xl font-bold mb-2">Open Move</h3>
+            <p className="text-lg mb-4 opacity-90">
+              Record or upload any video for motion analysis and exploration
+            </p>
+            <div className="flex items-center gap-2 text-sm opacity-80">
+              <span>📹 Live Recording</span>
+              <span>•</span>
+              <span>📁 Video Upload</span>
+              <span>•</span>
+              <span>🔍 Motion Analysis</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Exercise Categories */}
       <div className="mx-auto py-0 mt-[30px]" style={{ maxWidth: '2560px', marginLeft: '3%', marginRight: '3%', width: '94%' }}>
         {/* Exercise Carousels */}
@@ -429,10 +465,35 @@ export default function Home() {
             marginTop: index === 0 ? '36px' : '36px', 
             marginBottom: index === 0 ? '36px' : '36px' 
           }}>
-            <ExerciseCarousel
-              title={section.title}
-              exercises={section.exercises}
-            />
+            <Suspense fallback={
+              <div className="relative">
+                {/* Section Header */}
+                <div className="px-4 mb-6">
+                  <h2 className="text-2xl font-regular mb-2" style={{ color: 'var(--section-title)' }}>{section.title}</h2>
+                  <div className="w-16 h-1 rounded-full" style={{ backgroundColor: 'var(--section-accent)' }}></div>
+                </div>
+                {/* Loading placeholder */}
+                <div className="flex gap-4 px-4 pb-6">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex-shrink-0" style={{ width: '200px' }}>
+                      <div 
+                        className="rounded-lg animate-pulse" 
+                        style={{ 
+                          width: '200px', 
+                          height: '355px', 
+                          backgroundColor: 'var(--surface-hover)'
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            }>
+              <ExerciseCarousel
+                title={section.title}
+                exercises={section.exercises}
+              />
+            </Suspense>
           </div>
         ))}
       </div>

@@ -57,10 +57,12 @@ function CustomLegendContent({ payload, data }: any) {
 import { useParams, useSearchParams } from "next/navigation";
 import { useTheme } from '../../../contexts/ThemeContext';
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Exercise } from "../../../types";
+
+// Lazy load heavy components for better performance
 import SideBySideVideoPlayer from "../../../components/SideBySideVideoPlayer";
-import AssetGenerationModal from "../../../components/AssetGenerationModal";
+const AssetGenerationModal = lazy(() => import("../../../components/AssetGenerationModal"));
 import { advancedAnalysisService, AdvancedAnalysisResult } from "../../../lib/advancedAnalysisService";
 import { 
   getTabsForExerciseType, 
@@ -81,12 +83,11 @@ import {
   getRepMetricDescriptions,
   prepareFlowSequenceData
 } from "../../../lib/chartDataUtils";
-import { 
-  BaseAngleComparisonChart, 
-  BaseRadarChart, 
-  BaseJointAnalysisChart,
-  RepAngleComparisonChart
-} from "../../../components/charts";
+// Lazy load chart components for better performance
+const BaseAngleComparisonChart = lazy(() => import("../../../components/charts/BaseAngleComparisonChart"));
+const BaseRadarChart = lazy(() => import("../../../components/charts/BaseRadarChart"));
+const BaseJointAnalysisChart = lazy(() => import("../../../components/charts/BaseJointAnalysisChart"));
+const RepAngleComparisonChart = lazy(() => import("../../../components/charts/RepAngleComparisonChart"));
 import {
   Tooltip,
   ReferenceLine,
@@ -597,8 +598,8 @@ function ResultsTabs({
             border: `1.5px solid ${activeTab === 'summary' ? 'var(--results-tab-border-active)' : 'var(--results-tab-border-inactive)'}`,
             //fontWeight: 600,
             //fontSize: 12,
-            fontSize: activeTab === 'feedback' ? 12 : 12,
-            fontWeight: activeTab === 'feedback' ? 600 : 500,
+            fontSize: 12,
+            fontWeight: activeTab === 'summary' ? 600 : 500,
             transition: 'all 0.18s cubic-bezier(.4,0,.2,1)',
             cursor: 'pointer',
             boxShadow: activeTab === 'summary' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
@@ -632,8 +633,8 @@ function ResultsTabs({
             border: `1.5px solid ${activeTab === 'charts' ? 'var(--results-tab-border-active)' : 'var(--results-tab-border-inactive)'}`,
             //fontWeight: 600,
             //fontSize: 12,
-            fontSize: activeTab === 'feedback' ? 12 : 12,
-            fontWeight: activeTab === 'feedback' ? 600 : 500,
+            fontSize: 12,
+            fontWeight: activeTab === 'charts' ? 600 : 500,
             transition: 'all 0.18s cubic-bezier(.4,0,.2,1)',
             cursor: 'pointer',
             boxShadow: activeTab === 'charts' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
@@ -667,7 +668,7 @@ function ResultsTabs({
             border: `1.5px solid ${activeTab === 'feedback' ? 'var(--results-tab-border-active)' : 'var(--results-tab-border-inactive)'}`,
             //fontWeight: 600,
             //fontSize: 12,
-            fontSize: activeTab === 'feedback' ? 12 : 12,
+            fontSize: 12,
             fontWeight: activeTab === 'feedback' ? 600 : 500,
             transition: 'all 0.18s cubic-bezier(.4,0,.2,1)',
             cursor: 'pointer',
@@ -756,7 +757,25 @@ function ResultsTabs({
               </div>
             </div>
             {/* Render selected charts */}
-            {renderSelectedCharts()}
+            <Suspense fallback={
+              <div className="space-y-4">
+                <div className="bg-white rounded-lg p-6 border border-gray-200">
+                  <div className="flex items-center justify-center" style={{ minHeight: '400px' }}>
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--primary-button-bg)' }}></div>
+                      <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                        Loading chart...
+                      </div>
+                      <div className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                        Preparing data visualization
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }>
+              {renderSelectedCharts()}
+            </Suspense>
           </div>
         )}
         {activeTab === 'feedback' && (
@@ -1433,14 +1452,29 @@ function SessionSummaryTab({
       </div>
       
       {/* Asset Generation Modal */}
-      <AssetGenerationModal
-        isOpen={isAssetModalOpen}
-        onClose={() => setIsAssetModalOpen(false)}
-        videoUrl={videoUrl}
-        poses={poses}
-        exerciseTitle={exerciseTitle}
-
-      />
+      {isAssetModalOpen && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 text-center shadow-2xl max-w-md">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <div className="text-lg font-medium text-gray-700 mb-2">
+                Loading asset generation...
+              </div>
+              <div className="text-sm text-gray-500">
+                Preparing video processing tools
+              </div>
+            </div>
+          </div>
+        }>
+          <AssetGenerationModal
+            isOpen={isAssetModalOpen}
+            onClose={() => setIsAssetModalOpen(false)}
+            videoUrl={videoUrl}
+            poses={poses}
+            exerciseTitle={exerciseTitle}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -48,7 +48,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--header-bg', 'rgba(53, 56, 57, 0.9)'); // onyx-100 with opacity
       root.style.setProperty('--header-text', '#eef0f1'); // onyx-40
       root.style.setProperty('--header-border', 'rgba(24, 26, 26, 0)'); // onyx-70
-      root.style.setProperty('--logo-color', '#eef0f1'); // onyx-40
+      root.style.setProperty('--logo-color', 'invert(1) brightness(1)'); // onyx-40
       
       // Buttons & Interactive
       root.style.setProperty('--button-bg', '#353839'); // onyx-90
@@ -230,7 +230,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--header-bg', 'rgba(238, 240, 241, 0.9)'); // ap-10 with opacity
       root.style.setProperty('--header-text', '#17150f'); // ap-100
       root.style.setProperty('--header-border', 'rgba(238, 240, 241, 0.0)'); // ap-50
-      root.style.setProperty('--logo-color', '#17150f'); // ap-100
+      root.style.setProperty('--logo-color', 'invert(0) brightness(1)'); // ap-100
       
       // Buttons & Interactive
       root.style.setProperty('--button-bg', '#f6f1e3'); // ap-10

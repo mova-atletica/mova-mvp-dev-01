@@ -30,11 +30,32 @@ export default function Header() {
           className="w-24 transition-all duration-300"
           style={{ 
             height: 'auto',
-            filter: theme === 'dark' ? 'invert(1) brightness(0.9)' : 'invert(0) brightness(1)',
+            filter: 'var(--logo-color)',
           }}
         />
       </Link>
       <div className="flex items-center gap-4">
+        <Link 
+          href="/open-move" 
+          className="px-2 py-2 rounded-md font-medium text-xs transition cursor-pointer"
+          style={{
+            background: 'var(--primary-button-bg)',
+            color: 'var(--primary-button-text)',
+            border: '2px solid var(--primary-button-border)'
+          }}
+          onMouseOver={e => {
+            (e.currentTarget as HTMLAnchorElement).style.background = 'var(--primary-button-hover-bg)';
+            (e.currentTarget as HTMLAnchorElement).style.color = 'var(--primary-button-hover-text)';
+            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--primary-button-hover-border)';
+          }}
+          onMouseOut={e => {
+            (e.currentTarget as HTMLAnchorElement).style.background = 'var(--primary-button-bg)';
+            (e.currentTarget as HTMLAnchorElement).style.color = 'var(--primary-button-text)';
+            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--primary-button-border)';
+          }}
+        >
+          Open Move
+        </Link>
         <ThemeToggle />
       </div>
     </header>

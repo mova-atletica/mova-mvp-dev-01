@@ -1,16 +1,16 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { use } from 'react';
 import { notFound } from 'next/navigation';
 import Link from "next/link";
-import ExerciseCard from '../../../components/ExerciseCard';
-import VideoPlayer from '../../../components/VideoPlayer';
 import { Exercise } from '../../../data/exercises';
 import { useRouter } from 'next/navigation';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 
-// Temporary regular import to test module resolution
-import PracticeTab from './PracticeTab';
+// Lazy load heavy components for better performance
+const ExerciseCard = lazy(() => import('../../../components/ExerciseCard'));
+const VideoPlayer = lazy(() => import('../../../components/VideoPlayer'));
+const PracticeTab = lazy(() => import('./PracticeTab'));
 
 type Props = {
   params: Promise<{ id: string }>
@@ -320,7 +320,28 @@ export default function ExerciseDetail({ params }: Props) {
             </div>
             {/* Practice Section - moved to purple-bordered div */}
             <div className="w-full min-w-0" style={{ marginTop: '0px', paddingBottom: '21px' }}>
-              <PracticeTab exercise={exercise} router={router} />
+              <Suspense fallback={
+                <div className="p-4 border-2 border-dashed rounded-lg" style={{ 
+                  borderColor: 'var(--secondary-button-border)',
+                  backgroundColor: 'var(--surface-hover)',
+                  minHeight: '200px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--primary-button-bg)' }}></div>
+                  <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                    Loading practice tools...
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--muted)' }}>
+                    Preparing pose detection and video analysis
+                  </div>
+                </div>
+              }>
+                <PracticeTab exercise={exercise} router={router} />
+              </Suspense>
             </div>
             {/* Instructions Accordion - moved below PracticeTab */}
             <div className="flex flex-row flex-wrap p-0 m-0" style={{ border: '0px transparent', columnGap: '18px', marginTop: '12px' }}>
@@ -406,13 +427,30 @@ export default function ExerciseDetail({ params }: Props) {
           <div className="mb-0 border-0 p-0 w-full" style={{ minWidth: 360, flex: 1 , height: '80vh' }}>
             {videoUrl ? (
               <div style={{ border: '0px transparent', height: '80vh' }}>
-                <VideoPlayer 
-                  className="h-[72vh]"
-                  videoUrl={videoUrl}
-                  aspectRatio="auto"
-                  keypointData={referenceKeypoints}
-                  exercise={exercise}
-                />
+                <Suspense fallback={
+                  <div className="h-[72vh] flex items-center justify-center rounded-lg" style={{ 
+                    backgroundColor: 'var(--surface-hover)',
+                    border: '2px dashed var(--secondary-button-border)'
+                  }}>
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--primary-button-bg)' }}></div>
+                      <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                        Loading video player...
+                      </div>
+                      <div className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                        Preparing video analysis tools
+                      </div>
+                    </div>
+                  </div>
+                }>
+                  <VideoPlayer 
+                    className="h-[72vh]"
+                    videoUrl={videoUrl}
+                    aspectRatio="auto"
+                    keypointData={referenceKeypoints}
+                    exercise={exercise}
+                  />
+                </Suspense>
               </div>
             ) : (
               <div className="h-full" style={{ border: '2px solid blue' }}>
@@ -429,7 +467,18 @@ export default function ExerciseDetail({ params }: Props) {
             <h2 className="text-2xl font-regular text-onyx-10 mb-4">Related Exercises</h2>
             <div className="flex flex-wrap gap-8" style={{ gap: '15px' }}>
               {relatedExercises.map(rel => (
-                <ExerciseCard key={rel.id} exercise={rel} />
+                <Suspense key={rel.id} fallback={
+                  <div 
+                    className="rounded-lg animate-pulse" 
+                    style={{ 
+                      width: '200px', 
+                      height: '355px', 
+                      backgroundColor: 'var(--surface-hover)'
+                    }}
+                  />
+                }>
+                  <ExerciseCard exercise={rel} />
+                </Suspense>
               ))}
             </div>
           </div>

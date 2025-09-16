@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Plus, Settings, Download, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { X, Plus, Settings, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import * as Popover from '@radix-ui/react-popover';
 import * as Select from '@radix-ui/react-select';
 import * as Accordion from '@radix-ui/react-accordion';
@@ -16,7 +16,7 @@ interface AssetGenerationModalProps {
   onClose: () => void;
   videoUrl: string;
   poses: any[];
-  exerciseTitle: string;
+  exerciseTitle?: string; // Make optional for Open Move
   exercise?: any; // Full exercise object for auto-populating data
 }
 
@@ -119,13 +119,13 @@ const availableEffects: Effect[] = [
 
 // Add SVG icon components for effect types
 const MotionIcon = () => (
-  <svg width="20" height="20" fill="none" stroke="#55595B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle' }}>
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle' }}>
     <path d="M3 10c2-4 6-4 8 0s6 4 8 0" />
   </svg>
 );
 
 const StatsIcon = () => (
-  <svg width="20" height="20" fill="none" stroke="#181A1A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle' }}>
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle' }}>
     <rect x="3" y="10" width="3" height="7" />
     <rect x="8.5" y="6" width="3" height="11" />
     <rect x="14" y="13" width="3" height="4" />
@@ -165,9 +165,13 @@ export default function AssetGenerationModal({
   const [exportSuccess, setExportSuccess] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<EffectType | 'export' | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [formatDropdownOpen, setFormatDropdownOpen] = useState(false);
+  const [qualityDropdownOpen, setQualityDropdownOpen] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const formatDropdownRef = useRef<HTMLDivElement>(null);
+  const qualityDropdownRef = useRef<HTMLDivElement>(null);
 
   // Pre-load effect modules for better performance
   const effectModulesRef = useRef<{
@@ -233,15 +237,19 @@ export default function AssetGenerationModal({
       document.body.style.width = '100%';
       document.body.style.overflow = 'hidden';
       
+      
       // Cleanup function to restore scrolling
       return () => {
+        // Restore body styles
         document.body.style.position = '';
         document.body.style.top = '';
         document.body.style.width = '';
         document.body.style.overflow = '';
         
-        // Restore scroll position
-        window.scrollTo(0, scrollY);
+        // Restore scroll position with a small delay to ensure DOM is ready
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+        }, 0);
       };
     }
   }, [isOpen]);
@@ -383,7 +391,7 @@ export default function AssetGenerationModal({
         showROM: false,
         romJoints: [],
         showGlobalStats: true,
-        exerciseTitle: exercise?.title || exerciseTitle || 'Exercise',
+        exerciseTitle: exercise?.title || exerciseTitle || 'Open Move Session',
         muscleGroups: exercise?.muscleGroups || ['Quads', 'Glutes'],
         showLogo: true,
         logoPosition: 'bottom_right',
@@ -476,8 +484,8 @@ export default function AssetGenerationModal({
       const hasMotionTrails = newActiveEffects.some(e => e.effect.id === 'motion-trails' && e.enabled);
       
       if (hasMuybridge && hasMotionTrails) {
-        // Auto-switch to PNG if currently on video/GIF format
-        if (exportConfig.format === 'mp4' || exportConfig.format === 'gif') {
+        // Auto-switch to PNG if currently on video format
+        if (exportConfig.format === 'webm') {
           setExportConfig(prev => ({
             ...prev,
             format: 'png'
@@ -493,11 +501,17 @@ export default function AssetGenerationModal({
 
 
 
-  // Check if problematic combination is active (Muybridge + Motion Trails)
+  // Check if problematic combination is active (Muybridge + Motion Trails) or Muybridge alone
   const hasProblematicCombination = (): boolean => {
     const hasMuybridge = activeEffects.some(e => e.effect.id === 'muybridge' && e.enabled);
     const hasMotionTrails = activeEffects.some(e => e.effect.id === 'motion-trails' && e.enabled);
     return hasMuybridge && hasMotionTrails;
+  };
+
+  // Check if video export should be disabled (Muybridge alone or problematic combination)
+  const isVideoExportDisabled = (): boolean => {
+    const hasMuybridge = activeEffects.some(e => e.effect.id === 'muybridge' && e.enabled);
+    return hasMuybridge || hasProblematicCombination();
   };
 
   // Handle video play/pause toggle
@@ -525,11 +539,11 @@ export default function AssetGenerationModal({
       return;
     }
 
-    // Prevent export if problematic combination with video/GIF format
+    // Prevent export if video format is disabled
     let finalExportConfig = { ...exportConfig };
-    if (hasProblematicCombination() && (exportConfig.format === 'mp4' || exportConfig.format === 'gif')) {
-      console.error('❌ Cannot export video/GIF with Muybridge + Motion Trails combination');
-      alert('Video and GIF exports are not supported when combining Muybridge + Motion Trails effects. Please use a static image format (PNG, JPG, WebP).');
+    if (isVideoExportDisabled() && exportConfig.format === 'webm') {
+      console.error('❌ Cannot export video with Muybridge effect');
+      alert('Video exports are not supported when using Muybridge effects. Please use a static image format (PNG, JPG, WebP).');
       setIsExporting(false);
       return;
     }
@@ -733,25 +747,33 @@ export default function AssetGenerationModal({
         cancelAnimationFrame(rafId);
       }
     };
-  }, [activeEffects, poses]);
+  }, [activeEffects, poses, videoVisibility]);
+
+  // Handle click outside dropdown to close it
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (formatDropdownRef.current && !formatDropdownRef.current.contains(event.target as Node)) {
+        setFormatDropdownOpen(false);
+      }
+      if (qualityDropdownRef.current && !qualityDropdownRef.current.contains(event.target as Node)) {
+        setQualityDropdownOpen(false);
+      }
+    }
+
+    if (formatDropdownOpen || qualityDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [formatDropdownOpen, qualityDropdownOpen]);
 
   // Render configuration popover content
   const renderConfigPopoverContent = (effect: ActiveEffect) => (
-    <Popover.Content 
-      className="bg-white rounded-lg shadow-lg border p-4 w-80 z-50"
-      side="top"
-      align="center"
-      sideOffset={8}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold" style={{ color: 'black' }}>{effect.effect.name}</h3>
-        </div>
-        <Popover.Close asChild>
-                      <button style={{ color: 'black' }} className="hover:text-white">
-            <X className="w-4 h-4" />
-          </button>
-        </Popover.Close>
+    <div>
+      <div style={{ fontSize: '12px', fontWeight: 600, color: '#181A1A', marginBottom: '8px' }}>
+        {effect.effect.name} Settings
       </div>
 
       <div className="space-y-4">
@@ -761,8 +783,8 @@ export default function AssetGenerationModal({
             {/* Grid Size - Compact inline layout */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium" style={{ color: '#c0c9cc' }}>Grid Size</label>
-                <span className="text-xs" style={{ color: '#9CA3AF' }}>
+                <label className="text-xs font-medium" style={{ color: '#181A1A' }}>Grid Size</label>
+                <span className="text-xs" style={{ color: '#181A1A' }}>
                   {effect.config.gridRows || 3}×{effect.config.gridRows || 3}
                 </span>
               </div>
@@ -790,8 +812,8 @@ export default function AssetGenerationModal({
             {/* Frame Timing - Compact */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium" style={{ color: '#c0c9cc' }}>Frame Timing</label>
-                <span className="text-xs" style={{ color: '#9CA3AF' }}>
+                <label className="text-xs font-medium" style={{ color: '#181A1A' }}>Frame Timing</label>
+                <span className="text-xs" style={{ color: '#181A1A' }}>
                   {effect.config.frameStagger || 0.5}s
                 </span>
               </div>
@@ -811,11 +833,11 @@ export default function AssetGenerationModal({
 
             {/* Styling - Grouped toggles and sliders */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#c0c9cc' }}>Styling</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Styling</label>
               
               {/* Borders toggle */}
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs" style={{ color: '#9CA3AF' }}>Borders</label>
+                <label className="text-xs" style={{ color: '#181A1A' }}>Borders</label>
                 <input
                   type="checkbox"
                   checked={effect.config.showBorders !== false}
@@ -829,7 +851,7 @@ export default function AssetGenerationModal({
               
               {/* Padding slider */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Padding</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Padding</span>
               <input
                 type="range"
                 min="0"
@@ -841,7 +863,7 @@ export default function AssetGenerationModal({
                   padding: parseInt(e.target.value) 
                 })}
               />
-                <span className="text-xs w-8" style={{ color: '#9CA3AF' }}>
+                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {effect.config.padding || 8}px
                 </span>
             </div>
@@ -849,7 +871,7 @@ export default function AssetGenerationModal({
               {/* Border thickness - only show when borders enabled */}
               {effect.config.showBorders !== false && (
             <div className="flex items-center gap-2">
-                  <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Border</span>
+                  <span className="text-xs w-12" style={{ color: '#181A1A' }}>Border</span>
               <input
                     type="range"
                     min="1"
@@ -861,7 +883,7 @@ export default function AssetGenerationModal({
                       borderWidth: parseInt(e.target.value) 
                 })}
               />
-                  <span className="text-xs w-8" style={{ color: '#9CA3AF' }}>
+                  <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                     {effect.config.borderWidth || 2}px
                   </span>
             </div>
@@ -870,7 +892,7 @@ export default function AssetGenerationModal({
               {/* Border color - compact color picker */}
             {effect.config.showBorders !== false && (
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Color</span>
+                  <span className="text-xs w-12" style={{ color: '#181A1A' }}>Color</span>
                   <input
                     type="color"
                     value={effect.config.borderColor || '#333'}
@@ -888,6 +910,7 @@ export default function AssetGenerationModal({
                       borderColor: e.target.value 
                     })}
                     className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded font-mono"
+                    style={{ color: '#181A1A' }}
                   />
                 </div>
               )}
@@ -900,11 +923,11 @@ export default function AssetGenerationModal({
           <div className="space-y-3">
             {/* Trail Properties - Compact sliders */}
               <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#c0c9cc' }}>Trail Properties</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Trail Properties</label>
               
               {/* Trail Length */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Length</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Length</span>
                 <input
                   type="range"
                   min="5"
@@ -916,14 +939,14 @@ export default function AssetGenerationModal({
                     trailLength: parseInt(e.target.value) 
                   })}
                 />
-                <span className="text-xs w-8" style={{ color: '#9CA3AF' }}>
+                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {effect.config.trailLength || 10}
                 </span>
               </div>
 
               {/* Trail Opacity */}
               <div className="flex items-center gap-2">
-                <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Opacity</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Opacity</span>
                 <input
                   type="range"
                   min="0"
@@ -935,7 +958,7 @@ export default function AssetGenerationModal({
                     trailOpacity: parseInt(e.target.value) / 100 
                   })}
                 />
-                <span className="text-xs w-8" style={{ color: '#9CA3AF' }}>
+                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {Math.round((effect.config.trailOpacity || 0.6) * 100)}%
                 </span>
               </div>
@@ -943,7 +966,7 @@ export default function AssetGenerationModal({
 
             {/* Style & Appearance */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#c0c9cc' }}>Style</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Style</label>
               
               {/* Trail Style and Color - Inline */}
               <div className="flex gap-2 mb-2">
@@ -958,6 +981,7 @@ export default function AssetGenerationModal({
                   <option value="simple">Simple</option>
                   <option value="gradient">Gradient</option>
                 </select>
+                <span className="text-xs flex items-center" style={{ color: '#181A1A' }}>Color</span>
                 <input
                   type="color"
                   value={effect.config.color || '#00ff00'}
@@ -971,7 +995,7 @@ export default function AssetGenerationModal({
 
               {/* Thickness */}
               <div className="flex items-center gap-2">
-                <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Thickness</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Thickness</span>
                 <input
                   type="range"
                   min="1"
@@ -983,7 +1007,7 @@ export default function AssetGenerationModal({
                     thickness: parseInt(e.target.value) 
                   })}
                 />
-                <span className="text-xs w-8" style={{ color: '#9CA3AF' }}>
+                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {effect.config.thickness || 2}px
                 </span>
                 </div>
@@ -991,7 +1015,7 @@ export default function AssetGenerationModal({
 
             {/* Options - Compact toggles */}
               <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#c0c9cc' }}>Options</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Options</label>
               <div className="flex flex-wrap gap-3">
                 <label className="flex items-center gap-1">
                   <input
@@ -1003,7 +1027,7 @@ export default function AssetGenerationModal({
                     })}
                     className="w-4 h-4"
                   />
-                  <span className="text-xs" style={{ color: '#9CA3AF' }}>Fade out</span>
+                  <span className="text-xs" style={{ color: '#181A1A' }}>Fade out</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input
@@ -1015,7 +1039,7 @@ export default function AssetGenerationModal({
                     })}
                     className="w-4 h-4"
                   />
-                  <span className="text-xs" style={{ color: '#9CA3AF' }}>Show bones</span>
+                  <span className="text-xs" style={{ color: '#181A1A' }}>Show bones</span>
                 </label>
               </div>
             </div>
@@ -1023,11 +1047,11 @@ export default function AssetGenerationModal({
             {/* Bone Settings - Only show when bones enabled */}
             {effect.config.showBones && (
               <div>
-                <label className="text-xs font-medium mb-2 block" style={{ color: '#c0c9cc' }}>Bone Settings</label>
+                <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Bone Settings</label>
                 
                 {/* Bone Color and Thickness */}
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Color</span>
+                  <span className="text-xs w-12" style={{ color: '#181A1A' }}>Color</span>
                   <input
                     type="color"
                     value={effect.config.boneColor || '#ff0000'}
@@ -1045,11 +1069,12 @@ export default function AssetGenerationModal({
                       boneColor: e.target.value 
                     })}
                     className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded font-mono"
+                    style={{ color: '#181A1A' }}
                   />
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Thickness</span>
+                  <span className="text-xs w-12" style={{ color: '#181A1A' }}>Thickness</span>
                   <input
                     type="range"
                     min="1"
@@ -1061,7 +1086,7 @@ export default function AssetGenerationModal({
                       boneThickness: parseInt(e.target.value) 
                     })}
                   />
-                  <span className="text-xs w-8" style={{ color: '#9CA3AF' }}>
+                  <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                     {effect.config.boneThickness || 1}px
                   </span>
                 </div>
@@ -1075,7 +1100,7 @@ export default function AssetGenerationModal({
           <div className="space-y-3">
             {/* Joint Selection */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: 'black' }}>Joint Selection</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Joint Selection</label>
               
               {/* Joint checkboxes - compact grid */}
               <div className="grid grid-cols-2 gap-2">
@@ -1103,7 +1128,7 @@ export default function AssetGenerationModal({
                       }}
                       className="w-3 h-3"
                     />
-                    <span className="text-xs" style={{ color: '#9CA3AF' }}>{joint.label}</span>
+                    <span className="text-xs" style={{ color: '#181A1A' }}>{joint.label}</span>
                   </label>
                 ))}
               </div>
@@ -1113,11 +1138,11 @@ export default function AssetGenerationModal({
 
             {/* Appearance */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: 'black' }}>Appearance</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Appearance</label>
               
               {/* Color and Size */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Color</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Color</span>
                 <input
                   type="color"
                   value={effect.config.angleColor || '#00ff00'}
@@ -1140,11 +1165,11 @@ export default function AssetGenerationModal({
 
               {/* Text Size */}
               <div className="flex items-center gap-2">
-                <span className="text-xs w-12" style={{ color: '#9CA3AF' }}>Size</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Size</span>
                 <input
                   type="range"
-                  min="21"
-                  max="45"
+                  min="9"
+                  max="30"
                   value={effect.config.angleSize || 18}
                   className="flex-1 h-1"
                   onChange={(e) => updateEffectConfig(effect.id, { 
@@ -1152,7 +1177,7 @@ export default function AssetGenerationModal({
                     angleSize: parseInt(e.target.value) 
                   })}
                 />
-                <span className="text-xs w-8" style={{ color: '#9CA3AF' }}>
+                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {effect.config.angleSize || 18}px
                 </span>
               </div>
@@ -1165,7 +1190,7 @@ export default function AssetGenerationModal({
           <div className="space-y-3">
             {/* ROM Joint Selection */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: 'black' }}>ROM Tracking Joints</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>ROM Tracking Joints</label>
               
               <div className="grid grid-cols-2 gap-2">
                 {[
@@ -1192,7 +1217,7 @@ export default function AssetGenerationModal({
                       }}
                       className="w-3 h-3"
                     />
-                    <span className="text-xs" style={{ color: '#9CA3AF' }}>{joint.label}</span>
+                    <span className="text-xs" style={{ color: '#181A1A' }}>{joint.label}</span>
                   </label>
                 ))}
               </div>
@@ -1200,7 +1225,7 @@ export default function AssetGenerationModal({
 
             {/* ROM Display Style */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: 'black' }}>ROM Display</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>ROM Display</label>
               <select
                 value={effect.config.romDisplayStyle || 'min_max'}
                 className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
@@ -1217,10 +1242,11 @@ export default function AssetGenerationModal({
 
             {/* ROM Appearance */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: 'black' }}>ROM Appearance</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>ROM Appearance</label>
               
               {/* Color */}
               <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Color</span>
                 <input
                   type="color"
                   value={effect.config.romColor || '#ff6b35'}
@@ -1243,11 +1269,11 @@ export default function AssetGenerationModal({
 
               {/* Size */}
               <div className="flex items-center gap-2">
-                <span className="text-xs w-12" style={{ color: 'black' }}>Size</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Size</span>
                 <input
                   type="range"
-                  min="21"
-                  max="45"
+                  min="9"
+                  max="30"
                   value={effect.config.angleSize || 16}
                   className="flex-1 h-1"
                   onChange={(e) => updateEffectConfig(effect.id, { 
@@ -1255,7 +1281,7 @@ export default function AssetGenerationModal({
                     angleSize: parseInt(e.target.value) 
                   })}
                 />
-                <span className="text-xs w-8" style={{ color: 'black' }}>
+                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {effect.config.angleSize || 16}px
                 </span>
               </div>
@@ -1272,11 +1298,11 @@ export default function AssetGenerationModal({
 
             {/* Text Styling */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: 'black' }}>Text Styling</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Text Styling</label>
               
               {/* Text Color */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: 'black' }}>Text Color</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Text Color</span>
                 <input
                   type="color"
                   value={effect.config.textColor || '#ffffff'}
@@ -1299,7 +1325,7 @@ export default function AssetGenerationModal({
 
               {/* Background Color */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: 'black' }}>Background</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Bg</span>
                 <input
                   type="color"
                   value={effect.config.backgroundColor || '#000000'}
@@ -1322,7 +1348,7 @@ export default function AssetGenerationModal({
 
               {/* Background Opacity */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: 'black' }}>Opacity</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Opacity</span>
                 <input
                   type="range"
                   min="0"
@@ -1334,14 +1360,14 @@ export default function AssetGenerationModal({
                     backgroundOpacity: parseInt(e.target.value) / 100 
                   })}
                 />
-                <span className="text-xs w-8" style={{ color: 'black' }}>
+                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {Math.round((effect.config.backgroundOpacity || 0.8) * 100)}%
                 </span>
               </div>
 
               {/* Text Size */}
               <div className="flex items-center gap-2">
-                <span className="text-xs w-12" style={{ color: 'black' }}>Size</span>
+                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Size</span>
                 <input
                   type="range"
                   min="20"
@@ -1353,7 +1379,7 @@ export default function AssetGenerationModal({
                     fontSize: parseInt(e.target.value) 
                   })}
                 />
-                <span className="text-xs w-8" style={{ color: 'black' }}>
+                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {effect.config.fontSize || 48}px
                 </span>
               </div>
@@ -1361,9 +1387,9 @@ export default function AssetGenerationModal({
 
             {/* Logo Settings */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: 'black' }}>Branding</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Branding</label>
               <div className="flex items-center justify-between">
-                <label className="text-xs" style={{ color: 'black' }}>Show Logo</label>
+                <label className="text-xs" style={{ color: '#181A1A' }}>Show Logo</label>
                 <input
                   type="checkbox"
                   checked={effect.config.showLogo !== false}
@@ -1381,9 +1407,9 @@ export default function AssetGenerationModal({
 
             {/* Safe Zone Settings */}
             <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: 'black' }}>Layout</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Layout</label>
               <div className="flex items-center justify-between">
-                <label className="text-xs" style={{ color: 'black' }}>Instagram Safe Zones</label>
+                <label className="text-xs" style={{ color: '#181A1A' }}>Instagram Safe Zones</label>
                 <input
                   type="checkbox"
                   checked={effect.config.safeZoneEnabled !== false}
@@ -1405,8 +1431,8 @@ export default function AssetGenerationModal({
         {effect.effect.id !== 'muybridge' && effect.effect.id !== 'motion-trails' && effect.effect.id !== 'joint-angles' && effect.effect.id !== 'range-of-motion' && effect.effect.id !== 'exercise-details' && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-medium" style={{ color: '#c0c9cc' }}>Intensity</label>
-            <span className="text-xs" style={{ color: '#9CA3AF' }}>
+            <label className="text-xs font-medium" style={{ color: '#181A1A' }}>Intensity</label>
+            <span className="text-xs" style={{ color: '#181A1A' }}>
               {effect.config.intensity || 50}%
             </span>
           </div>
@@ -1426,16 +1452,16 @@ export default function AssetGenerationModal({
             removeEffect(effect.id);
             setConfigPopover(null);
           }}
-          className="w-full px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition"
+          className="w-full px-2 py-2 bg-white text-red-500 rounded text-xs font-normal hover:bg-red-600 hover:text-white transition"
         >
           Remove Effect
         </button>
       </div>
-    </Popover.Content>
+    </div>
   );
 
   return isOpen ? (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ width: '100vw', height: '100vh', padding: 0, background: 'rgba(24,24,27,0.92)' }}>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ width: '100vw', height: '100vh', padding: 0, background: 'rgba(0, 0, 0, 0.9)' }}>
       {/* Close Button */}
       <button
         className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/80 hover:bg-black focus:outline-none"
@@ -1451,7 +1477,7 @@ export default function AssetGenerationModal({
       
       {/* Header */}
       <div className="flex flex-col items-center justify-center w-full h-full relative">
-        <div className="text-sm font-normal pt-6 pb-0 text-white">Create Shareable Motion Asset: {exerciseTitle}</div>
+        <div className="text-sm font-normal pt-6 pb-0 text-white">Create Shareable Motion Asset: {exerciseTitle || 'Open Move Session'}</div>
 
         {/* Main Content */}
         <div className="flex-1 flex items-center justify-center w-full">
@@ -1562,14 +1588,14 @@ export default function AssetGenerationModal({
                     height: '40px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: selectedCategory === 'export' ? '#F97316' : '#f5f6f7',
+                    background: selectedCategory === 'export' ? '#777d7f' : '#f5f6f7',
                     color: selectedCategory === 'export' ? 'white' : '#55595B',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    boxShadow: selectedCategory === 'export' ? '0 2px 8px rgba(249, 115, 22, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
+                    boxShadow: selectedCategory === 'export' ? '0 2px 8px rgba(119, 125, 127, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
                   }}
                   onMouseEnter={(e) => {
                     if (selectedCategory !== 'export') {
@@ -1598,14 +1624,14 @@ export default function AssetGenerationModal({
                       height: '40px',
                       borderRadius: '8px',
                       border: 'none',
-                      background: selectedCategory === category ? '#F97316' : '#f5f6f7',
+                      background: selectedCategory === category ? '#777d7f' : '#f5f6f7',
                       color: selectedCategory === category ? 'white' : '#55595B',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
-                      boxShadow: selectedCategory === category ? '0 2px 8px rgba(249, 115, 22, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
+                      boxShadow: selectedCategory === category ? '0 2px 8px rgba(119, 125, 127, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
                     }}
                     onMouseEnter={(e) => {
                       if (selectedCategory !== category) {
@@ -1621,46 +1647,11 @@ export default function AssetGenerationModal({
                     {React.cloneElement(effectTypeIcon[category], {
                       width: '20px',
                       height: '20px',
-                      stroke: selectedCategory === category ? 'white' : '#55595B',
+                      color: selectedCategory === category ? 'white' : '#55595B',
                     } as any)}
                     </button>
                 ))}
 
-                {/* Video Toggle Button */}
-                <button
-                  onClick={() => setVideoVisibility(prev => ({ ...prev, showVideo: !prev.showVideo }))}
-                  title={videoVisibility.showVideo ? 'Hide Video Background' : 'Show Video Background'}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: videoVisibility.showVideo ? '#10B981' : '#f5f6f7',
-                    color: videoVisibility.showVideo ? 'white' : '#55595B',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: videoVisibility.showVideo ? '0 2px 8px rgba(16, 185, 129, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!videoVisibility.showVideo) {
-                      e.currentTarget.style.background = '#e5e7eb';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!videoVisibility.showVideo) {
-                      e.currentTarget.style.background = '#f5f6f7';
-                    }
-                  }}
-                >
-                  {videoVisibility.showVideo ? (
-                    <Eye style={{ width: '20px', height: '20px' }} />
-                  ) : (
-                    <EyeOff style={{ width: '20px', height: '20px' }} />
-                  )}
-                </button>
                 </div>
 
               {/* Horizontal Sub-menu - Left of Vertical Menu */}
@@ -1687,179 +1678,214 @@ export default function AssetGenerationModal({
                         Download Settings
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div>
-                          <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>
-                            Format
-                            {hasProblematicCombination() && (
-                              <span style={{ color: '#F59E0B', marginLeft: '4px' }}>⚠️ Video/GIF disabled</span>
-                            )}
-                          </div>
-                    <Select.Root 
-                      value={exportConfig.format} 
-                      onValueChange={(value: 'png' | 'mp4' | 'gif') => {
-                        // Prevent selection of video/GIF formats when problematic combination is active
-                        if (hasProblematicCombination() && (value === 'mp4' || value === 'gif')) {
-                          return;
-                        }
-                        setExportConfig({ ...exportConfig, format: value });
-                      }}
-                    >
-                            <Select.Trigger style={{
-                              width: '100%',
-                              padding: '6px 8px',
+                  <div ref={formatDropdownRef} style={{ position: 'relative' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>
+                              Media
+                              {isVideoExportDisabled() && (
+                                <span style={{ color: '#F59E0B', marginLeft: '4px' }}>⚠️ Video disabled</span>
+                              )}
+                            </div>
+                          <button
+                            className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
+                            style={{
                               border: '1px solid #D1D5DB',
+                              color: '#353839',
+                              background: '#F9FAFB',
+                              fontWeight: 500,
                               borderRadius: '4px',
                               fontSize: '11px',
-                              background: '#F9FAFB',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
+                              padding: '6px 8px',
                               cursor: 'pointer',
+                              transition: 'color 0.2s, border 0.2s, background 0.2s',
+                            }}
+                            onClick={() => setFormatDropdownOpen(!formatDropdownOpen)}
+                            type="button"
+                          >
+                            {exportConfig.format === 'png' ? 'PNG Image' : 'Video'}
+                            <span style={{ 
+                              marginLeft: '8px', 
+                              display: 'flex', 
+                              alignItems: 'center',
+                              transform: formatDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.2s ease-in-out'
                             }}>
-                        <Select.Value />
-                        <Select.Icon>
-                                <ChevronDown style={{ width: '12px', height: '12px' }} />
-                        </Select.Icon>
-                      </Select.Trigger>
-                      <Select.Portal>
-                              <Select.Content style={{
-                                background: 'white',
-                                border: '1px solid #D1D5DB',
-                                borderRadius: '6px',
-                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                                zIndex: 50,
-                              }}>
-                                <Select.Viewport style={{ padding: '4px' }}>
-                                  <Select.Item value="png" style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '6px 8px',
-                                    fontSize: '11px',
-                                    cursor: 'pointer',
-                                    borderRadius: '4px',
-                                    color: 'black',
-                                  }} className="hover:bg-gray-100">
-                              <Select.ItemText style={{ color: 'black' }}>PNG Image</Select.ItemText>
-                            </Select.Item>
-                                  <Select.Item 
-                                    value="mp4" 
-                                    disabled={hasProblematicCombination()}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      padding: '6px 8px',
-                                      fontSize: '11px',
-                                      cursor: hasProblematicCombination() ? 'not-allowed' : 'pointer',
-                                      borderRadius: '4px',
-                                      opacity: hasProblematicCombination() ? 0.5 : 1,
-                                      color: hasProblematicCombination() ? '#9CA3AF' : 'black',
-                                    }} 
-                                    className={hasProblematicCombination() ? '' : 'hover:bg-gray-100'}
-                                  >
-                              <Select.ItemText style={{ color: hasProblematicCombination() ? '#9CA3AF' : 'black' }}>
-                                MP4 Video
-                                {hasProblematicCombination() && (
+                              <ChevronDown style={{ width: '12px', height: '12px' }} />
+                            </span>
+                          </button>
+                          {formatDropdownOpen && (
+                            <div style={{ 
+                              position: 'absolute', 
+                              left: 0, 
+                              top: '100%', 
+                              zIndex: 50, 
+                              minWidth: '100%', 
+                              width: 'max-content', 
+                              background: 'white', 
+                              border: '1px solid #D1D5DB', 
+                              borderRadius: '6px',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                              marginTop: '2px'
+                            }} className="rounded-lg p-2">
+                              <label
+                                className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
+                                style={{ background: 'transparent', color: '#181A1A', whiteSpace: 'nowrap' }}
+                                onMouseOver={e => (e.currentTarget.style.background = '#f3f4f6')}
+                                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                                onClick={() => { 
+                                  setExportConfig({ ...exportConfig, format: 'png' }); 
+                                  setFormatDropdownOpen(false); 
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  checked={exportConfig.format === 'png'}
+                                  readOnly
+                                  style={{ marginRight: '9px' }}
+                                />
+                                PNG Image
+                              </label>
+                              <label
+                                className={`flex items-center text-xs mb-1 rounded px-1 py-1 transition-colors ${
+                                  isVideoExportDisabled() ? 'cursor-not-allowed' : 'cursor-pointer'
+                                }`}
+                                style={{ 
+                                  background: 'transparent', 
+                                  color: isVideoExportDisabled() ? '#9CA3AF' : '#181A1A', 
+                                  whiteSpace: 'nowrap',
+                                  opacity: isVideoExportDisabled() ? 0.5 : 1
+                                }}
+                                onMouseOver={e => {
+                                  if (!isVideoExportDisabled()) {
+                                    e.currentTarget.style.background = '#f3f4f6';
+                                  }
+                                }}
+                                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                                onClick={() => { 
+                                  if (!isVideoExportDisabled()) {
+                                    setExportConfig({ ...exportConfig, format: 'webm' }); 
+                                    setFormatDropdownOpen(false); 
+                                  }
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  checked={exportConfig.format === 'webm'}
+                                  readOnly
+                                  disabled={isVideoExportDisabled()}
+                                  style={{ marginRight: '9px' }}
+                                />
+                                Video
+                                {isVideoExportDisabled() && (
                                   <span style={{ fontSize: '9px', marginLeft: '4px' }}>(disabled)</span>
                                 )}
-                              </Select.ItemText>
-                            </Select.Item>
-                                  <Select.Item 
-                                    value="gif" 
-                                    disabled={hasProblematicCombination()}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      padding: '6px 8px',
-                                      fontSize: '11px',
-                                      cursor: hasProblematicCombination() ? 'not-allowed' : 'pointer',
-                                      borderRadius: '4px',
-                                      opacity: hasProblematicCombination() ? 0.5 : 1,
-                                      color: hasProblematicCombination() ? '#9CA3AF' : 'black',
-                                    }} 
-                                    className={hasProblematicCombination() ? '' : 'hover:bg-gray-100'}
-                                  >
-                              <Select.ItemText style={{ color: hasProblematicCombination() ? '#9CA3AF' : 'black' }}>
-                                Animated GIF (PNG)
-                                {hasProblematicCombination() && (
-                                  <span style={{ fontSize: '9px', marginLeft: '4px' }}>(disabled)</span>
-                                )}
-                              </Select.ItemText>
-                            </Select.Item>
-                          </Select.Viewport>
-                        </Select.Content>
-                      </Select.Portal>
-                    </Select.Root>
+                              </label>
+                            </div>
+                          )}
                   </div>
-                  <div>
+                  <div ref={qualityDropdownRef} style={{ position: 'relative' }}>
                           <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>Quality</div>
-                    <Select.Root value={exportConfig.quality} onValueChange={(value: 'high' | 'medium' | 'low') => setExportConfig({ ...exportConfig, quality: value })}>
-                            <Select.Trigger style={{
-                              width: '100%',
-                              padding: '6px 8px',
+                          <button
+                            className="w-full px-2 py-1 bg-transparent rounded text-xs border flex items-center justify-between"
+                            style={{
                               border: '1px solid #D1D5DB',
+                              color: '#353839',
+                              background: '#F9FAFB',
+                              fontWeight: 500,
                               borderRadius: '4px',
                               fontSize: '11px',
-                              background: '#F9FAFB',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
+                              padding: '6px 8px',
                               cursor: 'pointer',
+                              transition: 'color 0.2s, border 0.2s, background 0.2s',
+                            }}
+                            onClick={() => setQualityDropdownOpen(!qualityDropdownOpen)}
+                            type="button"
+                          >
+                            {exportConfig.quality === 'high' ? 'High Quality' : 
+                             exportConfig.quality === 'medium' ? 'Medium Quality' : 'Low Quality'}
+                            <span style={{ 
+                              marginLeft: '8px', 
+                              display: 'flex', 
+                              alignItems: 'center',
+                              transform: qualityDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.2s ease-in-out'
                             }}>
-                        <Select.Value />
-                        <Select.Icon>
-                                <ChevronDown style={{ width: '12px', height: '12px' }} />
-                        </Select.Icon>
-                      </Select.Trigger>
-                      <Select.Portal>
-                              <Select.Content style={{
-                                background: 'white',
-                                border: '1px solid #D1D5DB',
-                                borderRadius: '6px',
-                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                                zIndex: 50,
-                              }}>
-                                <Select.Viewport style={{ padding: '4px' }}>
-                                  <Select.Item value="high" style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '6px 8px',
-                                    fontSize: '11px',
-                                    cursor: 'pointer',
-                                    borderRadius: '4px',
-                                    color: 'black',
-                                  }} className="hover:bg-gray-100">
-                              <Select.ItemText style={{ color: 'black' }}>High Quality</Select.ItemText>
-                            </Select.Item>
-                                  <Select.Item value="medium" style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '6px 8px',
-                                    fontSize: '11px',
-                                    cursor: 'pointer',
-                                    borderRadius: '4px',
-                                    color: 'black',
-                                  }} className="hover:bg-gray-100">
-                              <Select.ItemText style={{ color: 'black' }}>Medium Quality</Select.ItemText>
-                            </Select.Item>
-                                  <Select.Item value="low" style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '6px 8px',
-                                    fontSize: '11px',
-                                    cursor: 'pointer',
-                                    borderRadius: '4px',
-                                    color: 'black',
-                                  }} className="hover:bg-gray-100">
-                              <Select.ItemText style={{ color: 'black' }}>Low Quality</Select.ItemText>
-                            </Select.Item>
-                          </Select.Viewport>
-                        </Select.Content>
-                      </Select.Portal>
-                    </Select.Root>
+                              <ChevronDown style={{ width: '12px', height: '12px' }} />
+                            </span>
+                          </button>
+                          {qualityDropdownOpen && (
+                            <div style={{ 
+                              position: 'absolute', 
+                              left: 0, 
+                              top: '100%', 
+                              zIndex: 50, 
+                              minWidth: '100%', 
+                              width: 'max-content', 
+                              background: 'white', 
+                              border: '1px solid #D1D5DB', 
+                              borderRadius: '6px',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                              marginTop: '2px'
+                            }} className="rounded-lg p-2">
+                              <label
+                                className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
+                                style={{ background: 'transparent', color: '#181A1A', whiteSpace: 'nowrap' }}
+                                onMouseOver={e => (e.currentTarget.style.background = '#f3f4f6')}
+                                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                                onClick={() => { 
+                                  setExportConfig({ ...exportConfig, quality: 'high' }); 
+                                  setQualityDropdownOpen(false); 
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  checked={exportConfig.quality === 'high'}
+                                  readOnly
+                                  style={{ marginRight: '9px' }}
+                                />
+                                High Quality
+                              </label>
+                              <label
+                                className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
+                                style={{ background: 'transparent', color: '#181A1A', whiteSpace: 'nowrap' }}
+                                onMouseOver={e => (e.currentTarget.style.background = '#f3f4f6')}
+                                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                                onClick={() => { 
+                                  setExportConfig({ ...exportConfig, quality: 'medium' }); 
+                                  setQualityDropdownOpen(false); 
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  checked={exportConfig.quality === 'medium'}
+                                  readOnly
+                                  style={{ marginRight: '9px' }}
+                                />
+                                Medium Quality
+                              </label>
+                              <label
+                                className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
+                                style={{ background: 'transparent', color: '#181A1A', whiteSpace: 'nowrap' }}
+                                onMouseOver={e => (e.currentTarget.style.background = '#f3f4f6')}
+                                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                                onClick={() => { 
+                                  setExportConfig({ ...exportConfig, quality: 'low' }); 
+                                  setQualityDropdownOpen(false); 
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  checked={exportConfig.quality === 'low'}
+                                  readOnly
+                                  style={{ marginRight: '9px' }}
+                                />
+                                Low Quality
+                              </label>
+                            </div>
+                          )}
                   </div>
                   
-                  {/* Duration and Framerate controls for video/GIF exports */}
-                  {(exportConfig.format === 'mp4' || exportConfig.format === 'gif') && !hasProblematicCombination() && (
+                  {/* Duration and Framerate controls for video exports */}
+                  {(exportConfig.format === 'webm') && !isVideoExportDisabled() && (
                     <>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>Duration (seconds)</div>
@@ -1887,7 +1913,7 @@ export default function AssetGenerationModal({
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>
                           Framerate (fps)
-                          {hasProblematicCombination() && (
+                          {isVideoExportDisabled() && (
                             <span style={{ color: '#F59E0B', marginLeft: '4px' }}>⚠️ Auto-locked</span>
                           )}
                         </div>
@@ -1898,26 +1924,26 @@ export default function AssetGenerationModal({
                           step="5"
                           value={exportConfig.framerate || 30}
                           onChange={(e) => setExportConfig({ ...exportConfig, framerate: parseInt(e.target.value) })}
-                          disabled={hasProblematicCombination()}
+                          disabled={isVideoExportDisabled()}
                           style={{
                             width: '100%',
                             height: '4px',
                             borderRadius: '2px',
-                            background: hasProblematicCombination() ? '#E5E7EB' : '#D1D5DB',
+                            background: isVideoExportDisabled() ? '#E5E7EB' : '#D1D5DB',
                             outline: 'none',
-                            cursor: hasProblematicCombination() ? 'not-allowed' : 'pointer',
-                            opacity: hasProblematicCombination() ? 0.6 : 1,
+                            cursor: isVideoExportDisabled() ? 'not-allowed' : 'pointer',
+                            opacity: isVideoExportDisabled() ? 0.6 : 1,
                           }}
                         />
                         <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px', textAlign: 'center' }}>
                           {exportConfig.framerate || 30} fps
-                          {hasProblematicCombination() && (
+                          {isVideoExportDisabled() && (
                             <span style={{ color: '#F59E0B', marginLeft: '4px' }}>
                               (optimized for pose data)
                             </span>
                           )}
                         </div>
-                        {hasProblematicCombination() && (
+                        {isVideoExportDisabled() && (
                           <div style={{ 
                             fontSize: '9px', 
                             color: '#F59E0B', 
@@ -1927,12 +1953,41 @@ export default function AssetGenerationModal({
                             borderRadius: '4px',
                             border: '1px solid #F59E0B'
                           }}>
-                            Frame rate is auto-locked to prevent jitter when combining Muybridge + Motion Trails effects
+                            Frame rate is auto-locked when using Muybridge effects
                           </div>
                         )}
                       </div>
                     </>
                   )}
+                  
+                  {/* Video Visibility Toggle */}
+                  <div>
+                    <button
+                      onClick={() => setVideoVisibility(prev => ({ ...prev, showVideo: !prev.showVideo }))}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        border: '1px solid #D1D5DB',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        background: videoVisibility.showVideo ? '#F3F4F6' : '#F9FAFB',
+                        color: '#374151',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = videoVisibility.showVideo ? '#E5E7EB' : '#F3F4F6';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = videoVisibility.showVideo ? '#F3F4F6' : '#F9FAFB';
+                      }}
+                    >
+                      {videoVisibility.showVideo ? 'Hide Video in Export' : 'Show Video in Export'}
+                    </button>
+                  </div>
                   
                   <button
                     onClick={handleExport}
@@ -1974,7 +2029,7 @@ export default function AssetGenerationModal({
                     // Effect Category Menu
                     <>
                       <div style={{ fontSize: '12px', fontWeight: 600, color: '#181A1A', marginBottom: '8px' }}>
-                        {selectedCategory} Effects
+                        {selectedCategory === 'Stats' ? 'Stats Overlays' : `${selectedCategory} Effects`}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {getEffectsForCategory(selectedCategory).map((effect) => {
@@ -2024,7 +2079,7 @@ export default function AssetGenerationModal({
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                               <span>{effect.name}</span>
                                 {!isImplemented && (
-                                  <span style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 400 }}>Coming Soon</span>
+                                  <span style={{ fontSize: '10px', color: '#181A1A', fontWeight: 400 }}>Coming Soon</span>
                                 )}
                               </div>
                               {isActive && (
@@ -2044,78 +2099,82 @@ export default function AssetGenerationModal({
                 className="hide-scrollbar"
                 style={{
                   position: 'absolute',
-                  bottom: '16px',
-                  left: '16px',
-                  right: '16px',
+                  bottom: '10px',
+                  left: '10px',
+                  right: '10px',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  borderRadius: '99px',
+                  padding: '8px 8px',
                   zIndex: 10,
                   display: 'flex',
                   flexDirection: 'row',
-                  gap: '8px',
+                  gap: '6px',
                   alignItems: 'center',
                   minHeight: '32px',
                   overflowX: 'auto',
                   overflowY: 'hidden',
-                  paddingBottom: '4px', /* Space for potential scrollbar */
+                  paddingBottom: '8px',
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(255, 255, 255, 0) transparent',
                 }}
               >
               {activeEffects.map((activeEffect) => (
-                <Popover.Root key={activeEffect.id} open={configPopover === activeEffect.id} onOpenChange={(open) => setConfigPopover(open ? activeEffect.id : null)}>
-                  <Popover.Trigger asChild>
-                    <div
-                        style={{
-                          background: activeEffect.enabled ? '#e5f3ff' : '#f5f6f7',
-                          border: `1px solid ${activeEffect.enabled ? '#0066cc' : '#d1d5db'}`,
-                          borderRadius: '16px',
-                          padding: '4px 12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          fontSize: '12px',
-                          fontWeight: 500,
-                          color: activeEffect.enabled ? '#0066cc' : '#6b7280',
-                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                          whiteSpace: 'nowrap',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-                        }}
-                    >
-                        <span style={{ fontSize: '14px' }}>{activeEffect.effect.icon}</span>
-                        <span>{activeEffect.effect.name}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleEffect(activeEffect.id);
-                        }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '10px',
-                            color: 'inherit',
-                            opacity: 0.7,
-                            marginLeft: '4px',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.opacity = '1';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.opacity = '0.7';
-                          }}
-                      >
-                        {activeEffect.enabled ? '●' : '○'}
-                      </button>
-                    </div>
-                  </Popover.Trigger>
-                  {renderConfigPopoverContent(activeEffect)}
-                </Popover.Root>
+                <div
+                  key={activeEffect.id}
+                  onClick={() => setConfigPopover(configPopover === activeEffect.id ? null : activeEffect.id)}
+                  style={{
+                    background: activeEffect.enabled ? '#55595b' : '#f5f6f7',
+                    border: `1px solid ${activeEffect.enabled ? '#55595b' : '#d1d5db'}`,
+                    borderRadius: '16px',
+                    padding: '4px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: activeEffect.enabled ? '#f3f3f4' : '#6b7280',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    minWidth: 'fit-content',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>{activeEffect.effect.icon}</span>
+                  <span>{activeEffect.effect.name}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleEffect(activeEffect.id);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '10px',
+                      color: 'inherit',
+                      opacity: 0.7,
+                      marginLeft: '4px',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '1';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '0.7';
+                    }}
+                  >
+                    {activeEffect.enabled ? '●' : '○'}
+                  </button>
+                </div>
               ))}
               
               {activeEffects.length === 0 && (
@@ -2128,6 +2187,31 @@ export default function AssetGenerationModal({
                   </div>
                 )}
               </div>
+
+              {/* Configuration Panels - Positioned outside scrolling container */}
+              {configPopover && activeEffects.find(e => e.id === configPopover) && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '60px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: 'rgba(255, 255, 255, 0.720)',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  width: '90%',
+                  minWidth: '250px',
+                  maxWidth: '400px',
+                  zIndex: 20,
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  backdropFilter: 'blur(3px)',
+                }}>
+                  {(() => {
+                    const activeEffect = activeEffects.find(e => e.id === configPopover);
+                    if (!activeEffect) return null;
+                    return renderConfigPopoverContent(activeEffect);
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         </div>

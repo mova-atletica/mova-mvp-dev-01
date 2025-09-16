@@ -69,10 +69,10 @@ export const getAngleThresholds = (
   } else {
     // Fallback thresholds for testing
     const fallbackThresholds = {
-      startThreshold: 120,
-      completionThreshold: 100,
-      returnThreshold: 120,
-      hysteresis: 5
+      startThreshold: 190,
+      completionThreshold: 0,
+      returnThreshold: 189,
+      hysteresis: 2
     };
     console.log('📋 Using fallback thresholds for', joint, ':', fallbackThresholds);
     return fallbackThresholds;

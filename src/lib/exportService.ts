@@ -6,10 +6,10 @@ import { renderMuybridgeFromCanvas } from './effects/muybridge';
 import { renderStats } from './effects/stats';
 
 export interface ExportConfig {
-  format: 'png' | 'mp4' | 'gif';
+  format: 'png' | 'webm';
   quality: 'low' | 'medium' | 'high';
   duration?: number; // for video exports
-  framerate?: number; // for video/gif exports
+  framerate?: number; // for video exports
 }
 
 export interface ExportResult {
@@ -55,26 +55,32 @@ async function renderEffectsToCanvas(
   
   let outputWidth: number, outputHeight: number;
   
+  // Resolution multiplier for higher quality exports
+  const resolutionMultiplier = config.quality === 'high' ? 2.0 : config.quality === 'medium' ? 1.5 : 1.0;
+  
   if (hasMuybridgeEffect) {
     // For Muybridge effect, use the same pixel dimensions as the preview canvas
     // The preview canvas has pixel size = video.videoWidth × video.videoHeight
     // and is scaled down by CSS to fit the 400×711 container
-    outputWidth = video.videoWidth;
-    outputHeight = video.videoHeight;
+    outputWidth = video.videoWidth * resolutionMultiplier;
+    outputHeight = video.videoHeight * resolutionMultiplier;
     
 
   } else {
-    // For other effects, use original video dimensions
-    outputWidth = video.videoWidth;
-    outputHeight = video.videoHeight;
+    // For other effects, use original video dimensions with resolution multiplier
+    outputWidth = video.videoWidth * resolutionMultiplier;
+    outputHeight = video.videoHeight * resolutionMultiplier;
   }
   
   // Create export canvas
   const canvas = createExportCanvas(outputWidth, outputHeight);
   const ctx = canvas.getContext('2d')!;
   
+  // Scale context to match resolution multiplier
+  ctx.scale(resolutionMultiplier, resolutionMultiplier);
+  
   // Clear canvas
-  ctx.clearRect(0, 0, outputWidth, outputHeight);
+  ctx.clearRect(0, 0, video.videoWidth, video.videoHeight);
   
   // Get combined video configuration
   const hasVideoReplacement = activeEffects.some(effect => 
@@ -90,7 +96,7 @@ async function renderEffectsToCanvas(
     
     ctx.globalAlpha = opacity;
     ctx.globalCompositeOperation = blendMode as GlobalCompositeOperation;
-    ctx.drawImage(video, 0, 0, outputWidth, outputHeight);
+    ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1.0;
   }
@@ -124,7 +130,7 @@ async function renderEffectsToCanvas(
         case 'joint-angles':
         case 'range-of-motion':
         case 'exercise-details':
-          renderStats(ctx, video, poses, effect.config, video.currentTime, true); // isExport = true
+          renderStats(ctx, video, poses, { ...effect.config, isExport: true }, video.currentTime, true); // isExport = true
           break;
         default:
           // Skip non-stats effects
@@ -136,7 +142,7 @@ async function renderEffectsToCanvas(
     const muybridgeEffect = activeEffects.find(e => e.effect.id === 'muybridge' && e.enabled);
     if (muybridgeEffect) {
       // Clear the main canvas for muybridge to render to
-      ctx.clearRect(0, 0, outputWidth, outputHeight);
+      ctx.clearRect(0, 0, video.videoWidth, video.videoHeight);
       
       // Create an effect renderer function that applies all non-muybridge effects
       const effectRenderer = (frameCtx: CanvasRenderingContext2D, frameVideo: HTMLVideoElement, framePoses: any[], frameTime: number) => {
@@ -212,47 +218,6 @@ async function exportAsImage(
   }
 }
 
-/**
- * Create a simple GIF encoder using canvas frames
- */
-class SimpleGifEncoder {
-  private frames: ImageData[] = [];
-  private width: number;
-  private height: number;
-  private delay: number;
-
-  constructor(width: number, height: number, delay: number = 100) {
-    this.width = width;
-    this.height = height;
-    this.delay = delay;
-  }
-
-  addFrame(canvas: HTMLCanvasElement): void {
-    const ctx = canvas.getContext('2d')!;
-    const imageData = ctx.getImageData(0, 0, this.width, this.height);
-    this.frames.push(imageData);
-  }
-
-  async encode(): Promise<Blob> {
-    // For now, return a simple animated PNG as GIF support is complex
-    // This is a placeholder - in production you'd want a proper GIF encoder
-    const canvas = document.createElement('canvas');
-    canvas.width = this.width;
-    canvas.height = this.height;
-    const ctx = canvas.getContext('2d')!;
-    
-    // Just return the first frame as PNG for now
-    if (this.frames.length > 0) {
-      ctx.putImageData(this.frames[0], 0, 0);
-    }
-    
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        resolve(blob!);
-      }, 'image/png');
-    });
-  }
-}
 
 /**
  * Export as video using MediaRecorder API
@@ -276,8 +241,17 @@ async function exportAsVideo(
     
     // Create a MediaStream from the canvas
     const stream = canvas.captureStream(framerate);
+    
+    // Check for MP4 support (most browsers don't support MP4 in MediaRecorder)
+    const mp4Supported = MediaRecorder.isTypeSupported('video/mp4;codecs=h264') || 
+                         MediaRecorder.isTypeSupported('video/mp4');
+    
+    const mimeType = mp4Supported 
+      ? (MediaRecorder.isTypeSupported('video/mp4;codecs=h264') ? 'video/mp4;codecs=h264' : 'video/mp4')
+      : 'video/webm;codecs=vp8';
+    
     const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'video/webm;codecs=vp8',
+      mimeType: mimeType,
       videoBitsPerSecond: config.quality === 'low' ? 1000000 : config.quality === 'medium' ? 2000000 : 4000000
     });
     
@@ -291,11 +265,12 @@ async function exportAsVideo(
       };
       
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
+        const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const blob = new Blob(chunks, { type: mimeType });
         resolve({
           success: true,
           data: blob,
-          filename: `mova-asset-${Date.now()}.webm`
+          filename: `mova-asset-${Date.now()}.${extension}`
         });
       };
       
@@ -485,195 +460,6 @@ async function exportAsVideo(
 }
 
 /**
- * Export as GIF using custom encoder
- */
-async function exportAsGif(
-  video: HTMLVideoElement,
-  activeEffects: any[],
-  poses: any[],
-  config: ExportConfig & { videoVisibility?: { showVideo: boolean; opacity: number; blendMode: GlobalCompositeOperation } }
-): Promise<ExportResult> {
-  try {
-    const duration = config.duration || 3;
-    const framerate = config.framerate || 30;
-    const totalFrames = Math.floor(duration * framerate);
-    
-    // Create encoder
-    const encoder = new SimpleGifEncoder(video.videoWidth, video.videoHeight, 1000 / framerate);
-    
-    // Store original video state
-    const originalCurrentTime = video.currentTime;
-    const originalPlaybackRate = video.playbackRate;
-    
-    // Set video to beginning and pause
-    video.currentTime = 0;
-    video.pause();
-    
-    // Render frames
-    for (let frame = 0; frame < totalFrames; frame++) {
-      // Calculate time for this frame
-      const frameTime = (frame / totalFrames) * duration;
-      video.currentTime = frameTime;
-      
-      // Wait for video to seek with timeout and error handling
-      await new Promise<void>((resolve, reject) => {
-        const onSeeked = () => {
-          video.removeEventListener('seeked', onSeeked);
-          video.removeEventListener('error', onError);
-          clearTimeout(timeoutId);
-          resolve();
-        };
-        
-        const onError = () => {
-          video.removeEventListener('seeked', onSeeked);
-          video.removeEventListener('error', onError);
-          clearTimeout(timeoutId);
-          reject(new Error('Video seek failed'));
-        };
-        
-        const timeoutId = setTimeout(() => {
-          video.removeEventListener('seeked', onSeeked);
-          video.removeEventListener('error', onError);
-          reject(new Error('Video seek timeout'));
-        }, 2000); // 2 second timeout
-        
-        video.addEventListener('seeked', onSeeked);
-        video.addEventListener('error', onError);
-      });
-      
-      // Create canvas for this frame
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d')!;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Check if we should render video background
-      const hasVideoReplacement = activeEffects.some(effect => 
-        effect.enabled && effect.effect.videoConfig?.shouldRenderVideo === false
-      );
-      
-      // Check if Muybridge effect is active (it will handle its own video rendering)
-      const hasMuybridgeEffect = activeEffects.some(effect => 
-        effect.enabled && effect.effect.id === 'muybridge'
-      );
-      
-      const shouldRenderVideo = config.videoVisibility?.showVideo !== false && !hasVideoReplacement && !hasMuybridgeEffect;
-      
-      if (shouldRenderVideo) {
-        // Render video background with proper opacity and blend mode
-        const opacity = config.videoVisibility?.opacity ?? 1.0;
-        const blendMode = config.videoVisibility?.blendMode ?? 'normal';
-        
-        ctx.globalAlpha = opacity;
-        ctx.globalCompositeOperation = blendMode as GlobalCompositeOperation;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1.0;
-      }
-      
-      // Render effects in proper order (matching live preview)
-      // Step 1: Render motion effects (background effects)
-      for (const effect of activeEffects) {
-        if (!effect.enabled) continue;
-        
-        // Skip composite effects (like muybridge) for now
-        if (effect.effect.id === 'muybridge') continue;
-        
-        switch (effect.effect.id) {
-          case 'motion-trails':
-            renderMotionTrails(ctx, video, poses, effect.config, frameTime, true); // isExport = true
-            break;
-          default:
-            // Skip stats effects for now - render them last
-            break;
-        }
-      }
-      
-      // Step 2: Render stats effects last (foreground effects)
-      for (const effect of activeEffects) {
-        if (!effect.enabled) continue;
-        
-        // Skip composite effects (like muybridge) for now
-        if (effect.effect.id === 'muybridge') continue;
-        
-        switch (effect.effect.id) {
-          case 'joint-angles':
-          case 'range-of-motion':
-          case 'exercise-details':
-            renderStats(ctx, video, poses, effect.config, frameTime, true); // isExport = true
-            break;
-          default:
-            // Skip non-stats effects
-            break;
-        }
-      }
-      
-      // Step 2: Render composite effects (like muybridge) that should process the current canvas state
-      const muybridgeEffect = activeEffects.find(e => e.effect.id === 'muybridge' && e.enabled);
-      if (muybridgeEffect) {
-        // Clear the main canvas for muybridge to render to
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Create an effect renderer function that applies all non-muybridge effects
-        const effectRenderer = (frameCtx: CanvasRenderingContext2D, frameVideo: HTMLVideoElement, framePoses: any[], frameTime: number) => {
-          // Apply all active non-muybridge effects to this frame
-          for (const effect of activeEffects) {
-            if (!effect.enabled || effect.effect.id === 'muybridge') continue;
-            
-            switch (effect.effect.id) {
-              case 'motion-trails':
-                try {
-                  renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
-                } catch (error) {
-                  console.warn('Failed to render motion trails effect for GIF export frame:', error);
-                }
-                break;
-              default:
-                console.warn(`Effect ${effect.effect.id} not implemented for GIF export frame processing yet`);
-            }
-          }
-        };
-        
-        // Render muybridge with effects applied to each frame
-        await renderMuybridgeFromCanvas(ctx, video, poses, muybridgeEffect.config, frameTime, true, effectRenderer, config.videoVisibility);
-        
-        // Render exercise-details once over the entire canvas (not in individual tiles)
-        const exerciseDetailsEffect = activeEffects.find(e => e.effect.id === 'exercise-details' && e.enabled);
-        if (exerciseDetailsEffect) {
-          renderStats(ctx, video, poses, exerciseDetailsEffect.config, frameTime, true); // isExport = true
-        }
-      }
-      
-      // Add frame to encoder
-      encoder.addFrame(canvas);
-      
-      // Small delay to prevent blocking
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
-    
-    // Encode and get result
-    const blob = await encoder.encode();
-    
-    // Restore original video state
-    video.currentTime = originalCurrentTime;
-    video.playbackRate = originalPlaybackRate;
-    
-    return {
-      success: true,
-      data: blob,
-      filename: `mova-asset-${Date.now()}.png` // Note: Currently returns PNG, not GIF
-    };
-    
-  } catch (error) {
-    console.error('GIF export error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error during GIF export'
-    };
-  }
-}
-
-/**
  * Main export function - exports assets based on configuration
  */
 export async function exportAsset(
@@ -683,10 +469,8 @@ export async function exportAsset(
   config: ExportConfig & { videoVisibility?: { showVideo: boolean; opacity: number; blendMode: GlobalCompositeOperation } }
 ): Promise<ExportResult> {
   try {
-    if (config.format === 'mp4') {
+    if (config.format === 'webm') {
       return await exportAsVideo(video, activeEffects, poses, config);
-    } else if (config.format === 'gif') {
-      return await exportAsGif(video, activeEffects, poses, config);
     } else {
       // Render effects to canvas
       const canvas = await renderEffectsToCanvas(video, poses, activeEffects, config);
@@ -694,8 +478,8 @@ export async function exportAsset(
       // Determine quality value
       const quality = config.quality === 'low' ? 0.7 : config.quality === 'medium' ? 0.85 : 1.0;
       
-      // Export as image
-      return await exportAsImage(canvas, config.format, quality);
+      // Export as image (only PNG supported now)
+      return await exportAsImage(canvas, 'png', quality);
     }
   } catch (error) {
     return {

@@ -45,7 +45,13 @@ export async function GET(
     return NextResponse.json({ exercise: parsedExercise });
   } catch (error) {
     console.error('Error fetching exercise:', error);
-    return NextResponse.json({ error: 'Failed to fetch exercise' }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Failed to fetch exercise'
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -87,7 +93,13 @@ export async function PUT(
     return NextResponse.json({ success: true, exercise: updatedExercise });
   } catch (error) {
     console.error('Error updating exercise:', error);
-    return NextResponse.json({ error: 'Failed to update exercise' }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Failed to update exercise'
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -115,6 +127,12 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting exercise:', error);
-    return NextResponse.json({ error: 'Failed to delete exercise' }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Failed to delete exercise'
+      },
+      { status: 500 }
+    );
   }
 }

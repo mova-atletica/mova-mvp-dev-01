@@ -118,6 +118,7 @@ export default function SideBySideVideoPlayer({
             videoUrl={currentVideoUrl}
             keypointData={currentPoses}
             exercise={exercise}
+            duration={userVideoDuration}
             onFrameChange={currentOnFrameChange}
             onTimeUpdate={currentOnTimeUpdate}
             className={className}
@@ -157,6 +158,7 @@ export default function SideBySideVideoPlayer({
                 videoUrl={userVideoUrl}
                 keypointData={userPoses}
                 exercise={exercise}
+                duration={userVideoDuration}
                 onFrameChange={onUserFrameChange}
                 onTimeUpdate={onUserTimeUpdate}
                 className={className}

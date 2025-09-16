@@ -37,18 +37,31 @@ export async function renderMuybridgeFromCanvas(
   const borderColor = config.borderColor || '#333';
   const borderWidth = config.borderWidth || 2;
   
-  const { width, height } = ctx.canvas;
+  // During export, the canvas context is already scaled by resolutionMultiplier
+  // We need to use the original video dimensions for proper grid calculations
+  let canvasWidth = ctx.canvas.width;
+  let canvasHeight = ctx.canvas.height;
+  
+  if (isExport) {
+    // Detect if we're in a scaled context by checking the transform
+    const transform = ctx.getTransform();
+    const contextScale = transform.a; // a and d should be equal for uniform scaling
+    
+    if (contextScale !== 1) {
+      // The context is already scaled, so we need to use the original video dimensions
+      canvasWidth = sourceVideo.videoWidth;
+      canvasHeight = sourceVideo.videoHeight;
+    }
+  }
 
   // Calculate cell size (including padding)
   const totalPadX = padding * (cols - 1);
   const totalPadY = padding * (rows - 1);
-  const cellW = (width - totalPadX) / cols;
-  const cellH = (height - totalPadY) / rows;
-
-
+  const cellW = (canvasWidth - totalPadX) / cols;
+  const cellH = (canvasHeight - totalPadY) / rows;
 
   // Clear the entire canvas
-  ctx.clearRect(0, 0, width, height);
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
   // Get video dimensions for proper scaling
   const videoWidth = sourceVideo.videoWidth;
@@ -79,7 +92,8 @@ export async function renderMuybridgeFromCanvas(
   // Calculate frame times for each tile
   const totalFrames = rows * cols;
   const frameTimes: number[] = [];
-  const interval = Math.max(0.1, (sourceVideo.duration || 0) / totalFrames);
+  const frameStagger = config.frameStagger || 0.5;
+  const interval = Math.max(0.1, frameStagger);
   
   for (let i = 0; i < totalFrames; i++) {
     const time = Math.min(i * interval, (sourceVideo.duration || 0) - 0.1);
@@ -312,7 +326,7 @@ export async function preExtractKeyFrames(
   try {
     // Extract frames at regular intervals throughout the video
     const frameTimes: number[] = [];
-    const interval = Math.max(0.1, video.duration / totalFrames);
+    const interval = Math.max(0.1, frameStagger);
     
     for (let i = 0; i < totalFrames; i++) {
       const time = Math.min(i * interval, video.duration - 0.1);
@@ -448,19 +462,33 @@ export function renderMuybridge(
   const borderColor = config.borderColor || '#333';
   const borderWidth = config.borderWidth || 2;
   
-  const { width, height } = ctx.canvas;
+  // During export, the canvas context is already scaled by resolutionMultiplier
+  // We need to use the original video dimensions for proper grid calculations
+  let canvasWidth = ctx.canvas.width;
+  let canvasHeight = ctx.canvas.height;
+  
+  if (isExport) {
+    // Detect if we're in a scaled context by checking the transform
+    const transform = ctx.getTransform();
+    const contextScale = transform.a; // a and d should be equal for uniform scaling
+    
+    if (contextScale !== 1) {
+      // The context is already scaled, so we need to use the original video dimensions
+      canvasWidth = video.videoWidth;
+      canvasHeight = video.videoHeight;
+    }
+  }
 
   // Calculate cell size (including padding)
   const totalPadX = padding * (cols - 1);
   const totalPadY = padding * (rows - 1);
-  const cellW = (width - totalPadX) / cols;
-  const cellH = (height - totalPadY) / rows;
+  const cellW = (canvasWidth - totalPadX) / cols;
+  const cellH = (canvasHeight - totalPadY) / rows;
 
   // Debug logging for Muybridge rendering (only during export)
 
-
   // Clear the entire canvas
-  ctx.clearRect(0, 0, width, height);
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
   // Get video dimensions for proper scaling
   const videoWidth = video.videoWidth;
@@ -492,7 +520,7 @@ export function renderMuybridge(
   const videoId = video.src;
   const totalFrames = rows * cols;
   const frameTimes: number[] = [];
-  const interval = Math.max(0.1, (video.duration || 0) / totalFrames);
+  const interval = Math.max(0.1, frameStagger);
   
   for (let i = 0; i < totalFrames; i++) {
     const time = Math.min(i * interval, (video.duration || 0) - 0.1);
