@@ -113,6 +113,74 @@ async function renderEffectsToCanvas(
         case 'motion-trails':
           renderMotionTrails(ctx, video, poses, effect.config, video.currentTime, true); // isExport = true
           break;
+        case 'skeleton-overlay':
+          // Render skeleton overlay for image export
+          if (poses && poses.length > 0) {
+            const currentFrameIndex = Math.floor(video.currentTime * (poses.length / (video.duration || 1)));
+            if (currentFrameIndex < poses.length) {
+              const pose = poses[currentFrameIndex];
+              if (pose && pose.keypoints) {
+                const keypoints = pose.keypoints;
+                
+                ctx.save();
+                
+                // Draw skeleton connections (bones)
+                if (effect.config.showBones) {
+                  ctx.strokeStyle = effect.config.boneColor || '#00ff00';
+                  ctx.lineWidth = effect.config.boneWeight || 2;
+                  
+                  const allConnections = [
+                    [5, 7], [7, 9], // Left arm
+                    [6, 8], [8, 10], // Right arm
+                    [11, 13], [13, 15], // Left leg
+                    [12, 14], [14, 16], // Right leg
+                    [5, 6], // Shoulders
+                    [11, 12], // Hips
+                    [5, 11], // Left torso
+                    [6, 12], // Right torso
+                  ];
+                  
+                  // Only draw selected bones
+                  allConnections.forEach(([start, end]) => {
+                    const key = `${start}-${end}`;
+                    if (!effect.config.selectedBones?.includes(key)) return;
+                    
+                    const startPoint = keypoints[start];
+                    const endPoint = keypoints[end];
+                    
+                    if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                      ctx.beginPath();
+                      ctx.moveTo(startPoint.x, startPoint.y);
+                      ctx.lineTo(endPoint.x, endPoint.y);
+                      ctx.stroke();
+                    }
+                  });
+                }
+                
+                // Draw joints
+                if (effect.config.showJoints) {
+                  ctx.fillStyle = effect.config.jointColor || '#00ff00';
+                  
+                  keypoints.forEach((keypoint: any, idx: number) => {
+                    if (keypoint.score > 0.3 && effect.config.selectedJoints?.includes(idx)) {
+                      ctx.beginPath();
+                      ctx.arc(
+                        keypoint.x, 
+                        keypoint.y, 
+                        effect.config.jointSize || 4, 
+                        0, 
+                        2 * Math.PI
+                      );
+                      ctx.fill();
+                    }
+                  });
+                }
+                
+                ctx.restore();
+              }
+            }
+          }
+          break;
         default:
           // Skip stats effects for now - render them last
           break;
@@ -156,6 +224,74 @@ async function renderEffectsToCanvas(
                 renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
               } catch (error) {
                 console.warn('Failed to render motion trails effect for export frame:', error);
+              }
+              break;
+            case 'skeleton-overlay':
+              // Render skeleton overlay for Muybridge tiles
+              if (framePoses && framePoses.length > 0) {
+                const currentFrameIndex = Math.floor(frameTime * (framePoses.length / (frameVideo.duration || 1)));
+                if (currentFrameIndex < framePoses.length) {
+                  const pose = framePoses[currentFrameIndex];
+                  if (pose && pose.keypoints) {
+                    const keypoints = pose.keypoints;
+                    
+                    frameCtx.save();
+                    
+                    // Draw skeleton connections (bones)
+                    if (effect.config.showBones) {
+                      frameCtx.strokeStyle = effect.config.boneColor || '#00ff00';
+                      frameCtx.lineWidth = effect.config.boneWeight || 2;
+                      
+                      const allConnections = [
+                        [5, 7], [7, 9], // Left arm
+                        [6, 8], [8, 10], // Right arm
+                        [11, 13], [13, 15], // Left leg
+                        [12, 14], [14, 16], // Right leg
+                        [5, 6], // Shoulders
+                        [11, 12], // Hips
+                        [5, 11], // Left torso
+                        [6, 12], // Right torso
+                      ];
+                      
+                      // Only draw selected bones
+                      allConnections.forEach(([start, end]) => {
+                        const key = `${start}-${end}`;
+                        if (!effect.config.selectedBones?.includes(key)) return;
+                        
+                        const startPoint = keypoints[start];
+                        const endPoint = keypoints[end];
+                        
+                        if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                          frameCtx.beginPath();
+                          frameCtx.moveTo(startPoint.x, startPoint.y);
+                          frameCtx.lineTo(endPoint.x, endPoint.y);
+                          frameCtx.stroke();
+                        }
+                      });
+                    }
+                    
+                    // Draw joints
+                    if (effect.config.showJoints) {
+                      frameCtx.fillStyle = effect.config.jointColor || '#00ff00';
+                      
+                      keypoints.forEach((keypoint: any, idx: number) => {
+                        if (keypoint.score > 0.3 && effect.config.selectedJoints?.includes(idx)) {
+                          frameCtx.beginPath();
+                          frameCtx.arc(
+                            keypoint.x, 
+                            keypoint.y, 
+                            effect.config.jointSize || 4, 
+                            0, 
+                            2 * Math.PI
+                          );
+                          frameCtx.fill();
+                        }
+                      });
+                    }
+                    
+                    frameCtx.restore();
+                  }
+                }
               }
               break;
             default:
@@ -366,6 +502,74 @@ async function exportAsVideo(
               case 'motion-trails':
                 renderMotionTrails(ctx, video, poses, effect.config, frameTime, true); // isExport = true
                 break;
+              case 'skeleton-overlay':
+                // Render skeleton overlay for video export
+                if (poses && poses.length > 0) {
+                  const currentFrameIndex = Math.floor(frameTime * (poses.length / (video.duration || 1)));
+                  if (currentFrameIndex < poses.length) {
+                    const pose = poses[currentFrameIndex];
+                    if (pose && pose.keypoints) {
+                      const keypoints = pose.keypoints;
+                      
+                      ctx.save();
+                      
+                      // Draw skeleton connections (bones)
+                      if (effect.config.showBones) {
+                        ctx.strokeStyle = effect.config.boneColor || '#00ff00';
+                        ctx.lineWidth = effect.config.boneWeight || 2;
+                        
+                        const allConnections = [
+                          [5, 7], [7, 9], // Left arm
+                          [6, 8], [8, 10], // Right arm
+                          [11, 13], [13, 15], // Left leg
+                          [12, 14], [14, 16], // Right leg
+                          [5, 6], // Shoulders
+                          [11, 12], // Hips
+                          [5, 11], // Left torso
+                          [6, 12], // Right torso
+                        ];
+                        
+                        // Only draw selected bones
+                        allConnections.forEach(([start, end]) => {
+                          const key = `${start}-${end}`;
+                          if (!effect.config.selectedBones?.includes(key)) return;
+                          
+                          const startPoint = keypoints[start];
+                          const endPoint = keypoints[end];
+                          
+                          if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                            ctx.beginPath();
+                            ctx.moveTo(startPoint.x, startPoint.y);
+                            ctx.lineTo(endPoint.x, endPoint.y);
+                            ctx.stroke();
+                          }
+                        });
+                      }
+                      
+                      // Draw joints
+                      if (effect.config.showJoints) {
+                        ctx.fillStyle = effect.config.jointColor || '#00ff00';
+                        
+                        keypoints.forEach((keypoint: any, idx: number) => {
+                          if (keypoint.score > 0.3 && effect.config.selectedJoints?.includes(idx)) {
+                            ctx.beginPath();
+                            ctx.arc(
+                              keypoint.x, 
+                              keypoint.y, 
+                              effect.config.jointSize || 4, 
+                              0, 
+                              2 * Math.PI
+                            );
+                            ctx.fill();
+                          }
+                        });
+                      }
+                      
+                      ctx.restore();
+                    }
+                  }
+                }
+                break;
               default:
                 // Skip stats effects for now - render them last
                 break;
@@ -409,6 +613,74 @@ async function exportAsVideo(
                       renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
                     } catch (error) {
                       console.warn('Failed to render motion trails effect for video export frame:', error);
+                    }
+                    break;
+                  case 'skeleton-overlay':
+                    // Render skeleton overlay for video export Muybridge tiles
+                    if (framePoses && framePoses.length > 0) {
+                      const currentFrameIndex = Math.floor(frameTime * (framePoses.length / (frameVideo.duration || 1)));
+                      if (currentFrameIndex < framePoses.length) {
+                        const pose = framePoses[currentFrameIndex];
+                        if (pose && pose.keypoints) {
+                          const keypoints = pose.keypoints;
+                          
+                          frameCtx.save();
+                          
+                          // Draw skeleton connections (bones)
+                          if (effect.config.showBones) {
+                            frameCtx.strokeStyle = effect.config.boneColor || '#00ff00';
+                            frameCtx.lineWidth = effect.config.boneWeight || 2;
+                            
+                            const allConnections = [
+                              [5, 7], [7, 9], // Left arm
+                              [6, 8], [8, 10], // Right arm
+                              [11, 13], [13, 15], // Left leg
+                              [12, 14], [14, 16], // Right leg
+                              [5, 6], // Shoulders
+                              [11, 12], // Hips
+                              [5, 11], // Left torso
+                              [6, 12], // Right torso
+                            ];
+                            
+                            // Only draw selected bones
+                            allConnections.forEach(([start, end]) => {
+                              const key = `${start}-${end}`;
+                              if (!effect.config.selectedBones?.includes(key)) return;
+                              
+                              const startPoint = keypoints[start];
+                              const endPoint = keypoints[end];
+                              
+                              if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                                frameCtx.beginPath();
+                                frameCtx.moveTo(startPoint.x, startPoint.y);
+                                frameCtx.lineTo(endPoint.x, endPoint.y);
+                                frameCtx.stroke();
+                              }
+                            });
+                          }
+                          
+                          // Draw joints
+                          if (effect.config.showJoints) {
+                            frameCtx.fillStyle = effect.config.jointColor || '#00ff00';
+                            
+                            keypoints.forEach((keypoint: any, idx: number) => {
+                              if (keypoint.score > 0.3 && effect.config.selectedJoints?.includes(idx)) {
+                                frameCtx.beginPath();
+                                frameCtx.arc(
+                                  keypoint.x, 
+                                  keypoint.y, 
+                                  effect.config.jointSize || 4, 
+                                  0, 
+                                  2 * Math.PI
+                                );
+                                frameCtx.fill();
+                              }
+                            });
+                          }
+                          
+                          frameCtx.restore();
+                        }
+                      }
                     }
                     break;
                   default:

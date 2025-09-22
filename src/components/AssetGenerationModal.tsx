@@ -101,20 +101,6 @@ const availableEffects: Effect[] = [
       renderOrder: 'after'
     }
   },
-  { 
-    id: "exercise-details", 
-    name: "Exercise Details", 
-    description: "Exercise title, muscle groups, and branding", 
- 
-    preview: "Exercise info overlay", 
-    category: "Stats",
-    videoConfig: {
-      shouldRenderVideo: true,
-      videoOpacity: 0.9,
-      blendMode: 'normal',
-      renderOrder: 'after'
-    }
-  },
 ];
 
 // Add SVG icon components for effect types
@@ -324,7 +310,7 @@ export default function AssetGenerationModal({
     if (category === 'export') return [];
     return availableEffects.filter(effect => {
       if (category === 'Motion') return ['muybridge', 'motion-trails'].includes(effect.id);
-      if (category === 'Stats') return ['joint-angles', 'range-of-motion', 'exercise-details'].includes(effect.id);
+      if (category === 'Stats') return ['joint-angles', 'range-of-motion'].includes(effect.id);
       return false;
     });
   };
@@ -383,23 +369,6 @@ export default function AssetGenerationModal({
         angleSize: 16,
         showGlobalStats: false,
         safeZoneEnabled: false
-      };
-    } else if (effect.id === 'exercise-details') {
-      defaultConfig = {
-        showJointAngles: false,
-        enabledJoints: [],
-        showROM: false,
-        romJoints: [],
-        showGlobalStats: true,
-        exerciseTitle: exercise?.title || exerciseTitle || 'Open Move Session',
-        muscleGroups: exercise?.muscleGroups || ['Quads', 'Glutes'],
-        showLogo: true,
-        logoPosition: 'bottom_right',
-        safeZoneEnabled: true,
-        textColor: '#ffffff',
-        backgroundColor: '#000000',
-        backgroundOpacity: 0.8,
-        fontSize: 48
       };
     }
     
@@ -678,9 +647,6 @@ export default function AssetGenerationModal({
                         effectModulesRef.current.renderStats(frameCtx, frameVideo, framePoses, effect.config, frameTime);
                       }
                       break;
-                    case 'exercise-details':
-                      // Skip exercise-details - will be rendered once over entire canvas
-                      break;
                     default:
                       // Skip non-stats effects
                       break;
@@ -724,7 +690,6 @@ export default function AssetGenerationModal({
               switch (effect.effect.id) {
                 case 'joint-angles':
                 case 'range-of-motion':
-                case 'exercise-details':
                   if (effectModulesRef.current.renderStats) {
                     effectModulesRef.current.renderStats(ctx, video, poses, effect.config, currentTime);
                   }
@@ -1291,144 +1256,8 @@ export default function AssetGenerationModal({
           </div>
         )}
 
-        {/* Exercise Details-specific configuration */}
-        {effect.effect.id === 'exercise-details' && (
-          <div className="space-y-3">
-
-
-            {/* Text Styling */}
-            <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Text Styling</label>
-              
-              {/* Text Color */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Text Color</span>
-                <input
-                  type="color"
-                  value={effect.config.textColor || '#ffffff'}
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    textColor: e.target.value 
-                  })}
-                  className="w-8 h-6 border border-gray-300 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={effect.config.textColor || '#ffffff'}
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    textColor: e.target.value 
-                  })}
-                  className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded font-mono"
-                />
-              </div>
-
-              {/* Background Color */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Bg</span>
-                <input
-                  type="color"
-                  value={effect.config.backgroundColor || '#000000'}
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    backgroundColor: e.target.value 
-                  })}
-                  className="w-8 h-6 border border-gray-300 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={effect.config.backgroundColor || '#000000'}
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    backgroundColor: e.target.value 
-                  })}
-                  className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded font-mono"
-                />
-              </div>
-
-              {/* Background Opacity */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Opacity</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={(effect.config.backgroundOpacity || 0.8) * 100}
-                  className="flex-1 h-1"
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    backgroundOpacity: parseInt(e.target.value) / 100 
-                  })}
-                />
-                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
-                  {Math.round((effect.config.backgroundOpacity || 0.8) * 100)}%
-                </span>
-              </div>
-
-              {/* Text Size */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Size</span>
-                <input
-                  type="range"
-                  min="20"
-                  max="60"
-                  value={effect.config.fontSize || 48}
-                  className="flex-1 h-1"
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    fontSize: parseInt(e.target.value) 
-                  })}
-                />
-                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
-                  {effect.config.fontSize || 48}px
-                </span>
-              </div>
-            </div>
-
-            {/* Logo Settings */}
-            <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Branding</label>
-              <div className="flex items-center justify-between">
-                <label className="text-xs" style={{ color: '#181A1A' }}>Show Logo</label>
-                <input
-                  type="checkbox"
-                  checked={effect.config.showLogo !== false}
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    showLogo: e.target.checked 
-                  })}
-                  className="w-4 h-4"
-                />
-              </div>
-              <div className="text-xs mt-1" style={{ color: '#6B7280' }}>
-                Logo will be positioned in the bottom right corner
-              </div>
-            </div>
-
-            {/* Safe Zone Settings */}
-            <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>Layout</label>
-              <div className="flex items-center justify-between">
-                <label className="text-xs" style={{ color: '#181A1A' }}>Instagram Safe Zones</label>
-                <input
-                  type="checkbox"
-                  checked={effect.config.safeZoneEnabled !== false}
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    safeZoneEnabled: e.target.checked 
-                  })}
-                  className="w-4 h-4"
-                />
-              </div>
-              <div className="text-xs mt-1" style={{ color: '#6B7280' }}>
-                Positions text and logo within Instagram Stories safe areas
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Generic intensity control for other effects */}
-        {effect.effect.id !== 'muybridge' && effect.effect.id !== 'motion-trails' && effect.effect.id !== 'joint-angles' && effect.effect.id !== 'range-of-motion' && effect.effect.id !== 'exercise-details' && (
+        {effect.effect.id !== 'muybridge' && effect.effect.id !== 'motion-trails' && effect.effect.id !== 'joint-angles' && effect.effect.id !== 'range-of-motion' && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium" style={{ color: '#181A1A' }}>Intensity</label>
@@ -2035,7 +1864,7 @@ export default function AssetGenerationModal({
                         {getEffectsForCategory(selectedCategory).map((effect) => {
                           const isActive = isEffectActive(effect.id);
                           const isComingSoon = effect.description.includes('Coming Soon');
-                          const isImplemented = ['muybridge', 'motion-trails', 'joint-angles', 'range-of-motion', 'exercise-details'].includes(effect.id);
+                          const isImplemented = ['muybridge', 'motion-trails', 'joint-angles', 'range-of-motion'].includes(effect.id);
                           return (
             <button
                               key={effect.id}

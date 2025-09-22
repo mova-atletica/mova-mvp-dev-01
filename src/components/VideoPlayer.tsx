@@ -956,9 +956,60 @@ const processPoseFeedback = () => {
 
   // Handle video errors
   const handleError = useCallback(() => {
-    setError('Failed to load video');
+    console.error('Video loading error:', videoRef.current?.error);
+    console.error('Video URL that failed:', videoUrl);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to load video';
+    if (videoRef.current?.error) {
+      switch (videoRef.current.error.code) {
+        case MediaError.MEDIA_ERR_ABORTED:
+          errorMessage = 'Video loading was aborted';
+          break;
+        case MediaError.MEDIA_ERR_NETWORK:
+          errorMessage = 'Network error while loading video - please check your connection';
+          break;
+        case MediaError.MEDIA_ERR_DECODE:
+          errorMessage = 'Video format not supported or corrupted';
+          break;
+        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          errorMessage = 'Video format not supported by browser';
+          break;
+        default:
+          errorMessage = videoRef.current.error.message || 'Unknown video error';
+      }
+    }
+    
+    setError(errorMessage);
     setIsLoading(false);
-  }, []);
+  }, [videoUrl]);
+
+  // Add timeout for video loading
+  useEffect(() => {
+    if (!videoUrl) return;
+
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.error('Video loading timeout');
+        setError('Video loading timeout - please refresh the page');
+        setIsLoading(false);
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [videoUrl, isLoading]);
+
+  // Reset loading state when videoUrl changes
+  useEffect(() => {
+    if (videoUrl) {
+      setIsLoading(true);
+      setError(null);
+      // Force video element reset
+      if (videoRef.current) {
+        videoRef.current.load(); // Force reload
+      }
+    }
+  }, [videoUrl]);
 
   // Play/pause toggle
   const togglePlay = useCallback(() => {
@@ -1391,6 +1442,7 @@ const processPoseFeedback = () => {
 const videoElement = videoUrl ? (
   <div style={{ overflow: 'hidden', position: 'relative' }}>
     <video
+      key={videoUrl} // Force re-mount when videoUrl changes
       ref={videoRef}
       src={videoUrl}
       className="block"
@@ -1406,6 +1458,16 @@ const videoElement = videoUrl ? (
       onLoadedMetadata={handleLoadedMetadata}
       onTimeUpdate={handleTimeUpdate}
       onError={handleError}
+      onLoadStart={() => {
+        console.log('Video loading started for:', videoUrl);
+        console.log('Video element readyState:', videoRef.current?.readyState);
+        console.log('Video element networkState:', videoRef.current?.networkState);
+        setIsLoading(true);
+      }}
+      onCanPlay={() => {
+        console.log('Video can play');
+        setIsLoading(false);
+      }}
       onPlay={() => setIsPlaying(true)}
       onPause={() => setIsPlaying(false)}
       onTouchStart={handleTouchStart}

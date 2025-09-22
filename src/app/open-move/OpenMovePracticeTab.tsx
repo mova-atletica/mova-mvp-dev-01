@@ -439,7 +439,7 @@ export default function OpenMovePracticeTab() {
       width: '94%' // Match header width
     }}>
       {/* Main Content */}
-      <div className="bg-white rounded-lg shadow-lg p-2" style={{ backgroundColor: 'var(--transparent)' }}>
+      <div className="bg-white rounded-lg shadow-md p-2" style={{ backgroundColor: 'var(--transparent)' }}>
           {/* Instructions with Demo Carousel */}
           {!videoUrl && (
           <div className="py-4">
@@ -478,7 +478,7 @@ export default function OpenMovePracticeTab() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="video/mp4,video/mov,video/webm"
+                    accept="video/*"
                     onChange={handleUpload}
                     className="hidden"
                   />
@@ -488,8 +488,8 @@ export default function OpenMovePracticeTab() {
 
             {/* Demo Carousel Section */}
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-center mb-4" style={{ color: 'var(--foreground)' }}>
-                Recording Motion Videos
+              <h3 className="text-md font-semibold text-center mb-4" style={{ color: 'var(--foreground)' }}>
+                Guidlines for Motion Videos:
               </h3>
               
               {/* Carousel Container */}

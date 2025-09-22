@@ -1308,13 +1308,13 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
           ) : (
             <div className="space-y-8">
       {/* Navigation Tabs */}
-              <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="bg-transparent rounded-lg shadow-lg p-6">
                 <div className="flex gap-4 mb-6 flex-wrap">
         <button
                     onClick={() => setViewMode('upload')}
                     className={`px-4 py-2 rounded-lg font-medium transition ${
             viewMode === 'upload'
-              ? 'bg-blue-100 text-white'
+              ? 'bg-blue-600 text-white'
               : 'bg-onyx-20 text-onyx-10 hover:bg-onyx-30'
           }`}
         >
@@ -1324,7 +1324,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
           onClick={() => setViewMode('exercises')}
           className={`px-4 py-2 rounded-lg font-medium transition ${
             viewMode === 'exercises'
-              ? 'bg-blue-100 text-white'
+              ? 'bg-blue-600 text-white'
               : 'bg-onyx-20 text-onyx-10 hover:bg-onyx-30'
           }`}
         >
@@ -1334,7 +1334,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                     onClick={() => setViewMode('curate')}
                     className={`px-4 py-2 rounded-lg font-medium transition ${
             viewMode === 'curate'
-              ? 'bg-blue-100 text-white'
+              ? 'bg-blue-600 text-white'
               : 'bg-onyx-20 text-onyx-10 hover:bg-onyx-30'
           }`}
         >
@@ -1344,7 +1344,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                     onClick={() => setViewMode('featured')}
                     className={`px-4 py-2 rounded-lg font-medium transition ${
             viewMode === 'featured'
-              ? 'bg-blue-100 text-white'
+              ? 'bg-blue-600 text-white'
               : 'bg-onyx-20 text-onyx-10 hover:bg-onyx-30'
           }`}
         >
@@ -1354,7 +1354,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
           onClick={() => setViewMode('thumbnails')}
           className={`px-4 py-2 rounded-lg font-medium transition ${
             viewMode === 'thumbnails'
-              ? 'bg-blue-100 text-white'
+              ? 'bg-blue-600 text-white'
               : 'bg-onyx-20 text-onyx-10 hover:bg-onyx-30'
           }`}
         >
@@ -1380,7 +1380,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
           />
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          className="w-full bg-blue-100 text-white py-4 rounded-lg font-bold hover:bg-blue-90 transition"
+                          className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold hover:bg-blue-90 transition"
                         >
                           Choose Video File
                         </button>
@@ -1425,7 +1425,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                     {/* Metadata Form */}
                     <div className="mb-8">
                       <h3 className="text-lg font-semibold text-onyx-10 mb-4">Exercise Metadata</h3>
-                      <div className="bg-white rounded-lg p-6">
+                      <div className="bg-transparent rounded-lg p-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
                             <label className="block text-sm font-medium text-onyx-10 mb-2">Title</label>
@@ -1496,13 +1496,13 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                     <h2 className="text-2xl font-bold text-onyx-10 mb-6">Curated Sections</h2>
               <button
                       onClick={() => setShowCuratedSectionForm(true)}
-                      className="bg-blue-100 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-90 transition mb-6"
+                      className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-90 transition mb-6"
               >
                       Create New Section
               </button>
               <div className="grid gap-4">
                 {curatedSections.map((section) => (
-                        <div key={section.id} className="bg-white rounded-lg p-4 border border-onyx-30">
+                        <div key={section.id} className="bg-transparent rounded-lg p-4 border border-onyx-30">
                           <div className="flex justify-between items-center">
                             <div>
                         <h3 className="text-lg font-semibold text-onyx-10">{section.title}</h3>
@@ -1511,7 +1511,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                             <div className="flex gap-2">
                         <button
                           onClick={() => handleEditCuratedSection(section)}
-                                className="px-4 py-2 bg-blue-100 text-white rounded text-sm hover:bg-blue-90 transition"
+                                className="px-4 py-2 bg-yellow-600 text-black rounded text-sm hover:bg-blue-90 transition"
                         >
                                 Edit
                         </button>
@@ -1534,13 +1534,13 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                     <h2 className="text-2xl font-bold text-onyx-10 mb-6">Featured Content</h2>
               <button
                       onClick={() => setShowFeaturedForm(true)}
-                      className="bg-blue-100 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-90 transition mb-6"
+                      className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-90 transition mb-6"
               >
                       Create Featured Content
               </button>
               <div className="grid gap-4">
                 {featuredContent.map((item) => (
-                        <div key={item.id} className="bg-white rounded-lg p-4 border border-onyx-30">
+                        <div key={item.id} className="bg-transparent rounded-lg p-4 border border-onyx-30">
                           <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
                               {item.heroImage && (
@@ -1560,7 +1560,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                             <div className="flex gap-2">
                         <button
                           onClick={() => handleEditFeatured(item)}
-                                className="px-4 py-2 bg-blue-100 text-white rounded text-sm hover:bg-blue-90 transition"
+                                className="px-4 py-2 bg-yellow-600 text-black rounded text-sm hover:bg-blue-90 transition"
                         >
                                 Edit
                         </button>
@@ -1583,7 +1583,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
 
       {viewMode === 'thumbnails' && (
         <div className="bg-onyx-20 rounded-lg p-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="bg-transparent rounded-lg shadow-lg p-6">
             <h2 className="text-2xl font-bold text-onyx-10 mb-6">Thumbnail Generator</h2>
             <p className="text-onyx-30 text-lg mb-6">
               Generate video thumbnails for exercises automatically
@@ -1592,7 +1592,7 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
               <button
                 onClick={generateAllThumbnails}
                 disabled={thumbnailLoading}
-                className="bg-blue-100 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-blue-90 transition disabled:opacity-50"
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-blue-90 transition disabled:opacity-50"
               >
                 {thumbnailLoading ? 'Generating All Thumbnails...' : 'Generate All Thumbnails'}
               </button>
@@ -1634,14 +1634,14 @@ Trunk angle: avg ${trunkStats.avg?.toFixed(1) ?? "N/A"}° (min: ${trunkStats.min
                         <button
                           onClick={() => generateThumbnailForExercise(exercise)}
                           disabled={thumbnailProcessing === exercise.id}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition disabled:opacity-50"
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-green-700 transition disabled:opacity-50"
                         >
                           {thumbnailProcessing === exercise.id ? 'Generating...' : 'Generate Thumbnail'}
                         </button>
                       )}
                       <button
                         onClick={loadExercises}
-                        className="px-4 py-2 bg-blue-100 text-white rounded-lg text-sm hover:bg-blue-90 transition"
+                        className="px-4 py-2 bg-yellow-600 text-black rounded-lg text-sm hover:bg-blue-90 transition"
                       >
                         Refresh
                       </button>

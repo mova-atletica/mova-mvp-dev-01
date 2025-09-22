@@ -23,7 +23,7 @@ export default function OpenMovePage() {
             Open Move
           </h1>
           <p className="text-l" style={{ color: 'var(--section-subtitle)' }}>
-          Record a video or upload any video with a single person (beta) to analyze and explore your body's movements
+          Record a video or upload any video with a single person (beta) to analyze and explore your body's movements!
           </p>
         </div>
 

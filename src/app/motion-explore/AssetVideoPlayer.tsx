@@ -89,13 +89,12 @@ const availableEffects: Effect[] = [
       renderOrder: 'after'
     }
   },
-  // Add missing Branding effect
   { 
-    id: "exercise-details", 
-    name: "Branding", 
-    description: "Exercise title and branding overlay", 
-    preview: "Branding overlay", 
-    category: "Stats",
+    id: "skeleton-overlay", 
+    name: "Skeleton Overlay", 
+    description: "Display skeletal structure with customizable colors and sizes", 
+    preview: "Skeleton display", 
+    category: "Motion",
     videoConfig: {
       shouldRenderVideo: true,
       videoOpacity: 0.9,
@@ -222,10 +221,10 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
           gridSize: 3,
           gridRows: 3,
           gridCols: 3,
-          padding: 8,
+          padding: 0,
           frameStagger: 0.5,
           showBorders: true,
-          borderColor: '#666666',
+          borderColor: '#00ff00',
           borderWidth: 2
         };
       case 'motion-trails':
@@ -234,10 +233,10 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
           trailOpacity: 0.6,
           trailStyle: 'simple',
           fadeOut: true,
-          color: '#00ff00',
+          color: '#ffffff',
           thickness: 2,
-          showBones: false,
-          boneColor: '#ff0000',
+          showBones: true,
+          boneColor: '#ffffff',
           boneThickness: 1
         };
       case 'joint-angles':
@@ -263,23 +262,17 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
           showGlobalStats: false,
           safeZoneEnabled: false
         };
-      // Add missing exercise-details config
-      case 'exercise-details':
+      case 'skeleton-overlay':
         return {
-          showJointAngles: false,
-          enabledJoints: [],
-          showROM: false,
-          romJoints: [],
-          showGlobalStats: true,
-          exerciseTitle: exercise?.title || exerciseTitle || 'My Motion',
-          muscleGroups: [], // Remove muscle groups
-          showLogo: true,
-          logoPosition: 'bottom_right',
-          safeZoneEnabled: true,
-          textColor: '#ffffff',
-          backgroundColor: '#000000',
-          backgroundOpacity: 0.8,
-          fontSize: 48 // Match AssetGenerationModal fontSize
+          showSkeleton: true,
+          boneColor: '#00ff00',
+          jointColor: '#00ff00',
+          boneWeight: 2,
+          jointSize: 4,
+          showJoints: true,
+          showBones: true,
+          selectedJoints: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+          selectedBones: ['5-7', '7-9', '6-8', '8-10', '11-13', '13-15', '12-14', '14-16', '5-6', '11-12', '5-11', '6-12']
         };
       default:
         return {};
@@ -415,6 +408,96 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                         effectModulesRef.current.renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime);
                       }
                       break;
+                    case 'skeleton-overlay':
+                      // Render skeleton overlay in Muybridge tiles
+                      if (framePoses && framePoses.length > 0) {
+                        const currentFrameIndex = Math.floor(frameTime * (framePoses.length / (frameVideo.duration || 1)));
+                        if (currentFrameIndex < framePoses.length) {
+                          const pose = framePoses[currentFrameIndex];
+                          if (pose && pose.keypoints) {
+                            const keypoints = pose.keypoints;
+                            
+                            // Get frame dimensions for scaling
+                            const frameWidth = frameVideo.videoWidth;
+                            const frameHeight = frameVideo.videoHeight;
+                            const canvasWidth = frameCtx.canvas.width;
+                            const canvasHeight = frameCtx.canvas.height;
+                            
+                            // Calculate scale factors for object-fit: contain
+                            const videoAspectRatio = frameWidth / frameHeight;
+                            const canvasAspectRatio = canvasWidth / canvasHeight;
+                            
+                            let scaleX, scaleY, offsetX = 0, offsetY = 0;
+                            
+                            if (videoAspectRatio > canvasAspectRatio) {
+                              scaleX = canvasWidth / frameWidth;
+                              scaleY = scaleX;
+                              offsetY = (canvasHeight - frameHeight * scaleY) / 2;
+                            } else {
+                              scaleY = canvasHeight / frameHeight;
+                              scaleX = scaleY;
+                              offsetX = (canvasWidth - frameWidth * scaleX) / 2;
+                            }
+                            
+                            frameCtx.save();
+                            
+                            // Draw skeleton connections (bones)
+                            if (effect.config.showBones) {
+                              frameCtx.strokeStyle = effect.config.boneColor || '#00ff00';
+                              frameCtx.lineWidth = effect.config.boneWeight || 2;
+                              
+                              const allConnections = [
+                                [5, 7], [7, 9], // Left arm
+                                [6, 8], [8, 10], // Right arm
+                                [11, 13], [13, 15], // Left leg
+                                [12, 14], [14, 16], // Right leg
+                                [5, 6], // Shoulders
+                                [11, 12], // Hips
+                                [5, 11], // Left torso
+                                [6, 12], // Right torso
+                              ];
+                              
+                              // Only draw selected bones
+                              allConnections.forEach(([start, end]) => {
+                                const key = `${start}-${end}`;
+                                if (!effect.config.selectedBones?.includes(key)) return;
+                                
+                                const startPoint = keypoints[start];
+                                const endPoint = keypoints[end];
+                                
+                                if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                                  frameCtx.beginPath();
+                                  frameCtx.moveTo(startPoint.x * scaleX + offsetX, startPoint.y * scaleY + offsetY);
+                                  frameCtx.lineTo(endPoint.x * scaleX + offsetX, endPoint.y * scaleY + offsetY);
+                                  frameCtx.stroke();
+                                }
+                              });
+                            }
+                            
+                            // Draw joints
+                            if (effect.config.showJoints) {
+                              frameCtx.fillStyle = effect.config.jointColor || '#00ff00';
+                              
+                              keypoints.forEach((keypoint: any, idx: number) => {
+                                if (keypoint.score > 0.3 && effect.config.selectedJoints?.includes(idx)) {
+                                  frameCtx.beginPath();
+                                  frameCtx.arc(
+                                    keypoint.x * scaleX + offsetX, 
+                                    keypoint.y * scaleY + offsetY, 
+                                    effect.config.jointSize || 4, 
+                                    0, 
+                                    2 * Math.PI
+                                  );
+                                  frameCtx.fill();
+                                }
+                              });
+                            }
+                            
+                            frameCtx.restore();
+                          }
+                        }
+                      }
+                      break;
                     default:
                       // Skip stats effects for now - render them last
                       break;
@@ -433,9 +516,7 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                         effectModulesRef.current.renderStats(frameCtx, frameVideo, framePoses, effect.config, frameTime);
                       }
                       break;
-                    case 'exercise-details':
-                      // Skip exercise-details - will be rendered once over entire canvas
-                      break;
+
                     default:
                       // Skip non-stats effects
                       break;
@@ -467,6 +548,96 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                     effectModulesRef.current.renderMotionTrails(ctx, video, poses, effect.config, currentTime);
                   }
                   break;
+                case 'skeleton-overlay':
+                  // Reuse the existing skeleton rendering logic from VideoPlayer
+                  if (poses && poses.length > 0) {
+                    const currentFrameIndex = Math.floor(currentTime * (poses.length / (video.duration || 1)));
+                    if (currentFrameIndex < poses.length) {
+                      const pose = poses[currentFrameIndex];
+                      if (pose && pose.keypoints) {
+                        const keypoints = pose.keypoints;
+                        
+                        // Get video dimensions for scaling
+                        const videoWidth = video.videoWidth;
+                        const videoHeight = video.videoHeight;
+                        const canvasWidth = ctx.canvas.width;
+                        const canvasHeight = ctx.canvas.height;
+                        
+                        // Calculate scale factors for object-fit: contain
+                        const videoAspectRatio = videoWidth / videoHeight;
+                        const canvasAspectRatio = canvasWidth / canvasHeight;
+                        
+                        let scaleX, scaleY, offsetX = 0, offsetY = 0;
+                        
+                        if (videoAspectRatio > canvasAspectRatio) {
+                          scaleX = canvasWidth / videoWidth;
+                          scaleY = scaleX;
+                          offsetY = (canvasHeight - videoHeight * scaleY) / 2;
+                        } else {
+                          scaleY = canvasHeight / videoHeight;
+                          scaleX = scaleY;
+                          offsetX = (canvasWidth - videoWidth * scaleX) / 2;
+                        }
+                        
+                        ctx.save();
+                        
+                        // Draw skeleton connections (bones)
+                        if (effect.config.showBones) {
+                          ctx.strokeStyle = effect.config.boneColor || '#00ff00';
+                          ctx.lineWidth = effect.config.boneWeight || 2;
+                          
+                          const allConnections = [
+                            [5, 7], [7, 9], // Left arm
+                            [6, 8], [8, 10], // Right arm
+                            [11, 13], [13, 15], // Left leg
+                            [12, 14], [14, 16], // Right leg
+                            [5, 6], // Shoulders
+                            [11, 12], // Hips
+                            [5, 11], // Left torso
+                            [6, 12], // Right torso
+                          ];
+                          
+                          // Only draw selected bones
+                          allConnections.forEach(([start, end]) => {
+                            const key = `${start}-${end}`;
+                            if (!effect.config.selectedBones?.includes(key)) return;
+                            
+                            const startPoint = keypoints[start];
+                            const endPoint = keypoints[end];
+                            
+                            if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                              ctx.beginPath();
+                              ctx.moveTo(startPoint.x * scaleX + offsetX, startPoint.y * scaleY + offsetY);
+                              ctx.lineTo(endPoint.x * scaleX + offsetX, endPoint.y * scaleY + offsetY);
+                              ctx.stroke();
+                            }
+                          });
+                        }
+                        
+                        // Draw joints
+                        if (effect.config.showJoints) {
+                          ctx.fillStyle = effect.config.jointColor || '#00ff00';
+                          
+                          keypoints.forEach((keypoint: any, idx: number) => {
+                            if (keypoint.score > 0.3 && effect.config.selectedJoints?.includes(idx)) {
+                              ctx.beginPath();
+                              ctx.arc(
+                                keypoint.x * scaleX + offsetX, 
+                                keypoint.y * scaleY + offsetY, 
+                                effect.config.jointSize || 4, 
+                                0, 
+                                2 * Math.PI
+                              );
+                              ctx.fill();
+                            }
+                          });
+                        }
+                        
+                        ctx.restore();
+                      }
+                    }
+                  }
+                  break;
                 default:
                   // Skip stats effects for now - render them last
                   break;
@@ -480,7 +651,6 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
               switch (effect.effect.id) {
                 case 'joint-angles':
                 case 'range-of-motion':
-                case 'exercise-details':
                   if (effectModulesRef.current.renderStats && poses && poses.length > 0) {
                     // No transformation needed - canvas is now at video natural size
                     try {
@@ -2007,23 +2177,22 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                         </div>
                       )}
 
-                      {/* Branding Configuration */}
-                      {activeEffect.effect.id === 'exercise-details' && (
+                      {/* Skeleton Overlay Configuration */}
+                      {activeEffect.effect.id === 'skeleton-overlay' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {/* Text Styling */}
+                          {/* Bone Settings */}
                           <div>
                             <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
-                              Text Styling
+                              Bone Settings
                             </label>
                             
-                            {/* Text Color */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '10px', width: '40px', color: '#181A1A' }}>Text Color</span>
+                              <span style={{ fontSize: '10px', width: '40px', color: '#181A1A' }}>Color</span>
                               <input
                                 type="color"
-                                value={activeEffect.config.textColor || '#ffffff'}
+                                value={activeEffect.config.boneColor || '#00ff00'}
                                 onChange={(e) => {
-                                  const newConfig = { ...activeEffect.config, textColor: e.target.value };
+                                  const newConfig = { ...activeEffect.config, boneColor: e.target.value };
                                   const updatedEffects = activeEffects.map(effect => 
                                     effect.effect.id === activeEffect.effect.id 
                                       ? { ...effect, config: newConfig }
@@ -2035,9 +2204,9 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                               />
                               <input
                                 type="text"
-                                value={activeEffect.config.textColor || '#ffffff'}
+                                value={activeEffect.config.boneColor || '#00ff00'}
                                 onChange={(e) => {
-                                  const newConfig = { ...activeEffect.config, textColor: e.target.value };
+                                  const newConfig = { ...activeEffect.config, boneColor: e.target.value };
                                   const updatedEffects = activeEffects.map(effect => 
                                     effect.effect.id === activeEffect.effect.id 
                                       ? { ...effect, config: newConfig }
@@ -2048,51 +2217,17 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                                 style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', fontFamily: 'monospace', color: '#181A1A' }}
                               />
                             </div>
-
-                            {/* Background Color */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '10px', width: '40px', color: '#181A1A' }}>Bg</span>
-                              <input
-                                type="color"
-                                value={activeEffect.config.backgroundColor || '#000000'}
-                                onChange={(e) => {
-                                  const newConfig = { ...activeEffect.config, backgroundColor: e.target.value };
-                                  const updatedEffects = activeEffects.map(effect => 
-                                    effect.effect.id === activeEffect.effect.id 
-                                      ? { ...effect, config: newConfig }
-                                      : effect
-                                  );
-                                  setActiveEffects(updatedEffects);
-                                }}
-                                style={{ width: '24px', height: '20px', border: '1px solid #d1d5db', borderRadius: '4px' }}
-                              />
-                              <input
-                                type="text"
-                                value={activeEffect.config.backgroundColor || '#000000'}
-                                onChange={(e) => {
-                                  const newConfig = { ...activeEffect.config, backgroundColor: e.target.value };
-                                  const updatedEffects = activeEffects.map(effect => 
-                                    effect.effect.id === activeEffect.effect.id 
-                                      ? { ...effect, config: newConfig }
-                                      : effect
-                                  );
-                                  setActiveEffects(updatedEffects);
-                                }}
-                                style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', fontFamily: 'monospace', color: '#181A1A' }}
-                              />
-                            </div>
-
-                            {/* Background Opacity */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '10px', width: '40px', color: '#181A1A' }}>Opacity</span>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '10px', width: '40px', color: '#181A1A' }}>Weight</span>
                               <input
                                 type="range"
-                                min="0"
-                                max="100"
+                                min="1"
+                                max="8"
                                 step="1"
-                                value={(activeEffect.config.backgroundOpacity || 0.8) * 100}
+                                value={activeEffect.config.boneWeight || 2}
                                 onChange={(e) => {
-                                  const newConfig = { ...activeEffect.config, backgroundOpacity: parseInt(e.target.value) / 100 };
+                                  const newConfig = { ...activeEffect.config, boneWeight: parseInt(e.target.value) };
                                   const updatedEffects = activeEffects.map(effect => 
                                     effect.effect.id === activeEffect.effect.id 
                                       ? { ...effect, config: newConfig }
@@ -2103,21 +2238,59 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                                 style={{ flex: 1, height: '4px' }}
                               />
                               <span style={{ fontSize: '10px', width: '20px', color: '#181A1A' }}>
-                                {Math.round((activeEffect.config.backgroundOpacity || 0.8) * 100)}%
+                                {activeEffect.config.boneWeight || 2}px
                               </span>
                             </div>
+                          </div>
 
-                            {/* Text Size */}
+                          {/* Joint Settings */}
+                          <div>
+                            <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
+                              Joint Settings
+                            </label>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '10px', width: '40px', color: '#181A1A' }}>Color</span>
+                              <input
+                                type="color"
+                                value={activeEffect.config.jointColor || '#00ff00'}
+                                onChange={(e) => {
+                                  const newConfig = { ...activeEffect.config, jointColor: e.target.value };
+                                  const updatedEffects = activeEffects.map(effect => 
+                                    effect.effect.id === activeEffect.effect.id 
+                                      ? { ...effect, config: newConfig }
+                                      : effect
+                                  );
+                                  setActiveEffects(updatedEffects);
+                                }}
+                                style={{ width: '24px', height: '20px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+                              />
+                              <input
+                                type="text"
+                                value={activeEffect.config.jointColor || '#00ff00'}
+                                onChange={(e) => {
+                                  const newConfig = { ...activeEffect.config, jointColor: e.target.value };
+                                  const updatedEffects = activeEffects.map(effect => 
+                                    effect.effect.id === activeEffect.effect.id 
+                                      ? { ...effect, config: newConfig }
+                                      : effect
+                                  );
+                                  setActiveEffects(updatedEffects);
+                                }}
+                                style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', fontFamily: 'monospace', color: '#181A1A' }}
+                              />
+                            </div>
+                            
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span style={{ fontSize: '10px', width: '40px', color: '#181A1A' }}>Size</span>
                               <input
                                 type="range"
-                                min="16"
-                                max="48"
+                                min="2"
+                                max="16"
                                 step="1"
-                                value={activeEffect.config.fontSize || 24}
+                                value={activeEffect.config.jointSize || 4}
                                 onChange={(e) => {
-                                  const newConfig = { ...activeEffect.config, fontSize: parseInt(e.target.value) };
+                                  const newConfig = { ...activeEffect.config, jointSize: parseInt(e.target.value) };
                                   const updatedEffects = activeEffects.map(effect => 
                                     effect.effect.id === activeEffect.effect.id 
                                       ? { ...effect, config: newConfig }
@@ -2128,67 +2301,55 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                                 style={{ flex: 1, height: '4px' }}
                               />
                               <span style={{ fontSize: '10px', width: '20px', color: '#181A1A' }}>
-                                {activeEffect.config.fontSize || 24}px
+                                {activeEffect.config.jointSize || 4}px
                               </span>
                             </div>
                           </div>
 
-                          {/* Logo Settings */}
+                          {/* Options */}
                           <div>
                             <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
-                              Branding
+                              Options
                             </label>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <label style={{ fontSize: '10px', color: '#181A1A' }}>Show Logo</label>
-                              <input
-                                type="checkbox"
-                                checked={activeEffect.config.showLogo !== false}
-                                onChange={(e) => {
-                                  const newConfig = { ...activeEffect.config, showLogo: e.target.checked };
-                                  const updatedEffects = activeEffects.map(effect => 
-                                    effect.effect.id === activeEffect.effect.id 
-                                      ? { ...effect, config: newConfig }
-                                      : effect
-                                  );
-                                  setActiveEffects(updatedEffects);
-                                }}
-                                style={{ width: '16px', height: '16px' }}
-                              />
-                            </div>
-                            <div style={{ fontSize: '10px', marginTop: '4px', color: '#6B7280' }}>
-                              Logo will be positioned in the bottom right corner
-                            </div>
-                          </div>
-
-                          {/* Safe Zone Settings */}
-                          <div>
-                            <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
-                              Layout
-                            </label>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <label style={{ fontSize: '10px', color: '#181A1A' }}>Instagram Safe Zones</label>
-                              <input
-                                type="checkbox"
-                                checked={activeEffect.config.safeZoneEnabled !== false}
-                                onChange={(e) => {
-                                  const newConfig = { ...activeEffect.config, safeZoneEnabled: e.target.checked };
-                                  const updatedEffects = activeEffects.map(effect => 
-                                    effect.effect.id === activeEffect.effect.id 
-                                      ? { ...effect, config: newConfig }
-                                      : effect
-                                  );
-                                  setActiveEffects(updatedEffects);
-                                }}
-                                style={{ width: '16px', height: '16px' }}
-                              />
-                            </div>
-                            <div style={{ fontSize: '10px', marginTop: '4px', color: '#6B7280' }}>
-                              Positions text and logo within Instagram Stories safe areas
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={activeEffect.config.showBones !== false}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, showBones: e.target.checked };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '12px', height: '12px' }}
+                                />
+                                <span style={{ fontSize: '10px', color: '#181A1A' }}>Show bones</span>
+                              </label>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={activeEffect.config.showJoints !== false}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, showJoints: e.target.checked };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '12px', height: '12px' }}
+                                />
+                                <span style={{ fontSize: '10px', color: '#181A1A' }}>Show joints</span>
+                              </label>
                             </div>
                           </div>
                         </div>
                       )}
-
                     </div>
                   );
                 })()}

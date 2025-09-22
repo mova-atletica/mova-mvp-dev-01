@@ -503,15 +503,11 @@ export function renderGlobalOverlays(
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
   
-  // Check if we're in export mode by looking for scaling in the context
-  // The context transform matrix will show if scaling has been applied
-  const transform = ctx.getTransform();
-  const scaleX = transform.a;
-  const scaleY = transform.d;
-  
-  // If the context is scaled (export mode), use the original dimensions
-  const effectiveWidth = scaleX !== 1 ? canvasWidth / scaleX : canvasWidth;
-  const effectiveHeight = scaleY !== 1 ? canvasHeight / scaleY : canvasHeight;
+  // Replace lines 506-514 with:
+  // Use canvas dimensions directly - they should always match video natural size
+  // The scaling logic will handle the display size differences
+  const effectiveWidth = canvasWidth;
+  const effectiveHeight = canvasHeight;
   
   const safeZone = config.safeZoneEnabled 
     ? calculateSafeZone(effectiveWidth, effectiveHeight)
@@ -526,6 +522,11 @@ export function renderGlobalOverlays(
         safeHeight: effectiveHeight - 40
       };
   
+  // Calculate scale factor for consistent sizing across all elements
+  const referenceWidth = 400;
+  const referenceHeight = 711;
+  const scaleFactor = Math.min(effectiveWidth / referenceWidth, effectiveHeight / referenceHeight);
+  
   ctx.save();
   
   // Combined exercise info with customizable styling
@@ -535,16 +536,19 @@ export function renderGlobalOverlays(
       ? `Target: ${config.muscleGroups.join(', ')}` 
       : '';
     
-    // Get styling from config
-    const fontSize = config.fontSize || 48;
-    const titleFontSize = fontSize;
-    const muscleFontSize = Math.round(fontSize * 0.6); // Muscle groups 60% of title size
+    // Use the scale factor calculated at the top of the function
+    
+    // Get styling from config and apply scaling
+    const baseFontSize = config.fontSize || 48;
+    const scaledFontSize = Math.round(baseFontSize * scaleFactor);
+    const titleFontSize = scaledFontSize;
+    const muscleFontSize = Math.round(scaledFontSize * 0.6); // Muscle groups 60% of title size
     const textColor = config.textColor || '#ffffff';
     const backgroundColor = config.backgroundColor || '#000000';
     const backgroundOpacity = config.backgroundOpacity || 0.8;
-    const padding = Math.round(fontSize * 0.8); // Even more padding
-    const borderRadius = Math.round(fontSize * 0.25);
-    const lineSpacing = Math.round(fontSize * 0.6); // Even more spacing between title and muscle groups
+    const padding = Math.round(scaledFontSize * 0.8); // Even more padding
+    const borderRadius = Math.round(scaledFontSize * 0.25);
+    const lineSpacing = Math.round(scaledFontSize * 0.6); // Even more spacing between title and muscle groups
     
     ctx.textAlign = 'center';
     
@@ -599,24 +603,28 @@ export function renderGlobalOverlays(
   
   // App logo - always bottom right with white container
   if (config.showLogo && logoLoaded && logoImage) {
-    const logoSize = 64; // Bigger logo
-    const containerPadding = 12; // Padding around logo
-    const containerSize = logoSize + containerPadding * 2;
-    const logoX = safeZone.right - containerSize - 16; // Add some padding from edge
-    const logoY = safeZone.bottom - containerSize - 16; // Add some padding from edge
+    // Scale logo size using the same scale factor as text for consistency
+    const baseLogoSize = 32;
+    const basePadding = 12;
+    const scaledLogoSize = Math.round(baseLogoSize * scaleFactor);
+    const scaledPadding = Math.round(basePadding * scaleFactor);
+    const containerSize = scaledLogoSize + scaledPadding * 2;
+    const edgePadding = Math.round(16 * scaleFactor);
+    const logoX = safeZone.right - containerSize - edgePadding; // Add some padding from edge
+    const logoY = safeZone.bottom - containerSize - edgePadding; // Add some padding from edge
     
     // Draw white container with rounded corners
     ctx.save();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    const borderRadius = 12;
+    const borderRadius = Math.round(12 * scaleFactor);
     ctx.beginPath();
     ctx.roundRect(logoX, logoY, containerSize, containerSize, borderRadius);
     ctx.fill();
     
     // Draw the logo image centered in the container
-    const logoOffsetX = logoX + containerPadding;
-    const logoOffsetY = logoY + containerPadding;
-    ctx.drawImage(logoImage, logoOffsetX, logoOffsetY, logoSize, logoSize);
+    const logoOffsetX = logoX + scaledPadding;
+    const logoOffsetY = logoY + scaledPadding;
+    ctx.drawImage(logoImage, logoOffsetX, logoOffsetY, scaledLogoSize, scaledLogoSize);
     ctx.restore();
   }
   

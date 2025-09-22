@@ -426,7 +426,7 @@ export default function Home() {
       {/* Open Move Section */}
       <div className="mx-auto py-0 mt-[30px]" style={{ maxWidth: '2560px', marginLeft: '3%', marginRight: '3%', width: '94%' }}>
         <div className="mb-6">
-          <h2 className="text-2xl font-regular mb-2" style={{ color: 'var(--section-title)' }}>Open Move</h2>
+          <h2 className="text-2xl font-regular mb-2" style={{ color: 'var(--section-title)' }}>Try Open Move</h2>
           <div className="w-16 h-1 rounded-full" style={{ backgroundColor: 'var(--section-accent)' }}></div>
         </div>
         
@@ -441,17 +441,16 @@ export default function Home() {
         >
           <div className="absolute inset-0 bg-black bg-opacity-20"></div>
           <div className="relative z-10 p-8 h-full flex flex-col justify-center text-white">
-            <div className="text-4xl mb-4">🎬</div>
-            <h3 className="text-2xl font-bold mb-2">Open Move</h3>
+            <h3 className="text-2xl font-bold mb-2">Click Me!</h3>
             <p className="text-lg mb-4 opacity-90">
               Record or upload any video for motion analysis and exploration
             </p>
             <div className="flex items-center gap-2 text-sm opacity-80">
-              <span>📹 Live Recording</span>
+              <span>Live Recording</span>
               <span>•</span>
-              <span>📁 Video Upload</span>
+              <span>Video Upload</span>
               <span>•</span>
-              <span>🔍 Motion Analysis</span>
+              <span>Simple Motion Analysis</span>
             </div>
           </div>
         </div>

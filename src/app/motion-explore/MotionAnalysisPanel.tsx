@@ -1,6 +1,6 @@
 // Updated MotionAnalysisPanel.tsx
 "use client";
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 interface MotionAnalysisPanelProps {
@@ -23,13 +23,14 @@ type TabType = 'overview' | 'joints';
 
 export default function MotionAnalysisPanel({ poses, angles, videoUrl }: MotionAnalysisPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [hoveredFrame, setHoveredFrame] = useState<number | null>(null);
 
   // Early return if no data
   if (!poses || poses.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-4">��</div>
+          <div className="text-4xl mb-4"></div>
           <p style={{ color: 'var(--foreground)' }}>No motion data available</p>
         </div>
       </div>
@@ -113,6 +114,17 @@ export default function MotionAnalysisPanel({ poses, angles, videoUrl }: MotionA
       { joint: 'Right Elbow', range: stats.jointStats.rightElbow.range, avg: stats.jointStats.rightElbow.avg },
     ];
   }, [stats.jointStats]);
+
+  // Memoize the chart mouse handlers to prevent unnecessary re-renders
+  const handleChartMouseMove = useCallback((data: any) => {
+    if (data && data.activeLabel !== undefined) {
+      setHoveredFrame(parseInt(data.activeLabel));
+    }
+  }, []);
+
+  const handleChartMouseLeave = useCallback(() => {
+    setHoveredFrame(null);
+  }, []);
 
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview' },
@@ -239,52 +251,150 @@ export default function MotionAnalysisPanel({ poses, angles, videoUrl }: MotionA
     </div>
   );
 
-  const renderJointsTab = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>Joint Analysis</h3>
-      
-      {/* Joint Angles Over Time */}
-      <div>
-        <h4 className="text-md font-medium mb-2" style={{ color: 'var(--foreground)' }}>Joint Angles Over Time</h4>
-        {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="frame" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="leftKnee" stroke="#ef4444" strokeWidth={2} />
-              <Line type="monotone" dataKey="rightKnee" stroke="#3b82f6" strokeWidth={2} />
-              <Line type="monotone" dataKey="leftHip" stroke="#10b981" strokeWidth={2} />
-              <Line type="monotone" dataKey="rightHip" stroke="#f59e0b" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="h-72 flex items-center justify-center text-gray-500">
-            No data available
-          </div>
-        )}
-      </div>
-
-      {/* Joint Statistics */}
-      <div>
-        <h4 className="text-md font-medium mb-2" style={{ color: 'var(--foreground)' }}>Joint Statistics</h4>
-        <div className="space-y-2">
-          {Object.entries(stats.jointStats).map(([joint, data]) => (
-            <div key={joint} className="p-3 rounded-lg" style={{ border: '1px solid var(--border)' }}>
-              <div className="font-medium capitalize mb-1">{joint.replace(/([A-Z])/g, ' $1')}</div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>Min: {data.min.toFixed(0)}°</div>
-                <div>Max: {data.max.toFixed(0)}°</div>
-                <div>Range: {data.range.toFixed(0)}°</div>
-                <div>Avg: {data.avg.toFixed(0)}°</div>
+  // Memoize the joints tab to prevent unnecessary re-renders
+  const renderJointsTab = useMemo(() => {
+    // Get current frame data (use hovered frame or default to first frame)
+    const currentFrame = hoveredFrame !== null ? hoveredFrame : 0;
+    const currentFrameData = chartData[currentFrame] || chartData[0];
+    
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>Joint Analysis</h3>
+        
+        {/* Joint Angles Over Time */}
+        <div>
+          <h4 className="text-md font-medium mb-2" style={{ color: 'var(--foreground)' }}>Joint Angles Over Time</h4>
+          {chartData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart 
+                  data={chartData}
+                  onMouseMove={handleChartMouseMove}
+                  onMouseLeave={handleChartMouseLeave}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="frame" />
+                  <YAxis />
+                  {/* All 6 joint lines */}
+                  <Line type="monotone" dataKey="leftKnee" stroke="#ef4444" strokeWidth={2} />
+                  <Line type="monotone" dataKey="rightKnee" stroke="#3b82f6" strokeWidth={2} />
+                  <Line type="monotone" dataKey="leftHip" stroke="#10b981" strokeWidth={2} />
+                  <Line type="monotone" dataKey="rightHip" stroke="#f59e0b" strokeWidth={2} />
+                  <Line type="monotone" dataKey="leftElbow" stroke="#8b5cf6" strokeWidth={2} />
+                  <Line type="monotone" dataKey="rightElbow" stroke="#06b6d4" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+              
+              {/* Fixed Joint Values Display */}
+              <div className="mt-4 p-4 rounded-lg" style={{ 
+                backgroundColor: 'var(--muted)', 
+                border: '1px solid var(--border)' 
+              }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                    Joint Angles at Frame {currentFrame}
+                  </h5>
+                  <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    Hover over chart to see different frames
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Left Joints */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ef4444' }}></div>
+                        <span className="text-sm font-medium">Left Knee</span>
+                      </div>
+                      <span className="text-sm font-mono">
+                        {currentFrameData.leftKnee.toFixed(1)}°
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#10b981' }}></div>
+                        <span className="text-sm font-medium">Left Hip</span>
+                      </div>
+                      <span className="text-sm font-mono">
+                        {currentFrameData.leftHip.toFixed(1)}°
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8b5cf6' }}></div>
+                        <span className="text-sm font-medium">Left Elbow</span>
+                      </div>
+                      <span className="text-sm font-mono">
+                        {currentFrameData.leftElbow.toFixed(1)}°
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Right Joints */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#3b82f6' }}></div>
+                        <span className="text-sm font-medium">Right Knee</span>
+                      </div>
+                      <span className="text-sm font-mono">
+                        {currentFrameData.rightKnee.toFixed(1)}°
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#f59e0b' }}></div>
+                        <span className="text-sm font-medium">Right Hip</span>
+                      </div>
+                      <span className="text-sm font-mono">
+                        {currentFrameData.rightHip.toFixed(1)}°
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#06b6d4' }}></div>
+                        <span className="text-sm font-medium">Right Elbow</span>
+                      </div>
+                      <span className="text-sm font-mono">
+                        {currentFrameData.rightElbow.toFixed(1)}°
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
+            </>
+          ) : (
+            <div className="h-72 flex items-center justify-center text-gray-500">
+              No data available
             </div>
-          ))}
+          )}
+        </div>
+
+        {/* Joint Statistics */}
+        <div>
+          <h4 className="text-md font-medium mb-2" style={{ color: 'var(--foreground)' }}>Joint Statistics</h4>
+          <div className="space-y-2">
+            {Object.entries(stats.jointStats).map(([joint, data]) => (
+              <div key={joint} className="p-3 rounded-lg" style={{ border: '1px solid var(--border)' }}>
+                <div className="font-medium capitalize mb-1">{joint.replace(/([A-Z])/g, ' $1')}</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>Min: {data.min.toFixed(0)}°</div>
+                  <div>Max: {data.max.toFixed(0)}°</div>
+                  <div>Range: {data.range.toFixed(0)}°</div>
+                  <div>Avg: {data.avg.toFixed(0)}°</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }, [hoveredFrame, chartData, stats.jointStats, handleChartMouseMove, handleChartMouseLeave]);
 
   return (
     <div className="h-full flex flex-col">
@@ -340,7 +450,7 @@ export default function MotionAnalysisPanel({ poses, angles, videoUrl }: MotionA
       {/* Tab Content */}
       <div className="flex-1 p-4 overflow-y-auto">
         {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'joints' && renderJointsTab()}
+        {activeTab === 'joints' && renderJointsTab}
       </div>
 
     </div>
