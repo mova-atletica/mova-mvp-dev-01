@@ -6,6 +6,15 @@ const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
+    // Skip during build time
+    if (isBuildTime || !prisma) {
+      return NextResponse.json({ 
+        error: 'API not available during build',
+        message: 'This endpoint requires database access'
+      }, { status: 503 });
+    }
+
+    
     const { exerciseId, exerciseType } = await request.json();
     
     console.log('🔧 Generating analysis for exercise:', exerciseId, 'type:', exerciseType);

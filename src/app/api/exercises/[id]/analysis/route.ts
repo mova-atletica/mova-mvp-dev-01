@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+// Skip database operations during build time (Vercel deployment)
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL;
 
-const prisma = new PrismaClient();
+let prisma: any = null;
+if (!isBuildTime) {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    prisma = new PrismaClient();
+  } catch (error) {
+    console.warn('Prisma not available during build');
+  }
+}
 
 // Helper function to safely parse JSON
 function safeJsonParse(jsonString: string | null): any {
@@ -19,6 +28,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Skip during build time
+    if (isBuildTime || !prisma) {
+      return NextResponse.json({ 
+        error: 'API not available during build',
+        message: 'This endpoint requires database access'
+      }, { status: 503 });
+    }
+
+    
     const { id } = await params;
     
     console.log('🔍 Fetching analysis data for exercise:', id);
@@ -87,6 +105,15 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Skip during build time
+    if (isBuildTime || !prisma) {
+      return NextResponse.json({ 
+        error: 'API not available during build',
+        message: 'This endpoint requires database access'
+      }, { status: 503 });
+    }
+
+    
     const { id } = await params;
     const adminData = await request.json();
     
@@ -170,6 +197,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Skip during build time
+    if (isBuildTime || !prisma) {
+      return NextResponse.json({ 
+        error: 'API not available during build',
+        message: 'This endpoint requires database access'
+      }, { status: 503 });
+    }
+
+    
     const { id } = await params;
     const analysisData = await request.json();
     
