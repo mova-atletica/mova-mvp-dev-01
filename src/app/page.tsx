@@ -7,8 +7,14 @@ import { Exercise } from '../data/exercises';
 // Lazy load components for better performance
 const ExerciseCarousel = lazy(() => import('../components/ExerciseCarousel'));
 
+const LIBRARY_PASSWORD = process.env.NEXT_PUBLIC_LIBRARY_PASSWORD || "ilovetoMovamyBody";
+
 export default function Home() {
   const router = useRouter();
+  // Library gate state
+  const [authorized, setAuthorized] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  
   const [sections, setSections] = useState<CuratedSection[]>([]);
   const [featuredContent, setFeaturedContent] = useState<FeaturedContent | null>(null);
   const [featuredExercise, setFeaturedExercise] = useState<Exercise | null>(null);
@@ -198,6 +204,77 @@ export default function Home() {
         >
           Try Again
         </button>
+      </main>
+    );
+  }
+
+  // Library password gate
+  if (!authorized) {
+    return (
+      <main className="max-h-screen flex items-top-center justify-center px-4" 
+            style={{ backgroundColor: 'var(--background)', minHeight: '70vh' }}>
+        <div className="max-w-md w-full">
+          <div className="rounded-lg p-8 text-center" 
+               style={{ 
+                 backgroundColor: 'var(--transparent)',
+                 border: '1px solid var(--transparent)'
+               }}>
+            <h1 className="text-3xl font-light mb-2" style={{ color: 'var(--section-title)' }}>
+              Mova Motion Library
+            </h1>
+            <p className="text-lg mb-8" style={{ color: 'var(--section-subtitle)' }}>
+              Enter password to access the full archive
+            </p>
+            
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="Enter password"
+              className="w-full px-4 py-3 rounded-lg border mb-4"
+              style={{
+                backgroundColor: 'var(--input-bg)',
+                color: 'var(--input-text)',
+                border: '1px solid var(--input-border)'
+              }}
+              onKeyPress={(e) => e.key === 'Enter' && setAuthorized(passwordInput === LIBRARY_PASSWORD)}
+            />
+            
+            <button
+              onClick={() => setAuthorized(passwordInput === LIBRARY_PASSWORD)}
+              className="w-full px-6 py-3 rounded-lg font-medium transition-colors mb-6"
+              style={{
+                backgroundColor: 'var(--button-bg)',
+                color: 'var(--button-text)',
+                border: '1px solid var(--button-border)'
+              }}
+            >
+              Access Library
+            </button>
+
+            {/* Interest Form Link */}
+            <div className="pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-sm mb-4" style={{ color: 'var(--section-subtitle)' }}>
+                Have interest in motion analysis technology? Fill out our form and stay tuned for updates!
+              </p>
+              <a 
+                href="https://www.mova-atletica.xyz/join-mova-beta"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block px-4 py-2 font-light text-small transition-colors mb-4"
+                style={{
+                  backgroundColor: 'var(--primary-button-bg)',
+                  color: 'var(--primary-button-text)',
+                  border: '1px solid var(--primary-button-border)',
+                  borderRadius: '6px'
+                }}
+              >
+                move with us
+              </a>
+              
+            </div>
+          </div>
+        </div>
       </main>
     );
   }

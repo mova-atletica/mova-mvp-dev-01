@@ -233,11 +233,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--logo-color', 'invert(0) brightness(1)'); // ap-100
       
       // Buttons & Interactive
-      root.style.setProperty('--button-bg', '#f6f1e3'); // ap-10
+      root.style.setProperty('--button-bg', '#eef0f1'); // ap-10
       root.style.setProperty('--button-text', '#17150f'); // ap-100
       root.style.setProperty('--button-hover-bg', '#f4eedd'); // ap-30
       root.style.setProperty('--button-hover-text', '#17150f'); // ap-100
-      root.style.setProperty('--button-border', '#ccc19e'); // ap-50
+      root.style.setProperty('--button-border', '#777d7f'); // ap-50
 
       // Primary & Secondary Button Colors (Light Mode)
       root.style.setProperty('--primary-button-bg', '#181a1a'); // onyx-100
