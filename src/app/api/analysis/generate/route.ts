@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { runAnalysisPipeline } from '@/lib/exerciseAnalysisPipeline';
 
-const prisma = new PrismaClient();
+// Skip database operations during build time (Vercel deployment)
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL;
+
+let prisma: any = null;
+if (!isBuildTime) {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    prisma = new PrismaClient();
+  } catch (error) {
+    console.warn('Prisma not available during build');
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
