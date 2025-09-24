@@ -505,11 +505,11 @@ export default function OpenMovePracticeTab() {
                         <div className="flex flex-col items-center">
                           {/* Demo Image - Scaled Down 70% */}
                           <div className="w-full mx-auto mb-2" style={{ maxWidth: '70%' }}>
-                            <div className="aspect-[4/3] bg-gray-200 rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--muted)' }}>
+                            <div className="aspect-[9/16] bg-gray-200 rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--muted)' }}>
                               <img 
                                 src={slide.image}
                                 alt={slide.title}
-                                className="w-full h-full object-contain"
+                                className="w-full object-contain"
                                 style={{ objectFit: 'contain' }}
                               />
                             </div>
@@ -520,7 +520,7 @@ export default function OpenMovePracticeTab() {
                             <h4 className="font-medium mb-1 text-sm" style={{ color: 'var(--foreground)' }}>
                               {slide.title}
                             </h4>
-                            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                            <p className="text-xs" style={{ color: 'var(--muted)' }}>
                               {slide.description}
                             </p>
                           </div>
