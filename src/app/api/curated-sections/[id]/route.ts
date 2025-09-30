@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // PUT update curated section
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
