@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 // Skip database operations during build time (Vercel deployment)
-const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL && !process.env.VERCEL;
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL;
 
 let prisma: any = null;
 if (!isBuildTime) {
