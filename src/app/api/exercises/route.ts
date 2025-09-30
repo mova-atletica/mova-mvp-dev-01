@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-o u     // Debug logging
+    // Debug logging
     console.log('Exercises API Debug:', {
       NODE_ENV: process.env.NODE_ENV,
       DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
