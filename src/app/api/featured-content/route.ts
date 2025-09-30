@@ -3,7 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 let prisma: any = null;
 try {
   const { PrismaClient } = require('@prisma/client');
-  prisma = new PrismaClient();
+  prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL
+      }
+    }
+  });
 } catch (error) {
   console.warn('Prisma not available:', error);
 }
