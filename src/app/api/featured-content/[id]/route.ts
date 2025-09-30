@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-// Skip database operations during build time (Vercel deployment)
-const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL;
+import { PrismaClient } from '@prisma/client';
 
-let prisma: any = null;
-if (!isBuildTime) {
-  try {
-    const { PrismaClient } = require('@prisma/client');
-    prisma = new PrismaClient();
-  } catch (error) {
-    console.warn('Prisma not available during build');
-  }
-}
+const prisma = new PrismaClient();
 
 // GET - Fetch specific featured content
 export async function GET(
@@ -18,13 +9,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Skip during build time
-    if (isBuildTime || !prisma) {
-      return NextResponse.json({ 
-        error: 'API not available during build',
-        message: 'This endpoint requires database access'
-      }, { status: 503 });
-    }
 
     
     const { id } = await params;
@@ -55,13 +39,6 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Skip during build time
-    if (isBuildTime || !prisma) {
-      return NextResponse.json({ 
-        error: 'API not available during build',
-        message: 'This endpoint requires database access'
-      }, { status: 503 });
-    }
 
     
     const { id } = await params;
@@ -110,13 +87,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Skip during build time
-    if (isBuildTime || !prisma) {
-      return NextResponse.json({ 
-        error: 'API not available during build',
-        message: 'This endpoint requires database access'
-      }, { status: 503 });
-    }
 
     
     const { id } = await params;

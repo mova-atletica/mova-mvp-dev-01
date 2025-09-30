@@ -1,27 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-// Skip database operations during build time (Vercel deployment)
-const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL;
+import { PrismaClient } from '@prisma/client';
 
-let prisma: any = null;
-if (!isBuildTime) {
-  try {
-    const { PrismaClient } = require('@prisma/client');
-    prisma = new PrismaClient();
-  } catch (error) {
-    console.warn('Prisma not available during build');
-  }
-}
+const prisma = new PrismaClient();
 
 // GET all curated sections
 export async function GET() {
   try {
-    // Skip during build time
-    if (isBuildTime || !prisma) {
-      return NextResponse.json({ 
-        error: 'API not available during build',
-        message: 'This endpoint requires database access'
-      }, { status: 503 });
-    }
 
     
     const sections = await prisma.curatedSection.findMany({
@@ -38,13 +22,6 @@ export async function GET() {
 // POST create new curated section
 export async function POST(req: NextRequest) {
   try {
-    // Skip during build time
-    if (isBuildTime || !prisma) {
-      return NextResponse.json({ 
-        error: 'API not available during build',
-        message: 'This endpoint requires database access'
-      }, { status: 503 });
-    }
 
     
     const data = await req.json();
