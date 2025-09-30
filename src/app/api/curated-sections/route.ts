@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-// Skip database operations during build time (Vercel deployment)
-const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL;
-
+// Initialize Prisma client
 let prisma: any = null;
-if (!isBuildTime) {
-  try {
-    const { PrismaClient } = require('@prisma/client');
-    prisma = new PrismaClient();
-  } catch (error) {
-    console.warn('Prisma not available during build');
-  }
+try {
+  const { PrismaClient } = require('@prisma/client');
+  prisma = new PrismaClient();
+} catch (error) {
+  console.warn('Prisma not available:', error);
 }
 
 // GET all curated sections
@@ -19,14 +15,13 @@ export async function GET() {
     console.log('Curated Sections API Debug:', {
       NODE_ENV: process.env.NODE_ENV,
       DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
-      isBuildTime,
       prisma: prisma ? 'INITIALIZED' : 'NOT INITIALIZED'
     });
     
-    // Skip during build time
-    if (isBuildTime || !prisma) {
+    // Check if Prisma is available
+    if (!prisma) {
       return NextResponse.json({ 
-        error: 'API not available during build',
+        error: 'Database not available',
         message: 'This endpoint requires database access'
       }, { status: 503 });
     }
