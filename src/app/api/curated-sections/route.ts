@@ -41,10 +41,10 @@ export async function GET() {
 // POST create new curated section
 export async function POST(req: NextRequest) {
   try {
-    // Skip during build time
-    if (isBuildTime || !prisma) {
+    // Check if Prisma is available
+    if (!prisma) {
       return NextResponse.json({ 
-        error: 'API not available during build',
+        error: 'Database not available',
         message: 'This endpoint requires database access'
       }, { status: 503 });
     }
