@@ -15,6 +15,14 @@ if (!isBuildTime) {
 // GET all curated sections
 export async function GET() {
   try {
+    // Debug logging
+    console.log('Curated Sections API Debug:', {
+      NODE_ENV: process.env.NODE_ENV,
+      DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
+      isBuildTime,
+      prisma: prisma ? 'INITIALIZED' : 'NOT INITIALIZED'
+    });
+    
     // Skip during build time
     if (isBuildTime || !prisma) {
       return NextResponse.json({ 
