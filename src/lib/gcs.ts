@@ -1,10 +1,28 @@
 import { Storage } from '@google-cloud/storage';
 
-// Initialize Google Cloud Storage
-const storage = new Storage({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-  keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE, // Path to your service account key
-});
+// Support JSON in env (Vercel) or fallback to key file path if running locally
+let credentials: any = null;
+try {
+  const raw = process.env.GOOGLE_CLOUD_KEY_FILE || '';
+  credentials = raw ? JSON.parse(raw) : null;
+} catch {
+  credentials = null;
+}
+
+const storage = new Storage(
+  credentials
+    ? {
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        credentials: {
+          client_email: credentials.client_email,
+          private_key: (credentials.private_key || '').replace(/\\n/g, '\n'),
+        },
+      }
+    : {
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE, // for local dev if it's a path
+      }
+);
 
 const bucketName = process.env.GOOGLE_CLOUD_BUCKET_NAME || 'mova-exercise-library';
 
