@@ -1,25 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 // CREATE a new exercise
 export async function POST(req: NextRequest) {
-
-  const data = await req.json();
-  const exercise = await prisma.exercise.create({
-    data: {
-      ...data,
-      // All fields are already strings from the frontend
-      // No need to join or stringify again
-    }
-  });
-  return NextResponse.json(exercise);
+  const prisma = new PrismaClient();
+  try {
+    const data = await req.json();
+    const exercise = await prisma.exercise.create({
+      data: {
+        ...data,
+        // All fields are already strings from the frontend
+        // No need to join or stringify again
+      }
+    });
+    return NextResponse.json(exercise);
+  } catch (error) {
+    console.error('Error creating exercise:', error);
+    return NextResponse.json({ error: 'Failed to create exercise' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 export async function GET() {
+  const prisma = new PrismaClient();
   try {
-
     const exercises = await prisma.exercise.findMany({
       select: {
         id: true,
@@ -34,5 +39,7 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching exercises:', error);
     return NextResponse.json({ error: 'Failed to fetch exercises' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

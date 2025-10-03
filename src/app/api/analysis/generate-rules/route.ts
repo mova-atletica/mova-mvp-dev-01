@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 // Default joint-specific threshold mappings
 const defaultJointThresholds = {
   // Knee joints
@@ -34,8 +32,8 @@ const defaultJointThresholds = {
 const fallbackThresholds = { startThreshold: 120, completionThreshold: 90, returnThreshold: 120, hysteresis: 5 };
 
 export async function POST(request: NextRequest) {
+  const prisma = new PrismaClient();
   try {
-
     const { exerciseId, jointsOfInterest } = await request.json();
     
     console.log('🔧 Generating rules for exercise:', exerciseId);
@@ -106,5 +104,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error generating rules:', error);
     return NextResponse.json({ error: 'Failed to generate rules' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

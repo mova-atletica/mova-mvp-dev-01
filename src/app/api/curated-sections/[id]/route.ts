@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 // PUT update curated section
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const prisma = new PrismaClient();
   try {
-
     const data = await req.json();
     const { id } = await params;
     
@@ -40,18 +38,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   } catch (error) {
     console.error('Error updating curated section:', error);
     return NextResponse.json({ error: 'Failed to update curated section' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
 // DELETE curated section
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const prisma = new PrismaClient();
   try {
-
     const { id } = await params;
     await prisma.curatedSection.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting curated section:', error);
     return NextResponse.json({ error: 'Failed to delete curated section' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
-} 
+}

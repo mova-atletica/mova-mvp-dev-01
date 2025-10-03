@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 // GET - Fetch specific featured content
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const prisma = new PrismaClient();
   try {
-
-    
     const { id } = await params;
     const featuredContent = await prisma.featuredContent.findUnique({
       where: { id },
@@ -30,6 +27,8 @@ export async function GET(
       { error: 'Failed to fetch featured content' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -38,46 +37,35 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const prisma = new PrismaClient();
   try {
-
-    
     const { id } = await params;
-    const body = await request.json();
-    const {
-      title,
-      description,
-      heroImage,
-      exerciseId,
-      ctaText,
-      ctaUrl,
-      badgeText,
-      isActive,
-      order
-    } = body;
+    const updateData = await request.json();
 
-    const featuredContent = await prisma.featuredContent.update({
+    const updatedContent = await prisma.featuredContent.update({
       where: { id },
       data: {
-        title,
-        description,
-        heroImage,
-        exerciseId,
-        ctaText,
-        ctaUrl,
-        badgeText,
-        isActive,
-        order,
-        updatedAt: new Date(),
+        title: updateData.title,
+        description: updateData.description,
+        heroImage: updateData.heroImage,
+        exerciseId: updateData.exerciseId,
+        ctaText: updateData.ctaText,
+        ctaUrl: updateData.ctaUrl,
+        badgeText: updateData.badgeText,
+        order: updateData.order,
+        isActive: updateData.isActive,
       },
     });
 
-    return NextResponse.json(featuredContent);
+    return NextResponse.json(updatedContent);
   } catch (error) {
     console.error('Error updating featured content:', error);
     return NextResponse.json(
       { error: 'Failed to update featured content' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -86,10 +74,10 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const prisma = new PrismaClient();
   try {
-
-    
     const { id } = await params;
+    
     await prisma.featuredContent.delete({
       where: { id },
     });
@@ -101,5 +89,7 @@ export async function DELETE(
       { error: 'Failed to delete featured content' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
-} 
+}

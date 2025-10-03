@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 // Helper function to safely parse JSON
 function safeJsonParse(jsonString: string | null): any {
   if (!jsonString) return null;
@@ -18,9 +16,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const prisma = new PrismaClient();
   try {
-
-    
     const { id } = await params;
     
     console.log('🔍 Fetching analysis data for exercise:', id);
@@ -81,6 +78,8 @@ export async function GET(
   } catch (error) {
     console.error('❌ Error fetching analysis data:', error);
     return NextResponse.json({ error: 'Failed to fetch analysis data' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -88,9 +87,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const prisma = new PrismaClient();
   try {
-
-    
     const { id } = await params;
     const adminData = await request.json();
     
@@ -166,6 +164,8 @@ export async function PUT(
   } catch (error) {
     console.error('❌ Error updating analysis data:', error);
     return NextResponse.json({ error: 'Failed to update analysis data' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -173,9 +173,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const prisma = new PrismaClient();
   try {
-
-    
     const { id } = await params;
     const analysisData = await request.json();
     
@@ -234,5 +233,7 @@ export async function POST(
   } catch (error) {
     console.error('❌ Error creating analysis data:', error);
     return NextResponse.json({ error: 'Failed to create analysis data' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

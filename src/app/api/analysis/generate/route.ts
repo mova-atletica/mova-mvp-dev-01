@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 export async function POST(request: NextRequest) {
+  const prisma = new PrismaClient();
   try {
-
-    
     const { exerciseId, exerciseType } = await request.json();
     
     console.log('🔧 Generating analysis for exercise:', exerciseId, 'type:', exerciseType);
@@ -54,8 +51,8 @@ export async function POST(request: NextRequest) {
       await prisma.poseAnalysis.upsert({
         where: { exerciseId },
         update: {
-          targetPoses: JSON.stringify([]),
-          angleRanges: JSON.stringify({}),
+          targetPoses: '[]',
+          angleRanges: '{}',
           primaryJoints: null,
           toleranceMultipliers: null,
           feedbackMessages: null,
@@ -64,8 +61,8 @@ export async function POST(request: NextRequest) {
         },
         create: {
           exerciseId,
-          targetPoses: JSON.stringify([]),
-          angleRanges: JSON.stringify({}),
+          targetPoses: '[]',
+          angleRanges: '{}',
           primaryJoints: null,
           toleranceMultipliers: null,
           feedbackMessages: null,
@@ -75,14 +72,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log('✅ Analysis generated successfully');
+    console.log('✅ Analysis data generated successfully');
     return NextResponse.json({ 
       success: true, 
-      message: 'Analysis generated successfully'
+      message: 'Analysis data generated successfully',
+      exerciseType 
     });
 
   } catch (error) {
     console.error('❌ Error generating analysis:', error);
-    return NextResponse.json({ error: 'Failed to generate analysis' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to generate analysis',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
