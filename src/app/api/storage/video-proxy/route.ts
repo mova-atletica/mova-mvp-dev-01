@@ -10,20 +10,52 @@ try {
   credentials = null;
 }
 
-const storage = new Storage(
-  credentials
-    ? {
-        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-        credentials: {
-          client_email: credentials.client_email,
-          private_key: (credentials.private_key || '').replace(/\\n/g, '\n'),
-        },
-      }
-    : {
-        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-        keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE, // for local dev if it's a path
-      }
-);
+// Singleton Storage instance with connection pooling
+let storageInstance: Storage | null = null;
+let lastConnectionTime = 0;
+const CONNECTION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+const getStorage = (): Storage => {
+  const now = Date.now();
+  
+  // Create new instance if none exists or if connection is stale
+  if (!storageInstance || (now - lastConnectionTime) > CONNECTION_TIMEOUT) {
+    console.log('Creating new GCS Storage instance for video proxy');
+    
+    storageInstance = new Storage(
+      credentials
+        ? {
+            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+            credentials: {
+              client_email: credentials.client_email,
+              private_key: (credentials.private_key || '').replace(/\\n/g, '\n'),
+            },
+            retryOptions: {
+              autoRetry: true,
+              maxRetries: 3,
+              retryDelayMultiplier: 2,
+              totalTimeout: 30000, // 30 seconds
+            },
+            timeout: 30000,
+          }
+        : {
+            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+            keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE,
+            retryOptions: {
+              autoRetry: true,
+              maxRetries: 3,
+              retryDelayMultiplier: 2,
+              totalTimeout: 30000,
+            },
+            timeout: 30000,
+          }
+    );
+    
+    lastConnectionTime = now;
+  }
+  
+  return storageInstance;
+};
 
 const bucketName = process.env.GOOGLE_CLOUD_BUCKET_NAME || 'mova-exercise-library';
 
@@ -35,7 +67,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'fileName is required' }, { status: 400 });
     }
 
-    // Directly access Google Cloud Storage
+    // Use singleton storage instance
+    const storage = getStorage();
     const bucket = storage.bucket(bucketName);
     const file = bucket.file(fileName);
 
@@ -85,7 +118,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'fileName or file parameter is required' }, { status: 400 });
     }
 
-    // Directly access Google Cloud Storage
+    // Use singleton storage instance
+    const storage = getStorage();
     const bucket = storage.bucket(bucketName);
     const file = bucket.file(fileName);
 

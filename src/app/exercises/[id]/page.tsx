@@ -133,7 +133,7 @@ export default function ExerciseDetail({ params }: Props) {
         // Get video URL if reference video exists
         if (formattedExercise.referenceVideoUrl) {
           try {
-            const videoProxyUrl = `/api/storage/video-proxy?fileName=${encodeURIComponent(formattedExercise.referenceVideoUrl)}&t=${Date.now()}`;
+            const videoProxyUrl = `/api/storage/video-proxy?fileName=${encodeURIComponent(formattedExercise.referenceVideoUrl)}`;
             console.log('Generated video proxy URL:', videoProxyUrl);
             setVideoUrl(videoProxyUrl);
           } catch (error) {
