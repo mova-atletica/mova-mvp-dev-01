@@ -487,6 +487,10 @@ export default function OpenMovePracticeTab() {
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+    const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+      console.error('Error loading video:', e);
+    };
+
     return (
       <div className="relative w-full">
         <video
@@ -495,6 +499,8 @@ export default function OpenMovePracticeTab() {
           className="w-full rounded-lg"
           style={{ maxHeight: '60vh', objectFit: 'contain' }}
           muted
+          onError={handleError}
+          playsInline
         />
         
         {/* Custom controls */}
@@ -571,13 +577,16 @@ export default function OpenMovePracticeTab() {
       }
 
       // Optimize pose data to reduce storage size
-      const optimizedPoses = allPoses.map(pose => ({
-        keypoints: pose.keypoints?.map((keypoint: any) => ({
-          x: Math.round(keypoint.x * 100) / 100, // Round to 2 decimal places
-          y: Math.round(keypoint.y * 100) / 100,
-          score: Math.round(keypoint.score * 1000) / 1000 // Round to 3 decimal places
-        })) || []
-      }));
+      // Filter out null/undefined poses before mapping
+      const optimizedPoses = allPoses
+        .filter(pose => pose != null && pose.keypoints != null)
+        .map(pose => ({
+          keypoints: pose.keypoints.map((keypoint: any) => ({
+            x: Math.round(keypoint.x * 100) / 100, // Round to 2 decimal places
+            y: Math.round(keypoint.y * 100) / 100,
+            score: Math.round(keypoint.score * 1000) / 1000 // Round to 3 decimal places
+          }))
+        }));
 
       // Store data in localStorage for the motion explore page
       const motionData = {
@@ -945,6 +954,9 @@ export default function OpenMovePracticeTab() {
                 <Dialog.Title className="text-sm font-normal pt-6 pb-4 text-white">
                   Review Your Recording
                 </Dialog.Title>
+                <Dialog.Description className="sr-only">
+                  Review your recorded video before processing it for motion analysis
+                </Dialog.Description>
                 
                 <div className="flex-1 flex flex-col items-center w-full max-w-2xl px-4 min-h-0">
                   

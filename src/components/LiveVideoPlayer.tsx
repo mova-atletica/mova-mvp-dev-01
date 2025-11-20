@@ -1372,11 +1372,25 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       console.log('🌊 Flow feedback overlay: HIDDEN (not implemented yet)');
       return { type: null };
     } else {
-      console.log('❓ No feedback overlay: exercise type not supported');
+      // No feedback overlay for unsupported exercise types (expected for open-move page)
       return { type: null };
     }
   };
   
+  // Don't render Webcam during SSR
+  if (!isMounted) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p style={{ color: 'var(--foreground)' }}>Loading camera...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
       

@@ -11,6 +11,25 @@ const nextConfig: NextConfig = {
     // your project has type errors.
     ignoreBuildErrors: true,
   },
+  webpack: (config, { isServer }) => {
+    // Configure fallbacks for browser-only modules
+    if (isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        canvas: false,
+        encoding: false,
+        fs: false,
+      };
+    }
+    
+    // Increase memory limit for webpack to handle large bundles
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+    };
+    
+    return config;
+  },
 };
 
 export default nextConfig;
