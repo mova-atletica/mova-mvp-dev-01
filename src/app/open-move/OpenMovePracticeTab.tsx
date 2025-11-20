@@ -6,6 +6,8 @@ import "@tensorflow/tfjs-backend-webgl";
 import * as tf from "@tensorflow/tfjs-core";
 import { getAngleWithConfidence } from '../../lib/analysisUtils';
 import { useRouter } from 'next/navigation';
+import * as Dialog from '@radix-ui/react-dialog';
+import LiveVideoPlayer from '../../components/LiveVideoPlayer';
 
 export default function OpenMovePracticeTab() {
   const router = useRouter();
@@ -16,15 +18,16 @@ export default function OpenMovePracticeTab() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [detector, setDetector] = useState<poseDetection.PoseDetector | null>(null);
-  const [recording, setRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [allPoses, setAllPoses] = useState<any[]>([]);
-  const [cameraActive, setCameraActive] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [isRecordedVideo, setIsRecordedVideo] = useState(false);
   const [currentDemoSlide, setCurrentDemoSlide] = useState(0);
+  const [showLiveModal, setShowLiveModal] = useState(false);
+  const [showLiveRecordingPreview, setShowLiveRecordingPreview] = useState(false);
+  const [liveRecordingUrl, setLiveRecordingUrl] = useState<string | null>(null);
+  const [liveRecordingDuration, setLiveRecordingDuration] = useState<number | null>(null);
 
   // Demo carousel data
   const demoSlides = [
@@ -145,56 +148,105 @@ export default function OpenMovePracticeTab() {
     }
   };
 
-  // --- Start recording ---
-  const startRecording = () => {
-    if (webcamRef.current && webcamRef.current.stream) {
-      const recorder = new MediaRecorder(webcamRef.current.stream, { mimeType: "video/webm" });
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "video/webm" });
-        const url = URL.createObjectURL(blob);
-        setVideoUrl(url);
-        setIsRecordedVideo(true);
-        // Wait for the video element to load metadata before processing
-        const checkAndProcess = () => {
-          if (videoRef.current && videoRef.current.readyState >= 1) {
-            processRecordedVideo(url);
-          } else if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => processRecordedVideo(url);
-          } else {
-            setTimeout(checkAndProcess, 100);
+  // Handle recording completion from LiveVideoPlayer
+  const handleRecordingComplete = (videoUrl: string, duration: number, realTimeAnalysisData?: any[]) => {
+    setLiveRecordingUrl(videoUrl);
+    setLiveRecordingDuration(duration);
+    
+    // Store real-time analysis data if available (for future use)
+    if (realTimeAnalysisData && realTimeAnalysisData.length > 0) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("realTimeAnalysisData", JSON.stringify(realTimeAnalysisData));
+      }
+    }
+    
+    setShowLiveRecordingPreview(true);
+    setShowLiveModal(false); // Close the live recording modal
+  };
+
+  // Handle analyzing the live recording
+  const handleAnalyzeLiveRecording = async () => {
+    if (!liveRecordingUrl) {
+      console.error('No live recording URL available');
+      return;
+    }
+    
+    // Set the video URL and process it
+    // Keep the modal open during processing
+    setVideoUrl(liveRecordingUrl);
+    setIsRecordedVideo(true);
+    setIsAnalyzing(true);
+    
+    // Wait for the video element to be ready and loaded, then process
+    // Use a combination of checking and event listeners to ensure video is ready
+    const waitForVideoReady = (attempts = 0) => {
+      if (attempts > 50) {
+        // Give up after 5 seconds (50 * 100ms)
+        console.error('Video element not ready after timeout');
+        setIsAnalyzing(false);
+        setShowLiveRecordingPreview(false);
+        return;
+      }
+      
+      if (videoRef.current) {
+        const video = videoRef.current;
+        
+        // Check if video is already loaded
+        if (video.readyState >= 2) {
+          // Video is ready (HAVE_CURRENT_DATA or higher)
+          processRecordedVideo(liveRecordingUrl, () => {
+            setShowLiveRecordingPreview(false);
+          });
+          return;
+        }
+        
+        // Set up event listeners for when video loads
+        const handleLoadedMetadata = () => {
+          if (videoRef.current && videoRef.current.readyState >= 2) {
+            processRecordedVideo(liveRecordingUrl, () => {
+              setShowLiveRecordingPreview(false);
+            });
           }
         };
-        setTimeout(checkAndProcess, 100);
-      };
-      recorder.start();
-      setMediaRecorder(recorder);
-      setRecording(true);
-      resetAllState();
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorder) {
-      mediaRecorder.stop();
-      setRecording(false);
-    }
-  };
-
-  const handleStartCamera = () => {
-    setCameraActive(true);
-    setRecording(false);
-    resetAllState();
-    setTimeout(() => {
-      if (webcamRef.current?.video) {
-        const video = webcamRef.current.video;
-        if (canvasRef.current) {
-          canvasRef.current.width = video.videoWidth;
-          canvasRef.current.height = video.videoHeight;
+        
+        const handleError = () => {
+          console.error('Error loading video');
+          setIsAnalyzing(false);
+          setShowLiveRecordingPreview(false);
+        };
+        
+        video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+        video.addEventListener('error', handleError, { once: true });
+        
+        // Also trigger load if not already loading
+        if (video.readyState === 0) {
+          video.load();
         }
+      } else {
+        // Video element doesn't exist yet, try again after a short delay
+        setTimeout(() => waitForVideoReady(attempts + 1), 100);
       }
-    }, 500);
+    };
+    
+    // Start waiting for video to be ready
+    // Give React time to render the video element
+    setTimeout(() => waitForVideoReady(), 200);
+  };
+
+  // Handle retaking the live recording
+  const handleRetakeLiveRecording = () => {
+    setShowLiveRecordingPreview(false);
+    setLiveRecordingUrl(null);
+    setLiveRecordingDuration(null);
+    setShowLiveModal(true);
+  };
+
+  // Handle canceling the live recording
+  const handleCancelLiveRecording = () => {
+    setShowLiveRecordingPreview(false);
+    setLiveRecordingUrl(null);
+    setLiveRecordingDuration(null);
+    resetAllState();
   };
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -225,7 +277,7 @@ export default function OpenMovePracticeTab() {
     setTrunkAngles([]);
   };
 
-  const processRecordedVideo = async (url: string) => {
+  const processRecordedVideo = async (url: string, onComplete?: () => void) => {
     if (!detector || !videoRef.current) return;
 
     setIsAnalyzing(true);
@@ -260,6 +312,10 @@ export default function OpenMovePracticeTab() {
         setTrunkAngles(angles.trunkAngles);
         setIsAnalyzing(false);
         setAnalysisProgress(100);
+        // Call onComplete callback if provided
+        if (onComplete) {
+          onComplete();
+        }
         return;
       }
 
@@ -320,6 +376,117 @@ export default function OpenMovePracticeTab() {
     };
 
     await processFrame(0);
+  };
+
+  // Custom video component that displays correct duration for live recordings
+  const LiveRecordingVideo = ({ src, duration }: { src: string; duration: number }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    useEffect(() => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      const handleTimeUpdate = () => setCurrentTime(video.currentTime);
+      const handlePlay = () => setIsPlaying(true);
+      const handlePause = () => setIsPlaying(false);
+
+      video.addEventListener('timeupdate', handleTimeUpdate);
+      video.addEventListener('play', handlePlay);
+      video.addEventListener('pause', handlePause);
+
+      return () => {
+        const videoElement = videoRef.current;
+        if (videoElement) {
+          try {
+            videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+            videoElement.removeEventListener('play', handlePlay);
+            videoElement.removeEventListener('pause', handlePause);
+          } catch (error) {
+            // Silently handle any cleanup errors
+          }
+        }
+      };
+    }, []);
+
+    const formatTime = (time: number) => {
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const video = videoRef.current;
+      if (video) {
+        const newTime = (parseFloat(e.target.value) / 100) * duration;
+        video.currentTime = newTime;
+      }
+    };
+
+    const togglePlay = () => {
+      const video = videoRef.current;
+      if (video) {
+        if (isPlaying) {
+          video.pause();
+        } else {
+          video.play();
+        }
+      }
+    };
+
+    const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+    return (
+      <div className="relative w-full">
+        <video
+          ref={videoRef}
+          src={src}
+          className="w-full rounded-lg"
+          style={{ maxHeight: '60vh', objectFit: 'contain' }}
+          muted
+        />
+        
+        {/* Custom controls */}
+        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2 rounded-b-lg">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={togglePlay}
+              className="w-8 h-8 rounded-full bg-white flex items-center justify-center"
+            >
+              {isPlaying ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" />
+                  <rect x="14" y="4" width="4" height="16" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5,3 19,12 5,21" />
+                </svg>
+              )}
+            </button>
+            
+            <div className="flex-1">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={progress}
+                onChange={handleSeek}
+                className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${progress}%, #6B7280 ${progress}%, #6B7280 100%)`
+                }}
+              />
+            </div>
+            
+            <span className="text-white text-sm min-w-[80px] text-right">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // --- Handle extract motion ---
@@ -449,17 +616,51 @@ export default function OpenMovePracticeTab() {
                 <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--transparent)' }}>
                   <strong>Record Live</strong>
                   <p className="text-xs font-normal" style={{ color: 'var(--transparent)' }}>Start your camera to record new movement</p>
-                  <button
-                    onClick={handleStartCamera}
-                    className="px-2 py-2 mt-2 rounded-md font-medium text-xs transition cursor-pointer"
-                    style={{
-                      background: 'var(--secondary-button-bg)',
-                      color: 'var(--secondary-button-text)',
-                      border: '2px solid var(--secondary-button-border)'
-                    }}
-                  >
-                    📹 Start Camera
-                  </button>
+                  <Dialog.Root open={showLiveModal} onOpenChange={setShowLiveModal}>
+                    <Dialog.Trigger asChild>
+                      <button
+                        className="px-2 py-2 mt-2 rounded-md font-medium text-xs transition cursor-pointer"
+                        style={{
+                          background: 'var(--secondary-button-bg)',
+                          color: 'var(--secondary-button-text)',
+                          border: '2px solid var(--secondary-button-border)'
+                        }}
+                      >
+                        📹 Record Live
+                      </button>
+                    </Dialog.Trigger>
+                    <Dialog.Portal>
+                      <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+                      <Dialog.Content
+                        className="fixed inset-0 z-50 flex flex-col"
+                        style={{ width: '100vw', height: '100vh', padding: 0, background: 'rgba(24,24,27,0.92)' }}
+                      >
+                        <button
+                          className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/80 hover:bg-black focus:outline-none"
+                          aria-label="Close"
+                          type="button"
+                          onClick={() => setShowLiveModal(false)}
+                        >
+                          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                          </svg>
+                        </button>
+                        <div className="flex flex-col items-center justify-center w-full h-full relative">
+                          <Dialog.Title className="text-sm font-regular text-white pt-2 pb-2" style={{ maxWidth: '400px', textAlign: 'center' }}>Live Recording</Dialog.Title>
+                          <Dialog.Description className="text-xs font-regular text-white pb-4" style={{ maxWidth: '400px', textAlign: 'center' }}>For best results, connect your phone to your browser as a webcam (Apple's Continuity Camera feature is recommended) and use a tripod. Ensure that your body is in frame and you are in a well-lit environment.</Dialog.Description>
+                          <div className="flex items-center justify-center w-full">
+                            <LiveVideoPlayer
+                              onRecordingComplete={handleRecordingComplete}
+                              onMethodChange={() => setShowLiveModal(false)}
+                              referenceAngles={undefined}
+                              exercise={null}
+                            />
+                          </div>
+                        </div>
+                      </Dialog.Content>
+                    </Dialog.Portal>
+                  </Dialog.Root>
                 </div>
                 <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--transparent)' }}>
                   <strong>Upload Video</strong>
@@ -574,52 +775,6 @@ export default function OpenMovePracticeTab() {
           </div>
         )}
 
-        {/* Camera Preview and Recording Controls */}
-        {cameraActive && !videoUrl && (
-          <div className="mb-6">
-            <div className="relative bg-black rounded-lg overflow-hidden">
-              <Webcam
-                ref={webcamRef}
-                audio={false}
-                width={640}
-                height={480}
-                className="w-full h-auto"
-              />
-              <canvas
-                ref={canvasRef}
-                className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                style={{ display: 'none' }}
-              />
-            </div>
-            
-            {/* Recording Controls */}
-            <div className="flex justify-center gap-4 mt-4">
-              {!recording ? (
-                <>
-                  <button
-                    onClick={startRecording}
-                    className="px-6 py-3 rounded-lg font-medium text-white bg-red-600 hover:bg-red-700"
-                  >
-                    Start Recording
-                  </button>
-                  <button
-                    onClick={() => setCameraActive(false)}
-                    className="px-6 py-3 rounded-lg font-medium text-gray-700 bg-gray-200 hover:bg-gray-300"
-                  >
-                    Close Camera
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={stopRecording}
-                  className="px-6 py-3 rounded-lg font-medium text-white bg-gray-600 hover:bg-gray-700"
-                >
-                  Stop Recording
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Video Preview */}
         {videoUrl && (
@@ -715,6 +870,159 @@ export default function OpenMovePracticeTab() {
             </div>
           </div>
         )}
+
+        {/* Live Recording Preview Modal */}
+        <Dialog.Root open={showLiveRecordingPreview} onOpenChange={setShowLiveRecordingPreview}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+            <Dialog.Content
+              className="fixed inset-0 z-50 flex flex-col"
+              style={{ width: '100vw', height: '100vh', padding: 0, background: 'rgba(24,24,27,0.92)' }}
+            >
+              <button
+                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/80 hover:bg-black focus:outline-none"
+                aria-label="Close"
+                type="button"
+                onClick={handleCancelLiveRecording}
+              >
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+              
+              <div className="flex flex-col items-center justify-center w-full h-full relative">
+                <Dialog.Title className="text-sm font-normal pt-6 pb-4 text-white">
+                  Review Your Recording
+                </Dialog.Title>
+                
+                <div className="flex-1 flex flex-col items-center w-full max-w-2xl px-4 min-h-0">
+                  
+                  {/* Video Preview */}
+                  <div className="flex flex-col w-full flex-shrink-0">
+                    <div className="relative w-full" style={{ maxHeight: '60vh' }}>
+                    {!isAnalyzing ? (
+                      // Show video when not analyzing
+                      liveRecordingDuration && liveRecordingUrl ? (
+                        <LiveRecordingVideo 
+                          src={liveRecordingUrl} 
+                          duration={liveRecordingDuration} 
+                        />
+                      ) : (
+                        <video
+                          src={liveRecordingUrl || undefined}
+                          controls
+                          controlsList="nodownload nofullscreen noremoteplayback"
+                          disablePictureInPicture
+                          className="rounded w-full h-auto"
+                          style={{ maxHeight: '60vh', objectFit: 'contain' }}
+                          autoPlay
+                          muted
+                        />
+                      )
+                    ) : (
+                      // Show loading placeholder during analysis
+                      <div className="w-full h-64 bg-gray-800 rounded-lg flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                          <p className="text-white text-lg">Processing your recording...</p>
+                        </div>
+                      </div>
+                    )}
+                    </div>
+                    
+                    {/* Analysis Progress */}
+                    {isAnalyzing && (
+                      <div className="w-full my-4 flex-shrink-0">
+                        <div className="bg-gray-800 rounded-lg p-4">
+                          <h3 className="font-semibold text-white mb-2">Processing Video...</h3>
+                          <div className="w-full bg-gray-600 rounded-full h-2 mb-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${analysisProgress}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-sm text-white">{analysisProgress}% complete</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Action Buttons */}
+                    <div className="flex flex-row flex-wrap gap-4 mt-4 mb-6 justify-center flex-shrink-0">
+                      {!isAnalyzing ? (
+                        <>
+                          <button
+                            className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                            style={{
+                              background: 'var(--primary-button-bg)',
+                              color: 'var(--primary-button-text)',
+                              border: '2px solid var(--primary-button-border)'
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = 'var(--primary-button-hover-bg)';
+                              e.currentTarget.style.color = 'var(--primary-button-hover-text)';
+                              e.currentTarget.style.borderColor = 'var(--primary-button-hover-border)';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = 'var(--primary-button-bg)';
+                              e.currentTarget.style.color = 'var(--primary-button-text)';
+                              e.currentTarget.style.borderColor = 'var(--primary-button-border)';
+                            }}
+                            onClick={handleAnalyzeLiveRecording}
+                          >
+                            Process Video
+                          </button>
+                          <button
+                            className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                            style={{
+                              background: 'var(--secondary-button-bg)',
+                              color: 'var(--secondary-button-text)',
+                              border: '2px solid var(--secondary-button-border)'
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = 'var(--secondary-button-hover-bg)';
+                              e.currentTarget.style.color = 'var(--secondary-button-hover-text)';
+                              e.currentTarget.style.borderColor = 'var(--secondary-button-hover-border)';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = 'var(--secondary-button-bg)';
+                              e.currentTarget.style.color = 'var(--secondary-button-text)';
+                              e.currentTarget.style.borderColor = 'var(--secondary-button-border)';
+                            }}
+                            onClick={handleRetakeLiveRecording}
+                          >
+                            Re-Take
+                          </button>
+                          <button
+                            className="px-6 py-3 rounded text-sm font-bold transition cursor-pointer"
+                            style={{
+                              background: 'transparent',
+                              color: 'white',
+                              border: '2px solid #6B7280'
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = '#6B7280';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                            onClick={handleCancelLiveRecording}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <div className="text-sm text-center text-white">
+                          Please wait while we process your video...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       </div>
 
 

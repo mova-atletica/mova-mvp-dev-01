@@ -1041,6 +1041,11 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
 
   // Exercise-type-specific content renderer
   const renderExerciseTypeSpecificContent = () => {
+    // Don't render anything if exercise is null/undefined (e.g., for open-move)
+    if (!exercise) {
+      return null;
+    }
+    
     const exerciseType = exercise?.exerciseType;
     
     switch (exerciseType) {
@@ -1172,26 +1177,28 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Motion Analysis</div>
       
       {/* Exercise Type and Classification */}
-      <div style={{ 
-        background: 'var(--vp-dropdown-bg)', 
-        border: '1px solid var(--vp-dropdown-border)', 
-        borderRadius: '4px', 
-        padding: '8px', 
-        marginBottom: '8px' 
-      }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Motion Classification:</div>
-        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-          Type: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exerciseAnalysisData?.exerciseType || 'Unknown'}</span>
+      {exercise && (
+        <div style={{ 
+          background: 'var(--vp-dropdown-bg)', 
+          border: '1px solid var(--vp-dropdown-border)', 
+          borderRadius: '4px', 
+          padding: '8px', 
+          marginBottom: '8px' 
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Motion Classification:</div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Type: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exerciseAnalysisData?.exerciseType || 'Unknown'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Joints of Interest: <span style={{ color: '#10b981', fontWeight: 500 }}>
+              {exercise?.jointsOfInterest && Array.isArray(exercise.jointsOfInterest) && exercise.jointsOfInterest.length > 0 
+                ? exercise.jointsOfInterest.join(', ')
+                : 'None specified'
+              }
+            </span>
+          </div>
         </div>
-        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
-          Joints of Interest: <span style={{ color: '#10b981', fontWeight: 500 }}>
-            {exercise?.jointsOfInterest && Array.isArray(exercise.jointsOfInterest) && exercise.jointsOfInterest.length > 0 
-              ? exercise.jointsOfInterest.join(', ')
-              : 'None specified'
-            }
-          </span>
-        </div>
-      </div>
+      )}
 
       {/* Skeleton Toggle */}
       <button
