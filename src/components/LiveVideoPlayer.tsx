@@ -139,13 +139,36 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
 
   // Detect mobile device (safe for SSR)
   const [isMobile, setIsMobile] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   
   useEffect(() => {
-    // Check if we're on mobile - only runs on client side
+    // Mark as mounted and check if we're on mobile - only runs on client side
+    setIsMounted(true);
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
       setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     }
   }, []);
+
+  // Memoize videoConstraints to only create on client side (SSR-safe)
+  const videoConstraints = useMemo(() => {
+    // Return safe defaults during SSR
+    if (!isMounted) {
+      return {
+        width: 360,
+        height: 640,
+        aspectRatio: 9 / 16,
+        facingMode: "user",
+      };
+    }
+    // Return actual constraints after mount
+    const facingMode = isMobile ? "environment" : "user";
+    return {
+      width: 360,
+      height: 640,
+      aspectRatio: 9 / 16,
+      facingMode: facingMode,
+    };
+  }, [isMounted, isMobile]);
 
   // Load pose detection model
   useEffect(() => {
@@ -1375,12 +1398,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
                 <Webcam
                   ref={webcamRef}
                   audio={false}
-                  videoConstraints={{
-                    width: 360,
-                    height: 640,
-                    aspectRatio: 9 / 16,
-                    facingMode: isMobile ? "environment" : "user",
-                  }}
+                  videoConstraints={videoConstraints}
                   className="rounded w-full"
                 />
               </div>
