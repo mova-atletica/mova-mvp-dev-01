@@ -1369,7 +1369,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
                     width: 360,
                     height: 640,
                     aspectRatio: 9 / 16,
-                    facingMode: "user",
+                    facingMode: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? "environment" : "user",
                   }}
                   className="rounded w-full"
                 />

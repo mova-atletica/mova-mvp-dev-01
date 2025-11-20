@@ -171,66 +171,16 @@ export default function OpenMovePracticeTab() {
       return;
     }
     
-    // Set the video URL and process it
+    // Set the video URL for display purposes
     // Keep the modal open during processing
     setVideoUrl(liveRecordingUrl);
     setIsRecordedVideo(true);
-    setIsAnalyzing(true);
     
-    // Wait for the video element to be ready and loaded, then process
-    // Use a combination of checking and event listeners to ensure video is ready
-    const waitForVideoReady = (attempts = 0) => {
-      if (attempts > 50) {
-        // Give up after 5 seconds (50 * 100ms)
-        console.error('Video element not ready after timeout');
-        setIsAnalyzing(false);
-        setShowLiveRecordingPreview(false);
-        return;
-      }
-      
-      if (videoRef.current) {
-        const video = videoRef.current;
-        
-        // Check if video is already loaded
-        if (video.readyState >= 2) {
-          // Video is ready (HAVE_CURRENT_DATA or higher)
-          processRecordedVideo(liveRecordingUrl, () => {
-            setShowLiveRecordingPreview(false);
-          });
-          return;
-        }
-        
-        // Set up event listeners for when video loads
-        const handleLoadedMetadata = () => {
-          if (videoRef.current && videoRef.current.readyState >= 2) {
-            processRecordedVideo(liveRecordingUrl, () => {
-              setShowLiveRecordingPreview(false);
-            });
-          }
-        };
-        
-        const handleError = () => {
-          console.error('Error loading video');
-          setIsAnalyzing(false);
-          setShowLiveRecordingPreview(false);
-        };
-        
-        video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
-        video.addEventListener('error', handleError, { once: true });
-        
-        // Also trigger load if not already loading
-        if (video.readyState === 0) {
-          video.load();
-        }
-      } else {
-        // Video element doesn't exist yet, try again after a short delay
-        setTimeout(() => waitForVideoReady(attempts + 1), 100);
-      }
-    };
-    
-    // Start waiting for video to be ready
-    // Give React time to render the video element
-    setTimeout(() => waitForVideoReady(), 200);
+    // Process the video using temporary video element
+    // Close modal after processing completes
+    processRecordedVideo(liveRecordingUrl, () => {
+      setShowLiveRecordingPreview(false);
+    });
   };
 
   // Handle retaking the live recording
@@ -278,104 +228,203 @@ export default function OpenMovePracticeTab() {
   };
 
   const processRecordedVideo = async (url: string, onComplete?: () => void) => {
-    if (!detector || !videoRef.current) return;
+    if (!detector) {
+      console.error('Detector not available');
+      setIsAnalyzing(false);
+      return;
+    }
 
     setIsAnalyzing(true);
     setAnalysisProgress(0);
 
-    const video = videoRef.current;
-    const poses: any[] = [];
-    const angles = {
-      leftKneeAngles: [] as (number | null)[],
-      rightKneeAngles: [] as (number | null)[],
-      leftHipAngles: [] as (number | null)[],
-      rightHipAngles: [] as (number | null)[],
-      leftElbowAngles: [] as (number | null)[],
-      rightElbowAngles: [] as (number | null)[],
-      leftShoulderAbdAngles: [] as (number | null)[],
-      rightShoulderAbdAngles: [] as (number | null)[],
-      trunkAngles: [] as (number | null)[]
-    };
+    try {
+      // Create a temporary video element to process the recorded video
+      const tempVideo = document.createElement('video');
+      tempVideo.src = url;
+      tempVideo.muted = true;
+      tempVideo.playsInline = true;
 
-    const processFrame = async (currentTime: number) => {
-      if (currentTime >= video.duration) {
-        // Analysis complete
-        setAllPoses(poses);
-        setLeftKneeAngles(angles.leftKneeAngles);
-        setRightKneeAngles(angles.rightKneeAngles);
-        setLeftHipAngles(angles.leftHipAngles);
-        setRightHipAngles(angles.rightHipAngles);
-        setLeftElbowAngles(angles.leftElbowAngles);
-        setRightElbowAngles(angles.rightElbowAngles);
-        setLeftShoulderAbdAngles(angles.leftShoulderAbdAngles);
-        setRightShoulderAbdAngles(angles.rightShoulderAbdAngles);
-        setTrunkAngles(angles.trunkAngles);
-        setIsAnalyzing(false);
-        setAnalysisProgress(100);
-        // Call onComplete callback if provided
-        if (onComplete) {
-          onComplete();
-        }
-        return;
-      }
+      // Wait for video to be ready
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Video loading timeout'));
+        }, 30000); // 30 second timeout
 
-      video.currentTime = currentTime;
-      
-      await new Promise(resolve => {
-        video.onseeked = () => {
-          if (detector) {
-            detector.estimatePoses(video).then((detectedPoses) => {
-              if (detectedPoses.length > 0) {
-                const pose = detectedPoses[0];
-                poses.push(pose);
-
-                // Calculate angles for all joints
-                const leftKneeAngle = getAngleWithConfidence(pose.keypoints[11], pose.keypoints[13], pose.keypoints[15]).angle;
-                const rightKneeAngle = getAngleWithConfidence(pose.keypoints[12], pose.keypoints[14], pose.keypoints[16]).angle;
-                const leftHipAngle = getAngleWithConfidence(pose.keypoints[11], pose.keypoints[13], pose.keypoints[15]).angle;
-                const rightHipAngle = getAngleWithConfidence(pose.keypoints[12], pose.keypoints[14], pose.keypoints[16]).angle;
-                const leftElbowAngle = getAngleWithConfidence(pose.keypoints[5], pose.keypoints[7], pose.keypoints[9]).angle;
-                const rightElbowAngle = getAngleWithConfidence(pose.keypoints[6], pose.keypoints[8], pose.keypoints[10]).angle;
-                const leftShoulderAbdAngle = getAngleWithConfidence(pose.keypoints[11], pose.keypoints[5], pose.keypoints[7]).angle;
-                const rightShoulderAbdAngle = getAngleWithConfidence(pose.keypoints[12], pose.keypoints[6], pose.keypoints[8]).angle;
-                const trunkAngle = getAngleWithConfidence(pose.keypoints[11], pose.keypoints[12], pose.keypoints[23]).angle;
-
-                angles.leftKneeAngles.push(leftKneeAngle);
-                angles.rightKneeAngles.push(rightKneeAngle);
-                angles.leftHipAngles.push(leftHipAngle);
-                angles.rightHipAngles.push(rightHipAngle);
-                angles.leftElbowAngles.push(leftElbowAngle);
-                angles.rightElbowAngles.push(rightElbowAngle);
-                angles.leftShoulderAbdAngles.push(leftShoulderAbdAngle);
-                angles.rightShoulderAbdAngles.push(rightShoulderAbdAngle);
-                angles.trunkAngles.push(trunkAngle);
-              } else {
-                // No pose detected, add null values
-                angles.leftKneeAngles.push(null);
-                angles.rightKneeAngles.push(null);
-                angles.leftHipAngles.push(null);
-                angles.rightHipAngles.push(null);
-                angles.leftElbowAngles.push(null);
-                angles.rightElbowAngles.push(null);
-                angles.leftShoulderAbdAngles.push(null);
-                angles.rightShoulderAbdAngles.push(null);
-                angles.trunkAngles.push(null);
-              }
-
-              const progress = Math.min(100, (currentTime / video.duration) * 100);
-              setAnalysisProgress(progress);
-              
-              resolve(undefined);
-            });
+        const checkReady = () => {
+          // Check if video is ready to process
+          // readyState 4 means HAVE_ENOUGH_DATA, which is sufficient for processing
+          if (tempVideo.readyState >= 4 && tempVideo.videoWidth > 0 && tempVideo.videoHeight > 0 && tempVideo.duration > 0) {
+            clearTimeout(timeout);
+            resolve();
+          } else {
+            setTimeout(checkReady, 100);
           }
         };
+
+        tempVideo.addEventListener('loadedmetadata', () => {
+          setTimeout(checkReady, 50);
+        }, { once: true });
+
+        tempVideo.addEventListener('loadeddata', () => {
+          setTimeout(checkReady, 50);
+        }, { once: true });
+
+        tempVideo.addEventListener('canplay', () => {
+          setTimeout(checkReady, 50);
+        }, { once: true });
+
+        tempVideo.addEventListener('error', (error) => {
+          clearTimeout(timeout);
+          console.error('Error loading video:', error);
+          reject(error);
+        }, { once: true });
+
+        tempVideo.load();
+        checkReady();
       });
 
-      // Process next frame
-      await processFrame(currentTime + 0.1);
-    };
+      // Detect mobile device for performance optimization
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // Process the video frames
+      const poses: any[] = [];
+      const angles = {
+        leftKneeAngles: [] as (number | null)[],
+        rightKneeAngles: [] as (number | null)[],
+        leftHipAngles: [] as (number | null)[],
+        rightHipAngles: [] as (number | null)[],
+        leftElbowAngles: [] as (number | null)[],
+        rightElbowAngles: [] as (number | null)[],
+        leftShoulderAbdAngles: [] as (number | null)[],
+        rightShoulderAbdAngles: [] as (number | null)[],
+        trunkAngles: [] as (number | null)[]
+      };
 
-    await processFrame(0);
+      // Get video duration
+      let duration = tempVideo.duration;
+      if (duration === Infinity || duration <= 0 || isNaN(duration)) {
+        // Use a fallback duration if video duration is invalid
+        duration = 60; // Default to 60 seconds
+        console.warn('Video duration is invalid, using fallback duration');
+      }
+
+      // Adjust frame processing rate based on device
+      // Mobile: process every 0.2s (5fps), Desktop: process every 0.1s (10fps)
+      const frameInterval = isMobile ? 0.2 : 0.1;
+      const frameRate = 30;
+      const step = Math.ceil(frameInterval * frameRate); // Process every Nth frame
+      const totalFrames = Math.ceil(duration / frameInterval);
+      let processedFrames = 0;
+
+      for (let t = 0; t < duration; t += frameInterval) {
+        // Add timeout for each frame seek to prevent getting stuck
+        const seekPromise = new Promise<void>((resolve, reject) => {
+          const seekTimeout = setTimeout(() => {
+            reject(new Error(`Frame seek timeout at ${t}s`));
+          }, 5000); // 5 second timeout per frame
+
+          tempVideo.onseeked = () => {
+            clearTimeout(seekTimeout);
+            resolve();
+          };
+
+          tempVideo.onerror = () => {
+            clearTimeout(seekTimeout);
+            reject(new Error('Video seek error'));
+          };
+
+          tempVideo.currentTime = t;
+        });
+
+        try {
+          await seekPromise;
+
+          // Check if we've reached the end of the video
+          if (tempVideo.ended || tempVideo.currentTime >= duration) {
+            break;
+          }
+
+          // Estimate poses
+          const detectedPoses = await detector.estimatePoses(tempVideo);
+
+          if (detectedPoses && detectedPoses.length > 0) {
+            const pose = detectedPoses[0];
+            poses.push(pose);
+
+            // Calculate angles for all joints
+            const leftKneeAngle = getAngleWithConfidence(pose.keypoints[11], pose.keypoints[13], pose.keypoints[15]).angle;
+            const rightKneeAngle = getAngleWithConfidence(pose.keypoints[12], pose.keypoints[14], pose.keypoints[16]).angle;
+            const leftHipAngle = getAngleWithConfidence(pose.keypoints[11], pose.keypoints[13], pose.keypoints[15]).angle;
+            const rightHipAngle = getAngleWithConfidence(pose.keypoints[12], pose.keypoints[14], pose.keypoints[16]).angle;
+            const leftElbowAngle = getAngleWithConfidence(pose.keypoints[5], pose.keypoints[7], pose.keypoints[9]).angle;
+            const rightElbowAngle = getAngleWithConfidence(pose.keypoints[6], pose.keypoints[8], pose.keypoints[10]).angle;
+            const leftShoulderAbdAngle = getAngleWithConfidence(pose.keypoints[11], pose.keypoints[5], pose.keypoints[7]).angle;
+            const rightShoulderAbdAngle = getAngleWithConfidence(pose.keypoints[12], pose.keypoints[6], pose.keypoints[8]).angle;
+            const trunkAngle = getAngleWithConfidence(pose.keypoints[11], pose.keypoints[12], pose.keypoints[23]).angle;
+
+            angles.leftKneeAngles.push(leftKneeAngle);
+            angles.rightKneeAngles.push(rightKneeAngle);
+            angles.leftHipAngles.push(leftHipAngle);
+            angles.rightHipAngles.push(rightHipAngle);
+            angles.leftElbowAngles.push(leftElbowAngle);
+            angles.rightElbowAngles.push(rightElbowAngle);
+            angles.leftShoulderAbdAngles.push(leftShoulderAbdAngle);
+            angles.rightShoulderAbdAngles.push(rightShoulderAbdAngle);
+            angles.trunkAngles.push(trunkAngle);
+          } else {
+            // No pose detected, add null values
+            poses.push(null);
+            angles.leftKneeAngles.push(null);
+            angles.rightKneeAngles.push(null);
+            angles.leftHipAngles.push(null);
+            angles.rightHipAngles.push(null);
+            angles.leftElbowAngles.push(null);
+            angles.rightElbowAngles.push(null);
+            angles.leftShoulderAbdAngles.push(null);
+            angles.rightShoulderAbdAngles.push(null);
+            angles.trunkAngles.push(null);
+          }
+
+          processedFrames++;
+          const progress = Math.min(100, Math.round((processedFrames / totalFrames) * 100));
+          setAnalysisProgress(progress);
+        } catch (error) {
+          console.error(`Error processing frame at ${t}s:`, error);
+          // Continue processing other frames even if one fails
+          processedFrames++;
+          const progress = Math.min(100, Math.round((processedFrames / totalFrames) * 100));
+          setAnalysisProgress(progress);
+        }
+      }
+
+      // Store results
+      setAllPoses(poses);
+      setLeftKneeAngles(angles.leftKneeAngles);
+      setRightKneeAngles(angles.rightKneeAngles);
+      setLeftHipAngles(angles.leftHipAngles);
+      setRightHipAngles(angles.rightHipAngles);
+      setLeftElbowAngles(angles.leftElbowAngles);
+      setRightElbowAngles(angles.rightElbowAngles);
+      setLeftShoulderAbdAngles(angles.leftShoulderAbdAngles);
+      setRightShoulderAbdAngles(angles.rightShoulderAbdAngles);
+      setTrunkAngles(angles.trunkAngles);
+      setIsAnalyzing(false);
+      setAnalysisProgress(100);
+
+      // Clean up temporary video element
+      tempVideo.src = '';
+      tempVideo.load();
+
+      // Call onComplete callback if provided
+      if (onComplete) {
+        onComplete();
+      }
+    } catch (error) {
+      console.error('Error processing video:', error);
+      setIsAnalyzing(false);
+      setAnalysisProgress(0);
+      alert('Error processing video. Please try again.');
+    }
   };
 
   // Custom video component that displays correct duration for live recordings
@@ -448,11 +497,11 @@ export default function OpenMovePracticeTab() {
         />
         
         {/* Custom controls */}
-        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2 rounded-b-lg">
+        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2 rounded-b-lg" style={{ width: '100%' }}>
           <div className="flex items-center gap-2">
             <button
               onClick={togglePlay}
-              className="w-8 h-8 rounded-full bg-white flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-blue-600"
             >
               {isPlaying ? (
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
