@@ -283,8 +283,9 @@ export default function OpenMovePracticeTab() {
         checkReady();
       });
 
-      // Detect mobile device for performance optimization
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      // Detect mobile device for performance optimization (safe for SSR)
+      const isMobile = typeof window !== 'undefined' && typeof navigator !== 'undefined' && 
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       // Process the video frames
       const poses: any[] = [];

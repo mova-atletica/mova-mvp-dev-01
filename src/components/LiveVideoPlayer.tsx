@@ -137,6 +137,16 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
   const [currentPoseResult, setCurrentPoseResult] = useState<any>(null);
   const [poseHistory, setPoseHistory] = useState<any[]>([]);
 
+  // Detect mobile device (safe for SSR)
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    // Check if we're on mobile - only runs on client side
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    }
+  }, []);
+
   // Load pose detection model
   useEffect(() => {
     async function loadModel() {
@@ -1369,7 +1379,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
                     width: 360,
                     height: 640,
                     aspectRatio: 9 / 16,
-                    facingMode: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? "environment" : "user",
+                    facingMode: isMobile ? "environment" : "user",
                   }}
                   className="rounded w-full"
                 />
