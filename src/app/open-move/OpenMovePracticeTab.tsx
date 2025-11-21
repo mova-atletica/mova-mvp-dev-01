@@ -685,7 +685,7 @@ export default function OpenMovePracticeTab() {
                           border: '2px solid var(--secondary-button-border)'
                         }}
                       >
-                        📹 Record Live
+                        Record Live
                       </button>
                     </Dialog.Trigger>
                     <Dialog.Portal>
@@ -733,7 +733,7 @@ export default function OpenMovePracticeTab() {
                       border: '2px solid var(--primary-button-border)'
                     }}
                   >
-                    📁 Upload Video
+                    Upload Video
                   </button>
                   <input
                     ref={fileInputRef}

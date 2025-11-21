@@ -131,24 +131,64 @@ export async function GET(request: NextRequest) {
 
     // Get file metadata
     const [metadata] = await file.getMetadata();
+    const fileSize = parseInt(metadata.size || '0', 10);
     
-    // Create a readable stream
-    const fileStream = file.createReadStream();
-
-    // Return the video stream with appropriate headers
-    return new NextResponse(fileStream as any, {
-      status: 200,
-      headers: {
-        'Content-Type': metadata.contentType || 'video/mp4',
-        'Content-Length': String(metadata.size || ''),
-        'Cache-Control': 'public, max-age=3600',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Accept-Ranges': 'bytes',
-        'Content-Disposition': 'inline',
-      },
-    });
+    // Parse Range header for partial content requests
+    const rangeHeader = request.headers.get('range');
+    
+    if (rangeHeader) {
+      // Parse range header (e.g., "bytes=1024-2047" or "bytes=1024-")
+      const parts = rangeHeader.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunkSize = (end - start) + 1;
+      
+      // Validate range
+      if (start >= fileSize || end >= fileSize || start > end) {
+        return new NextResponse(null, {
+          status: 416, // Range Not Satisfiable
+          headers: {
+            'Content-Range': `bytes */${fileSize}`,
+            'Accept-Ranges': 'bytes',
+          },
+        });
+      }
+      
+      // Create a readable stream for the requested range
+      const fileStream = file.createReadStream({ start, end });
+      
+      // Return partial content response
+      return new NextResponse(fileStream as any, {
+        status: 206, // Partial Content
+        headers: {
+          'Content-Type': metadata.contentType || 'video/mp4',
+          'Content-Length': String(chunkSize),
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Range',
+        },
+      });
+    } else {
+      // No range header - stream entire file
+      const fileStream = file.createReadStream();
+      
+      return new NextResponse(fileStream as any, {
+        status: 200,
+        headers: {
+          'Content-Type': metadata.contentType || 'video/mp4',
+          'Content-Length': String(fileSize),
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Range',
+          'Content-Disposition': 'inline',
+        },
+      });
+    }
 
   } catch (error) {
     console.error('Video proxy error:', error);
@@ -157,4 +197,16 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Range',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
 } 
