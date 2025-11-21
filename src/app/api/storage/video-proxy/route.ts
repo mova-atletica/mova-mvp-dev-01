@@ -131,14 +131,39 @@ export async function GET(request: NextRequest) {
 
     // Get file metadata
     const [metadata] = await file.getMetadata();
-    const fileSize = parseInt(metadata.size || '0', 10);
     
+    if (!metadata) {
+      return NextResponse.json({ error: 'Failed to get file metadata' }, { status: 500 });
+    }
+    
+    const fileSize = metadata.size ? parseInt(String(metadata.size), 10) : 0;
+    
+    if (!fileSize || isNaN(fileSize)) {
+      return NextResponse.json({ error: 'Invalid file size' }, { status: 500 });
+    }
+
     // Parse Range header for partial content requests
     const rangeHeader = request.headers.get('range');
-    
-    if (rangeHeader) {
+    if (rangeHeader && typeof rangeHeader === 'string') {
       // Parse range header (e.g., "bytes=1024-2047" or "bytes=1024-")
       const parts = rangeHeader.replace(/bytes=/, '').split('-');
+      if (!parts || parts.length === 0 || !parts[0]) {
+        // Invalid range format, fall back to full file
+        const fileStream = file.createReadStream();
+        return new NextResponse(fileStream as any, {
+          status: 200,
+          headers: {
+            'Content-Type': metadata.contentType || 'video/mp4',
+            'Content-Length': String(fileSize),
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'public, max-age=3600',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Range',
+            'Content-Disposition': 'inline',
+          },
+        });
+      }
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunkSize = (end - start) + 1;
