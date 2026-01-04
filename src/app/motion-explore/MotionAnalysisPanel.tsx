@@ -156,7 +156,32 @@ export default function MotionAnalysisPanel({ poses, angles, videoUrl }: MotionA
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="joint" />
               <YAxis />
-              <Tooltip />
+              <Tooltip 
+                contentStyle={{ 
+                  background: 'var(--results-chart-tooltip-bg)', 
+                  color: 'var(--results-chart-tooltip-text)', 
+                  border: 'none', 
+                  borderRadius: 8, 
+                  fontSize: '13px', 
+                  fontWeight: 400 
+                }}
+                labelStyle={{ 
+                  color: 'var(--results-chart-tooltip-text)', 
+                  fontSize: '11px', 
+                  fontWeight: 700 
+                }}
+                itemStyle={{ 
+                  color: 'var(--results-chart-tooltip-text)', 
+                  fontSize: '13px', 
+                  fontWeight: 400 
+                }}
+                formatter={(value: any) => {
+                  if (typeof value === 'number') {
+                    return `${value.toFixed(2)}°`;
+                  }
+                  return value;
+                }}
+              />
               <Bar dataKey="range" fill="#3b82f6" />
             </BarChart>
           </ResponsiveContainer>

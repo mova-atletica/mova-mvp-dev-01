@@ -33,6 +33,11 @@ export default function MotionExplorePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Remove body padding-top for motion explore page since header is not fixed
+    const body = document.body;
+    const originalPaddingTop = body.style.paddingTop;
+    body.style.paddingTop = '3vh';
+    
     // Load motion data from localStorage
     try {
       const storedData = localStorage.getItem('openMoveData');
@@ -52,6 +57,11 @@ export default function MotionExplorePage() {
       setError('Unable to access stored data. Please try again or clear your browser data.');
     }
     setLoading(false);
+    
+    // Cleanup: restore original padding when component unmounts
+    return () => {
+      body.style.paddingTop = originalPaddingTop || '';
+    };
   }, []);
 
   const handleBackToOpenMove = () => {
@@ -94,7 +104,7 @@ export default function MotionExplorePage() {
   }
 
   return (
-    <main className="bg-onyx-100 flex flex-col items-center px-0 pb-4" style={{ maxWidth: '2560px', marginLeft: '3%', marginRight: '3%' }}>
+    <main className="bg-onyx-100 flex flex-col items-center px-0 pb-4" style={{ maxWidth: '2560px', marginLeft: '3%', marginRight: '3%', marginTop: '30px' }}>
       <div className="w-full max-w-6xl flex flex-col md:flex-row" style={{ maxWidth: '2560px', minHeight: '100vh' }}>
         {/* Video Player - Full width on mobile, 50% on desktop */}
         <div className="w-full md:flex-1 md:min-w-0 md:max-w-[50%] flex flex-col justify-start" style={{ maxWidth: '100%' }}>

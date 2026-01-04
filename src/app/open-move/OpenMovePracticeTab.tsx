@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import Webcam from "react-webcam";
 import * as poseDetection from "@tensorflow-models/pose-detection";
 import "@tensorflow/tfjs-backend-webgl";
@@ -8,8 +8,13 @@ import { getAngleWithConfidence } from '../../lib/analysisUtils';
 import { useRouter } from 'next/navigation';
 import * as Dialog from '@radix-ui/react-dialog';
 import LiveVideoPlayer from '../../components/LiveVideoPlayer';
+import Spline from '@splinetool/react-spline';
 
-export default function OpenMovePracticeTab() {
+export interface OpenMovePracticeTabHandle {
+  open: () => void;
+}
+
+const OpenMovePracticeTab = forwardRef<OpenMovePracticeTabHandle>((props, ref) => {
   const router = useRouter();
   
   // --- State and refs ---
@@ -28,25 +33,47 @@ export default function OpenMovePracticeTab() {
   const [showLiveRecordingPreview, setShowLiveRecordingPreview] = useState(false);
   const [liveRecordingUrl, setLiveRecordingUrl] = useState<string | null>(null);
   const [liveRecordingDuration, setLiveRecordingDuration] = useState<number | null>(null);
+  const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
+
+  // Expose open method to parent component
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      setShowGuidelinesModal(true);
+      setCurrentDemoSlide(0); // Reset to performance tips card when opening
+    }
+  }));
+
+  // Reset carousel to first slide when modal opens
+  useEffect(() => {
+    if (showGuidelinesModal) {
+      setCurrentDemoSlide(0);
+    }
+  }, [showGuidelinesModal]);
 
   // Demo carousel data
   const demoSlides = [
     {
+      id: 0,
+      title: "App Performance Tips",
+      description: "performance-tips", // Special identifier for performance tips card
+      image: null
+    },
+    {
       id: 1,
-      title: "Upload or Record Video",
-      description: "Use good lighting and make sure your full body is in frame of the video.",
+      title: "Uploading / Recording Videos",
+      description: "Use good lighting, ensure only one person is visible, keep your full body in frame, and wear fitted, high-contrast clothing against a simple background.",
       image: "/demo/step-01.webp"
     },
     {
       id: 2,
-      title: "Review Your Bio-Mechanics",
-      description: "Share your motion data with professionals; add motion data effects, and share with friends.",
+      title: "Camera & Framing",
+      description: "Film vertically (9:16) and place the camera far enough back so your entire body stays visible throughout the movement.",
       image: "/demo/step-02.webp"
     },
     {
       id: 3,
-      title: "Download & Share",
-      description: "Download your assets in 9:16 to share on socials.",
+      title: "Review, Download & Share",
+      description: "Review biomechanics, add visual motion effects and share videos or motion data with professionals. Download assets in 9:16 for social sharing.",
       image: "/demo/step-03.webp"
     }
   ];
@@ -665,14 +692,25 @@ export default function OpenMovePracticeTab() {
       width: '94%' // Match header width
     }}>
       {/* Main Content */}
-      <div className="bg-white rounded-lg shadow-md p-2" style={{ backgroundColor: 'var(--transparent)' }}>
+      <div className="rounded-lg p-2" style={{ 
+        backgroundColor: 'var(--transparent)'
+      }}>
           {/* Instructions with Demo Carousel */}
           {!videoUrl && (
-          <div className="py-4">
-            {/* Record/Upload Buttons */}
-            <div className="text-center mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md mx-auto text-sm">
-                <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--transparent)' }}>
+          <div className="py-2">
+            {/* Record/Upload Buttons and Examples Container */}
+            <div className="mb-6" style={{ width: '100%' }}>
+              <div className="flex flex-col md:flex-row gap-6 text-sm" style={{ width: '100%' }}>
+                {/* Left: Record/Upload Buttons */}
+                <div className="flex flex-col gap-4 text-left rounded-lg h-fit" style={{ 
+                  flexShrink: 0, 
+                  width: '100%', 
+                  maxWidth: '250px',
+                  border: '1px solid var(--border)'
+                }}>
+                <div className="p-4 rounded-lg text-left" style={{ 
+                  backgroundColor: 'var(--transparent)'
+                }}>
                   <strong>Record Live</strong>
                   <p className="text-xs font-normal" style={{ color: 'var(--transparent)' }}>Start your camera to record new movement</p>
                   <Dialog.Root open={showLiveModal} onOpenChange={setShowLiveModal}>
@@ -721,7 +759,9 @@ export default function OpenMovePracticeTab() {
                     </Dialog.Portal>
                   </Dialog.Root>
                 </div>
-                <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--transparent)' }}>
+                <div className="p-4 rounded-lg text-left" style={{ 
+                  backgroundColor: 'var(--transparent)'
+                }}>
                   <strong>Upload Video</strong>
                   <p className="text-xs font-normal" style={{ color: 'var(--transparent)' }}>Upload MP4 or MOV video files to analyze</p>
                   <button
@@ -743,92 +783,20 @@ export default function OpenMovePracticeTab() {
                     className="hidden"
                   />
                 </div>
-              </div>
-            </div>
+                </div>
 
-            {/* Demo Carousel Section */}
-            <div className="mb-6">
-              <h3 className="text-md font-semibold text-center mb-4" style={{ color: 'var(--foreground)' }}>
-                Guidlines for Motion Videos:
-              </h3>
-              
-              {/* Carousel Container */}
-              <div className="relative mx-auto" style={{ width: 'fit-content', maxWidth: '300px' }}>
-                {/* Carousel Slides */}
-                <div className="overflow-hidden rounded-lg">
-                  <div 
-                    className="flex transition-transform duration-300 ease-in-out"
-                    style={{ transform: `translateX(-${currentDemoSlide * 100}%)` }}
-                  >
-                    {demoSlides.map((slide) => (
-                      <div key={slide.id} className="w-full flex-shrink-0">
-                        <div className="flex flex-col items-center">
-                          {/* Demo Image - Scaled Down 70% */}
-                          <div className="w-full mx-auto mb-2" style={{ maxWidth: '70%' }}>
-                            <div className="aspect-[9/16] bg-gray-200 rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--muted)' }}>
-                              <img 
-                                src={slide.image}
-                                alt={slide.title}
-                                className="w-full object-contain"
-                                style={{ objectFit: 'contain' }}
-                              />
-                            </div>
-                          </div>
-                          
-                          {/* Slide Content */}
-                          <div className="text-center px-2">
-                            <h4 className="font-medium mb-1 text-sm" style={{ color: 'var(--foreground)' }}>
-                              {slide.title}
-                            </h4>
-                            <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                              {slide.description}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                {/* Right: Examples Container with Spline */}
+                <div className="flex-1 rounded-lg overflow-hidden" style={{ 
+                  backgroundColor: 'var(--muted)', 
+                  //aspectRatio: '16/9',
+                  minWidth: '0',
+                  width: '100%',
+                  maxHeight: '400px'
+                }}>
+                  <Spline
+                    scene="https://prod.spline.design/Yw4B2EPrwOu23Zz4/scene.splinecode"
+                  />
                 </div>
-                
-                {/* Carousel Navigation Dots */}
-                <div className="flex justify-center mt-4 space-x-2">
-                  {demoSlides.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentDemoSlide(index)}
-                      className="w-2 h-2 rounded-full transition-colors"
-                      style={{
-                        backgroundColor: index === currentDemoSlide 
-                          ? 'var(--primary, #3b82f6)' 
-                          : 'var(--muted, #d1d5db)'
-                      }}
-                    />
-                  ))}
-                </div>
-                
-                {/* Navigation Arrows - Positioned closer to video */}
-                <button
-                  onClick={() => setCurrentDemoSlide(prev => 
-                    prev === 0 ? demoSlides.length - 1 : prev - 1
-                  )}
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 rounded-full p-2 shadow-lg hover:opacity-80 transition-opacity"
-                  style={{ backgroundColor: 'var(--background, #ffffff)', color: 'var(--foreground, #000000)' }}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setCurrentDemoSlide(prev => 
-                    prev === demoSlides.length - 1 ? 0 : prev + 1
-                  )}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full p-2 shadow-lg hover:opacity-80 transition-opacity"
-                  style={{ backgroundColor: 'var(--background, #ffffff)', color: 'var(--foreground, #000000)' }}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
               </div>
             </div>
           </div>
@@ -1085,9 +1053,163 @@ export default function OpenMovePracticeTab() {
             </Dialog.Content>
           </Dialog.Portal>
         </Dialog.Root>
+
+        {/* Guidelines Modal */}
+        <Dialog.Root open={showGuidelinesModal} onOpenChange={setShowGuidelinesModal}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+            <Dialog.Content
+              className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+              style={{ width: '100vw', height: '100vh', padding: '1rem', background: 'rgba(24,24,27,0.95)' }}
+            >
+              <button
+                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/80 hover:bg-black focus:outline-none"
+                aria-label="Close"
+                type="button"
+                onClick={() => setShowGuidelinesModal(false)}
+              >
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+              
+              <Dialog.Title className="text-xl font-thin mb-6 text-white">
+                Beta Usage Guidelines
+              </Dialog.Title>
+              
+              {/* Carousel Container */}
+              <div className="relative mx-auto" style={{ width: 'fit-content', maxWidth: '400px' }}>
+                {/* Carousel Slides */}
+                <div className="overflow-hidden rounded-lg">
+                  <div 
+                    className="flex transition-transform duration-300 ease-in-out"
+                    style={{ transform: `translateX(-${currentDemoSlide * 100}%)` }}
+                  >
+                    {demoSlides.map((slide) => (
+                      <div key={slide.id} className="w-full flex-shrink-0">
+                        <div className="flex flex-col items-center">
+                          {/* Performance Tips Card */}
+                          {slide.description === "performance-tips" ? (
+                            <div className="w-full mx-auto mb-4 px-2" style={{ maxWidth: '80%' }}>
+                              <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700">
+                                <h4 className="font-medium mb-4 text-lg text-white text-center">
+                                  {slide.title}
+                                </h4>
+                                <div className="text-sm text-white space-y-3 text-left">
+                                  <p className="mb-3">
+                                    <strong className="text-white">For best performance</strong>
+                                  </p>
+                                  <ul className="list-disc list-inside space-y-2 ml-2">
+                                    <li>Use Chrome or Firefox on desktop (known instability on mobile browsers).</li>
+                                    <li>Designed for 9:16 vertical videos.</li>
+                                    <li>Short 5-15 second videos are recommended.</li>
+                                    <li>If recording solo, using an iPhone as a webcam (e.g. Continuity Camera on Mac) on a tripod works well.</li>
+                                  </ul>
+                                  <p className="mb-3">
+                                    <strong className="text-white">Performance notes</strong>
+                                  </p>
+                                  <ul className="list-disc list-inside space-y-2 ml-2">
+                                    <li>The web app can’t yet deliver both perfectly stable 60fps and high-quality exports at the same time.</li>
+                                    <li>To improve results, close other GPU-heavy apps or tabs before exporting.</li>
+                                    <li>Shorter clips and lower resolutions export more reliably.</li>
+                                  </ul>     
+                                  <p className="mb-3">
+                                    <strong className="text-white">A native mobile version is planned to support higher-quality exports and stable frame rates. Stay tuned for future updates and releases.</strong>
+                                  </p>                             
+                                  <p className="mt-4 text-xs text-gray-400">
+                                    If these adjustments still do not solve your problem, feel free to send a sample video for me to test at {' '}
+                                    <a 
+                                      href="mailto:trey@mova-atletica.xyz" 
+                                      className="text-blue-400 hover:text-blue-300 underline"
+                                    >
+                                      trey@mova-atletica.xyz
+                                    </a>
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Demo Image */}
+                              {slide.image && (
+                                <div className="w-full mx-auto mb-4 px-2" style={{ maxWidth: '80%' }}>
+                                  <div className="aspect-[9/16] mx-2 bg-gray-200 rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--muted)' }}>
+                                    <img 
+                                      src={slide.image}
+                                      alt={slide.title}
+                                      className="w-full object-contain"
+                                      style={{ objectFit: 'contain' }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Slide Content */}
+                              <div className="text-center px-4">
+                                <h4 className="font-medium mb-2 text-lg text-white">
+                                  {slide.title}
+                                </h4>
+                                <p className="text-sm text-white">
+                                  {slide.description}
+                                </p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Carousel Navigation Dots */}
+                <div className="flex justify-center mt-6 space-x-2">
+                  {demoSlides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentDemoSlide(index)}
+                      className="w-2 h-2 rounded-full transition-colors"
+                      style={{
+                        backgroundColor: index === currentDemoSlide 
+                          ? 'var(--primary, #3b82f6)' 
+                          : 'var(--muted, #d1d5db)'
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                {/* Navigation Arrows */}
+                <button
+                  onClick={() => setCurrentDemoSlide(prev => 
+                    prev === 0 ? demoSlides.length - 1 : prev - 1
+                  )}
+                  className="absolute left-2 top-1/2 transform -translate-y-1/2 rounded-full p-2 shadow-lg hover:opacity-80 transition-opacity bg-white/20 hover:bg-white/30"
+                  style={{ color: 'white' }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setCurrentDemoSlide(prev => 
+                    prev === demoSlides.length - 1 ? 0 : prev + 1
+                  )}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full p-2 shadow-lg hover:opacity-80 transition-opacity bg-white/20 hover:bg-white/30"
+                  style={{ color: 'white' }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       </div>
-
-
     </div>
   );
-}
+});
+
+OpenMovePracticeTab.displayName = 'OpenMovePracticeTab';
+
+export default OpenMovePracticeTab;

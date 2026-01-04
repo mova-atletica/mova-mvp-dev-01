@@ -4,6 +4,18 @@
 import { renderMotionTrails } from './effects/motion-trails';
 import { renderMuybridgeFromCanvas } from './effects/muybridge';
 import { renderStats } from './effects/stats';
+import { renderBlobTracking } from './effects/blob-tracking';
+
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Helper function for conditional error logging
+// Non-critical effect rendering failures are silently handled in production
+const logEffectError = (message: string, error: unknown) => {
+  if (isDevelopment) {
+    console.warn(message, error);
+  }
+  // In production, silently continue - these are non-critical effect rendering failures
+};
 
 export interface ExportConfig {
   format: 'png' | 'webm';
@@ -112,6 +124,14 @@ async function renderEffectsToCanvas(
       switch (effect.effect.id) {
         case 'motion-trails':
           renderMotionTrails(ctx, video, poses, effect.config, video.currentTime, true); // isExport = true
+          break;
+        case 'blob-tracking':
+          try {
+            renderBlobTracking(ctx, video, poses, effect.config, video.currentTime, true); // isExport = true
+          } catch (error) {
+            logEffectError('Failed to render blob tracking effect for image export:', error);
+            // Continue with other effects even if blob tracking fails
+          }
           break;
         case 'skeleton-overlay':
           // Render skeleton overlay for image export
@@ -223,7 +243,15 @@ async function renderEffectsToCanvas(
               try {
                 renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
               } catch (error) {
-                console.warn('Failed to render motion trails effect for export frame:', error);
+                logEffectError('Failed to render motion trails effect for export frame:', error);
+              }
+              break;
+            case 'blob-tracking':
+              try {
+                renderBlobTracking(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
+              } catch (error) {
+                logEffectError('Failed to render blob tracking effect for muybridge export frame:', error);
+                // Continue with other effects even if blob tracking fails
               }
               break;
             case 'skeleton-overlay':
@@ -295,7 +323,9 @@ async function renderEffectsToCanvas(
               }
               break;
             default:
-              console.warn(`Effect ${effect.effect.id} not implemented for export frame processing yet`);
+              if (isDevelopment) {
+                console.warn(`Effect ${effect.effect.id} not implemented for export frame processing yet`);
+              }
           }
         }
       };
@@ -365,7 +395,14 @@ async function exportAsVideo(
   config: ExportConfig & { videoVisibility?: { showVideo: boolean; opacity: number; blendMode: GlobalCompositeOperation } }
 ): Promise<ExportResult> {
   try {
-    const duration = config.duration || 3;
+    // Use actual video duration, but cap at config duration if provided
+    const actualVideoDuration = video.duration || 0;
+    const maxDuration = config.duration || actualVideoDuration;
+    // Use the minimum of actual duration and max duration, or fallback to 3 if video duration is invalid
+    const duration = actualVideoDuration > 0 
+      ? Math.min(actualVideoDuration, maxDuration) 
+      : (maxDuration || 3);
+    
     const framerate = config.framerate || 30;
     const totalFrames = Math.floor(duration * framerate);
     
@@ -433,9 +470,18 @@ async function exportAsVideo(
         }
         
         try {
-          // Calculate time for this frame
+          // Calculate time for this frame based on actual duration
           const frameTime = (frameCount / totalFrames) * duration;
-          video.currentTime = frameTime;
+          // Ensure we don't seek beyond video duration
+          video.currentTime = Math.min(frameTime, actualVideoDuration > 0 ? actualVideoDuration : duration);
+          
+          // Check if blob tracking is active (requires more processing time)
+          const hasBlobTracking = activeEffects.some(effect => 
+            effect.enabled && effect.effect.id === 'blob-tracking'
+          );
+          
+          // Increase timeout for blob tracking since it does intensive pixel processing
+          const seekTimeout = hasBlobTracking ? 5000 : 2000; // 5 seconds for blob tracking, 2 seconds otherwise
           
           // Wait for video to seek with timeout and error handling
           await new Promise<void>((resolve, reject) => {
@@ -457,7 +503,7 @@ async function exportAsVideo(
               video.removeEventListener('seeked', onSeeked);
               video.removeEventListener('error', onError);
               reject(new Error('Video seek timeout'));
-            }, 2000); // 2 second timeout
+            }, seekTimeout);
             
             video.addEventListener('seeked', onSeeked);
             video.addEventListener('error', onError);
@@ -501,6 +547,14 @@ async function exportAsVideo(
             switch (effect.effect.id) {
               case 'motion-trails':
                 renderMotionTrails(ctx, video, poses, effect.config, frameTime, true); // isExport = true
+                break;
+              case 'blob-tracking':
+                try {
+                  renderBlobTracking(ctx, video, poses, effect.config, frameTime, true); // isExport = true
+                } catch (error) {
+                  logEffectError('Failed to render blob tracking effect for video export frame:', error);
+                  // Continue with other effects even if blob tracking fails
+                }
                 break;
               case 'skeleton-overlay':
                 // Render skeleton overlay for video export
@@ -612,7 +666,15 @@ async function exportAsVideo(
                     try {
                       renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
                     } catch (error) {
-                      console.warn('Failed to render motion trails effect for video export frame:', error);
+                      logEffectError('Failed to render motion trails effect for video export frame:', error);
+                    }
+                    break;
+                  case 'blob-tracking':
+                    try {
+                      renderBlobTracking(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
+                    } catch (error) {
+                      logEffectError('Failed to render blob tracking effect for video export muybridge frame:', error);
+                      // Continue with other effects even if blob tracking fails
                     }
                     break;
                   case 'skeleton-overlay':
@@ -684,7 +746,9 @@ async function exportAsVideo(
                     }
                     break;
                   default:
-                    console.warn(`Effect ${effect.effect.id} not implemented for video export frame processing yet`);
+                    if (isDevelopment) {
+                      console.warn(`Effect ${effect.effect.id} not implemented for video export frame processing yet`);
+                    }
                 }
               }
             };
@@ -701,11 +765,15 @@ async function exportAsVideo(
           
           frameCount++;
           
-          // Schedule next frame
-          setTimeout(renderFrame, 1000 / framerate);
+          // Schedule next frame immediately - capture frames as fast as rendering allows
+          // MediaRecorder will record at the specified framerate from captureStream
+          // Removing delay ensures we're not artificially slowing down frame capture
+          setTimeout(renderFrame, 0);
           
         } catch (error) {
-          console.error('Error rendering frame:', error);
+          if (isDevelopment) {
+            console.error('Error rendering frame:', error);
+          }
           // Stop recording on error
           mediaRecorder.stop();
           // Restore original video state
@@ -723,7 +791,9 @@ async function exportAsVideo(
     });
     
   } catch (error) {
-    console.error('Video export error:', error);
+    if (isDevelopment) {
+      console.error('Video export error:', error);
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error during video export'

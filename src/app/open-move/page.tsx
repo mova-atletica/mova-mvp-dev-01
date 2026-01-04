@@ -1,12 +1,23 @@
 "use client";
-import { useState, lazy, Suspense } from 'react';
+import { lazy, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { forwardRef } from 'react';
+import type { OpenMovePracticeTabHandle } from './OpenMovePracticeTab';
+
+// Error fallback component
+const ErrorFallback = forwardRef<OpenMovePracticeTabHandle>((props, ref) => {
+  return <div>Error loading component</div>;
+});
+ErrorFallback.displayName = 'ErrorFallback';
 
 // Lazy load the OpenMovePracticeTab component
-const OpenMovePracticeTab = lazy(() => import('./OpenMovePracticeTab').catch(() => ({ default: () => <div>Error loading component</div> })));
+const OpenMovePracticeTab = lazy(() => 
+  import('./OpenMovePracticeTab').catch(() => ({ default: ErrorFallback }))
+);
 
 export default function OpenMovePage() {
   const router = useRouter();
+  const guidelinesModalRef = useRef<OpenMovePracticeTabHandle | null>(null);
 
   return (
     <main style={{ backgroundColor: 'var(--background)', minHeight: '70vh' }}>
@@ -20,10 +31,16 @@ export default function OpenMovePage() {
         }}
       >
           <h1 className="text-3xl font-light mb-2" style={{ color: 'var(--section-title)' }}>
-            Open Move
+            Record/Upload (beta)
           </h1>
           <p className="text-l" style={{ color: 'var(--section-subtitle)' }}>
-          Record a video or upload any video with a single person to analyze your body's movements!
+          Create videos and analyze your body's movements. Record or upload any video to get started. <span 
+            className="cursor-pointer underline hover:opacity-80 transition-opacity" 
+            style={{ color: 'var(--primary-button-bg)' }}
+            onClick={() => guidelinesModalRef.current?.open()}
+          >
+            Review our filming guidelines to get the best results
+          </span>.
           </p>
         </div>
 
@@ -36,7 +53,7 @@ export default function OpenMovePage() {
             </div>
           </div>
         }>
-          <OpenMovePracticeTab />
+          <OpenMovePracticeTab ref={guidelinesModalRef} />
         </Suspense>
     </main>
   );

@@ -1,9 +1,10 @@
 "use client";
 import React, { useRef, useState, useEffect } from 'react';
-import { Download, ChevronDown, Settings } from 'lucide-react';
+import { Download, ChevronDown, Settings, Play, Pause } from 'lucide-react';
 import { renderMuybridge } from '../../lib/effects/muybridge';
 import { renderMotionTrails } from '../../lib/effects/motion-trails';
 import { renderStats } from '../../lib/effects/stats';
+import { renderBlobTracking } from '../../lib/effects/blob-tracking';
 import { exportAsset, downloadBlob, ExportConfig } from '../../lib/exportService';
 
 interface AssetVideoPlayerProps {
@@ -55,6 +56,19 @@ const availableEffects: Effect[] = [
     name: "Motion Trails", 
     description: "Ghost trail effect", 
     preview: "Trailing animation", 
+    category: "Motion",
+    videoConfig: {
+      shouldRenderVideo: true,
+      videoOpacity: 0.3,
+      blendMode: 'multiply',
+      renderOrder: 'before'
+    }
+  },
+  { 
+    id: "blob-tracking", 
+    name: "Blob Tracking", 
+    description: "Track blobs using pixel thresholding", 
+    preview: "Blob detection", 
     category: "Motion",
     videoConfig: {
       shouldRenderVideo: true,
@@ -145,6 +159,7 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
   const [exportSuccess, setExportSuccess] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<EffectType | 'export' | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [videoVisibility, setVideoVisibility] = useState({
     showVideo: true,
     opacity: 1.0,
@@ -166,16 +181,18 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
     renderMuybridgeFromCanvas?: any;
     renderMotionTrails?: any;
     renderStats?: any;
+    renderBlobTracking?: any;
   }>({});
 
   // Load effect modules on mount
   useEffect(() => {
     const loadEffectModules = async () => {
       try {
-        const [muybridgeModule, motionTrailsModule, statsModule] = await Promise.all([
+        const [muybridgeModule, motionTrailsModule, statsModule, blobTrackingModule] = await Promise.all([
           import('../../lib/effects/muybridge'),
           import('../../lib/effects/motion-trails'),
-          import('../../lib/effects/stats')
+          import('../../lib/effects/stats'),
+          import('../../lib/effects/blob-tracking')
         ]);
         
         effectModulesRef.current = {
@@ -183,6 +200,7 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
           renderMuybridgeFromCanvas: muybridgeModule.renderMuybridgeFromCanvas,
           renderMotionTrails: motionTrailsModule.renderMotionTrails,
           renderStats: statsModule.renderStats,
+          renderBlobTracking: blobTrackingModule.renderBlobTracking,
         };
       } catch (error) {
         console.error('Failed to load effect modules:', error);
@@ -191,6 +209,29 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
 
     loadEffectModules();
   }, []);
+
+  // Track video duration when video loads
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleLoadedMetadata = () => {
+      if (video.duration && isFinite(video.duration)) {
+        setVideoDuration(video.duration);
+      }
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    
+    // Also check if duration is already available
+    if (video.duration && isFinite(video.duration)) {
+      setVideoDuration(video.duration);
+    }
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [videoUrl]);
 
 
   const toggleVideoPlayback = () => {
@@ -261,6 +302,27 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
           angleSize: 16,
           showGlobalStats: false,
           safeZoneEnabled: false
+        };
+      case 'blob-tracking':
+        return {
+          threshold: 60,
+          showBoundingBoxes: true,
+          showCentroids: true,
+          showConnections: true,
+          minBlobSize: 50,
+          boundingBoxColor: '#00ff00',
+          boundingBoxShape: 'square',
+          boundingBoxSize: 1.0,
+          boundingBoxRegionStyle: 'frame',
+          boundingBoxLineWidth: 2,
+          centroidColor: '#ff0000',
+          connectionColor: '#ffffff',
+          connectionStyle: 'solid',
+          connectionLineWidth: 1,
+          showText: false,
+          textType: 'position',
+          textFontSize: 12,
+          textColor: '#ffffff'
         };
       case 'skeleton-overlay':
         return {
@@ -408,6 +470,11 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                         effectModulesRef.current.renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime);
                       }
                       break;
+                    case 'blob-tracking':
+                      if (effectModulesRef.current.renderBlobTracking) {
+                        effectModulesRef.current.renderBlobTracking(frameCtx, frameVideo, framePoses, effect.config, frameTime);
+                      }
+                      break;
                     case 'skeleton-overlay':
                       // Render skeleton overlay in Muybridge tiles
                       if (framePoses && framePoses.length > 0) {
@@ -546,6 +613,11 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                   if (effectModulesRef.current.renderMotionTrails) {
                     // No transformation needed - canvas is now at video natural size
                     effectModulesRef.current.renderMotionTrails(ctx, video, poses, effect.config, currentTime);
+                  }
+                  break;
+                case 'blob-tracking':
+                  if (effectModulesRef.current.renderBlobTracking) {
+                    effectModulesRef.current.renderBlobTracking(ctx, video, poses, effect.config, currentTime);
                   }
                   break;
                 case 'skeleton-overlay':
@@ -787,15 +859,6 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
             <video
               ref={videoRef}
               src={videoUrl}
-              onClick={toggleVideoPlayback}
-              onTouchStart={(e) => {
-                // Prevent mobile video hijacking
-                e.preventDefault();
-                toggleVideoPlayback();
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-              }}
               style={{
                 display: 'block',
                 width: '100%',
@@ -807,7 +870,6 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                 zIndex: 1,
                 borderRadius: '0.75rem', // matches rounded-xl
                 boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                cursor: 'pointer',
                 // Prevent mobile video hijacking
                 WebkitUserSelect: 'none',
                 userSelect: 'none',
@@ -825,39 +887,6 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
               disablePictureInPicture
               controlsList="nodownload nofullscreen noremoteplayback"
             />
-            
-            {/* Play/Pause Overlay */}
-            {!isPlaying && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: 5,
-                  background: 'rgba(0, 0, 0, 0.6)',
-                  borderRadius: '50%',
-                  width: '60px',
-                  height: '60px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  pointerEvents: 'none',
-                  transition: 'opacity 0.2s ease',
-                }}
-              >
-                <div
-                  style={{
-                    width: 0,
-                    height: 0,
-                    borderLeft: '20px solid white',
-                    borderTop: '12px solid transparent',
-                    borderBottom: '12px solid transparent',
-                    marginLeft: '4px',
-                  }}
-                />
-              </div>
-            )}
             
             <canvas
               ref={canvasRef}
@@ -971,13 +1000,44 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px',
-                background: 'rgba(255, 255, 255, 0.95)',
+                background: 'rgba(255, 255, 255, 0.05)',
                 borderRadius: '12px',
                 padding: '8px',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                 backdropFilter: 'blur(8px)',
               }}
             >
+              {/* Play/Pause Button */}
+              <button
+                onClick={toggleVideoPlayback}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#f5f6f7',
+                  color: '#55595B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#e5e7eb';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#f5f6f7';
+                }}
+              >
+                {isPlaying ? (
+                  <Pause style={{ width: '20px', height: '20px', stroke: '#55595B' }} />
+                ) : (
+                  <Play style={{ width: '20px', height: '20px', stroke: '#55595B' }} />
+                )}
+              </button>
+
               {/* Export Button */}
               <button
                 onClick={() => {
@@ -1288,11 +1348,18 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                       {(exportConfig.format === 'webm') && !hasProblematicCombination() && (
                         <>
                           <div>
-                            <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>Duration (seconds)</div>
+                            <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>
+                              Max Duration (seconds)
+                              {videoDuration && (
+                                <span style={{ fontSize: '9px', color: '#9CA3AF', marginLeft: '4px', fontWeight: 'normal' }}>
+                                  (Video: {videoDuration.toFixed(1)}s)
+                                </span>
+                              )}
+                            </div>
                             <input
                               type="range"
                               min="1"
-                              max="10"
+                              max={videoDuration ? Math.max(10, Math.ceil(videoDuration)) : 10}
                               step="1"
                               value={exportConfig.duration || 3}
                               onChange={(e) => setExportConfig({ ...exportConfig, duration: parseInt(e.target.value) })}
@@ -1308,7 +1375,15 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                               }}
                             />
                             <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px', textAlign: 'center' }}>
-                              {exportConfig.duration || 3}s
+                              {(() => {
+                                const maxDuration = exportConfig.duration || 3;
+                                const actualDuration = videoDuration 
+                                  ? Math.min(videoDuration, maxDuration) 
+                                  : maxDuration;
+                                return videoDuration && videoDuration < maxDuration
+                                  ? `${actualDuration.toFixed(1)}s (full video)`
+                                  : `${maxDuration}s`;
+                              })()}
                             </div>
                           </div>
                           <div>
@@ -1953,6 +2028,480 @@ export default function AssetVideoPlayer({ videoUrl, poses, exerciseTitle, exerc
                                 <span style={{ fontSize: '10px', width: '20px', color: '#181A1A' }}>
                                   {activeEffect.config.boneThickness || 1}px
                                 </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Blob Tracking Configuration */}
+                      {activeEffect.effect.id === 'blob-tracking' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {/* Detection Settings */}
+                          <div>
+                            <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
+                              Detection Settings
+                            </label>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Threshold</span>
+                              <input
+                                type="range"
+                                min="0"
+                                max="255"
+                                step="1"
+                                value={activeEffect.config.threshold || 60}
+                                onChange={(e) => {
+                                  const newConfig = { ...activeEffect.config, threshold: parseInt(e.target.value) };
+                                  const updatedEffects = activeEffects.map(effect => 
+                                    effect.effect.id === activeEffect.effect.id 
+                                      ? { ...effect, config: newConfig }
+                                      : effect
+                                  );
+                                  setActiveEffects(updatedEffects);
+                                }}
+                                style={{ flex: 1, height: '4px' }}
+                              />
+                              <span style={{ fontSize: '10px', width: '30px', color: '#9CA3AF' }}>
+                                {activeEffect.config.threshold || 60}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Min Size</span>
+                              <input
+                                type="range"
+                                min="10"
+                                max="500"
+                                step="10"
+                                value={activeEffect.config.minBlobSize || 50}
+                                onChange={(e) => {
+                                  const newConfig = { ...activeEffect.config, minBlobSize: parseInt(e.target.value) };
+                                  const updatedEffects = activeEffects.map(effect => 
+                                    effect.effect.id === activeEffect.effect.id 
+                                      ? { ...effect, config: newConfig }
+                                      : effect
+                                  );
+                                  setActiveEffects(updatedEffects);
+                                }}
+                                style={{ flex: 1, height: '4px' }}
+                              />
+                              <span style={{ fontSize: '10px', width: '30px', color: '#9CA3AF' }}>
+                                {activeEffect.config.minBlobSize || 50}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Display Options */}
+                          <div>
+                            <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
+                              Display Options
+                            </label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={activeEffect.config.showBoundingBoxes !== false}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, showBoundingBoxes: e.target.checked };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '12px', height: '12px' }}
+                                />
+                                <span style={{ fontSize: '10px', color: '#181A1A' }}>Bounding Boxes</span>
+                              </label>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={activeEffect.config.showCentroids === true}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, showCentroids: e.target.checked };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '12px', height: '12px' }}
+                                />
+                                <span style={{ fontSize: '10px', color: '#181A1A' }}>Centroids</span>
+                              </label>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={activeEffect.config.showConnections === true}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, showConnections: e.target.checked };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '12px', height: '12px' }}
+                                />
+                                <span style={{ fontSize: '10px', color: '#181A1A' }}>Connections</span>
+                              </label>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={activeEffect.config.showText === true}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, showText: e.target.checked };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '12px', height: '12px' }}
+                                />
+                                <span style={{ fontSize: '10px', color: '#181A1A' }}>Text Labels</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Bounding Box Settings */}
+                          {activeEffect.config.showBoundingBoxes && (
+                            <div>
+                              <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
+                                Bounding Box Settings
+                              </label>
+                              
+                              <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                                <select
+                                  value={activeEffect.config.boundingBoxShape || 'square'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, boundingBoxShape: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', color: '#181A1A' }}
+                                >
+                                  <option value="square">Square</option>
+                                  <option value="circle">Circle</option>
+                                </select>
+                                <select
+                                  value={activeEffect.config.boundingBoxRegionStyle || 'frame'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, boundingBoxRegionStyle: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', color: '#181A1A' }}
+                                >
+                                  <option value="none">None</option>
+                                  <option value="frame">Frame</option>
+                                  <option value="l-frame">L-Frame</option>
+                                  <option value="x-frame">X-Frame</option>
+                                  <option value="grid">Grid</option>
+                                  <option value="scope">Scope</option>
+                                </select>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Size</span>
+                                <input
+                                  type="range"
+                                  min="0.1"
+                                  max="2.0"
+                                  step="0.1"
+                                  value={activeEffect.config.boundingBoxSize || 1.0}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, boundingBoxSize: parseFloat(e.target.value) };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, height: '4px' }}
+                                />
+                                <span style={{ fontSize: '10px', width: '30px', color: '#9CA3AF' }}>
+                                  {activeEffect.config.boundingBoxSize?.toFixed(1) || '1.0'}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Line Width</span>
+                                <input
+                                  type="range"
+                                  min="1"
+                                  max="10"
+                                  step="1"
+                                  value={activeEffect.config.boundingBoxLineWidth || 2}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, boundingBoxLineWidth: parseInt(e.target.value) };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, height: '4px' }}
+                                />
+                                <span style={{ fontSize: '10px', width: '30px', color: '#9CA3AF' }}>
+                                  {activeEffect.config.boundingBoxLineWidth || 2}px
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Color</span>
+                                <input
+                                  type="color"
+                                  value={activeEffect.config.boundingBoxColor || '#00ff00'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, boundingBoxColor: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '24px', height: '20px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+                                />
+                                <input
+                                  type="text"
+                                  value={activeEffect.config.boundingBoxColor || '#00ff00'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, boundingBoxColor: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', fontFamily: 'monospace', color: '#181A1A' }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Connection Settings */}
+                          {activeEffect.config.showConnections && (
+                            <div>
+                              <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
+                                Connection Settings
+                              </label>
+                              
+                              <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                                <select
+                                  value={activeEffect.config.connectionStyle || 'solid'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, connectionStyle: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', color: '#181A1A' }}
+                                >
+                                  <option value="solid">Solid</option>
+                                  <option value="dashed">Dashed</option>
+                                </select>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Line Width</span>
+                                <input
+                                  type="range"
+                                  min="1"
+                                  max="10"
+                                  step="1"
+                                  value={activeEffect.config.connectionLineWidth || 1}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, connectionLineWidth: parseInt(e.target.value) };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, height: '4px' }}
+                                />
+                                <span style={{ fontSize: '10px', width: '30px', color: '#9CA3AF' }}>
+                                  {activeEffect.config.connectionLineWidth || 1}px
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Color</span>
+                                <input
+                                  type="color"
+                                  value={activeEffect.config.connectionColor || '#ffffff'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, connectionColor: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '24px', height: '20px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+                                />
+                                <input
+                                  type="text"
+                                  value={activeEffect.config.connectionColor || '#ffffff'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, connectionColor: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', fontFamily: 'monospace', color: '#181A1A' }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Centroid Settings */}
+                          {activeEffect.config.showCentroids && (
+                            <div>
+                              <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
+                                Centroid Settings
+                              </label>
+                              
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Color</span>
+                                <input
+                                  type="color"
+                                  value={activeEffect.config.centroidColor || '#ff0000'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, centroidColor: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '24px', height: '20px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+                                />
+                                <input
+                                  type="text"
+                                  value={activeEffect.config.centroidColor || '#ff0000'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, centroidColor: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', fontFamily: 'monospace', color: '#181A1A' }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Text Label Settings */}
+                          {activeEffect.config.showText && (
+                            <div>
+                              <label style={{ fontSize: '11px', fontWeight: 600, color: '#181A1A', display: 'block', marginBottom: '6px' }}>
+                                Text Label Settings
+                              </label>
+                              
+                              <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                                <select
+                                  value={activeEffect.config.textType || 'position'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, textType: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', color: '#181A1A' }}
+                                >
+                                  <option value="position">Position</option>
+                                  <option value="count">Count</option>
+                                </select>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Font Size</span>
+                                <input
+                                  type="range"
+                                  min="8"
+                                  max="24"
+                                  step="1"
+                                  value={activeEffect.config.textFontSize || 12}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, textFontSize: parseInt(e.target.value) };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, height: '4px' }}
+                                />
+                                <span style={{ fontSize: '10px', width: '30px', color: '#9CA3AF' }}>
+                                  {activeEffect.config.textFontSize || 12}px
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '10px', width: '60px', color: '#181A1A' }}>Color</span>
+                                <input
+                                  type="color"
+                                  value={activeEffect.config.textColor || '#ffffff'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, textColor: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ width: '24px', height: '20px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+                                />
+                                <input
+                                  type="text"
+                                  value={activeEffect.config.textColor || '#ffffff'}
+                                  onChange={(e) => {
+                                    const newConfig = { ...activeEffect.config, textColor: e.target.value };
+                                    const updatedEffects = activeEffects.map(effect => 
+                                      effect.effect.id === activeEffect.effect.id 
+                                        ? { ...effect, config: newConfig }
+                                        : effect
+                                    );
+                                    setActiveEffects(updatedEffects);
+                                  }}
+                                  style={{ flex: 1, padding: '4px 6px', fontSize: '10px', border: '1px solid #d1d5db', borderRadius: '4px', fontFamily: 'monospace', color: '#181A1A' }}
+                                />
                               </div>
                             </div>
                           )}

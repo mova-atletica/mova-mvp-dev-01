@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Storage } from '@google-cloud/storage';
 
+// Ensure Node.js runtime for Google Cloud Storage
+export const runtime = 'nodejs';
+
 // Support JSON in env (Vercel) or fallback to key file path if running locally
 let credentials: any = null;
 try {
   const raw = process.env.GOOGLE_CLOUD_KEY_FILE || '';
-  credentials = raw ? JSON.parse(raw) : null;
-} catch {
+  if (raw && typeof raw === 'string' && raw.length > 0) {
+    credentials = JSON.parse(raw);
+    // Validate credentials structure
+    if (!credentials || typeof credentials !== 'object' || !credentials.client_email || !credentials.private_key) {
+      credentials = null;
+    }
+  }
+} catch (error) {
   credentials = null;
 }
 

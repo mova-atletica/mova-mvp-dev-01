@@ -3,19 +3,22 @@ import Link from "next/link";
 import ThemeToggle from './ThemeToggle';
 import Image from 'next/image';
 import { useTheme } from '../contexts/ThemeContext';
+import { usePathname } from 'next/navigation';
 
 export default function Header() {
   const { theme } = useTheme();
+  const pathname = usePathname();
+  const isMotionExplorePage = pathname === '/motion-explore';
   
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-sm py-4 flex items-center justify-between mx-auto rounded-lg" style={{ 
+    <header className={`${isMotionExplorePage ? 'relative' : 'fixed top-0 left-0 right-0'} z-50 backdrop-blur-sm py-4 flex items-center justify-between mx-auto rounded-lg`} style={{ 
       backgroundColor: 'var(--header-bg)', 
       color: 'var(--header-text)',
       border: '1px solid var(--header-border)',
       paddingLeft:'21px',
       paddingRight:'21px',
       maxWidth: '2560px', 
-      marginTop: '3vh',
+      marginTop: isMotionExplorePage ? '0px' : '3vh',
       marginLeft: '3%', 
       marginRight: '3%',
       width: '94%'
@@ -54,7 +57,7 @@ export default function Header() {
             (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--primary-button-border)';
           }}
         >
-          Open Move
+          Record/Upload
         </Link>
         <ThemeToggle />
       </div>

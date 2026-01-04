@@ -191,7 +191,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--results-info-icon', '#c0c9cc');
       root.style.setProperty('--results-info-icon-hover', '#3B82F6');
       // Results Page Chart Internals (Dark)
-      root.style.setProperty('--results-chart-bg', '#23272e');
+      root.style.setProperty('--results-chart-bg', 'transparent');
       root.style.setProperty('--results-chart-axis', '#c0c9cc');
       root.style.setProperty('--results-chart-grid', '#353839');
       root.style.setProperty('--results-chart-tooltip-bg', '#353839');
