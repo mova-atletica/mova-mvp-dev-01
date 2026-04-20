@@ -29,7 +29,7 @@ end
 # unset irrelevant variables
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/treybradley/mova-mvp-dev-01/backend/venv"
+set -gx VIRTUAL_ENV "/Users/treybradley/Desktop/mova-mvp-dev-01/backend/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

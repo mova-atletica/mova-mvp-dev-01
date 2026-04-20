@@ -4,7 +4,6 @@
 import { renderMotionTrails } from './effects/motion-trails';
 import { renderMuybridgeFromCanvas } from './effects/muybridge';
 import { renderStats } from './effects/stats';
-import { renderBlobTracking } from './effects/blob-tracking';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -22,6 +21,13 @@ export interface ExportConfig {
   quality: 'low' | 'medium' | 'high';
   duration?: number; // for video exports
   framerate?: number; // for video exports
+  sportAnalysisKind?: 'cycling' | 'pullups';
+  sportMetricsSnapshot?: {
+    cyclingCadenceRpm?: number | null;
+    cyclingStrokeRepeatability?: number | null;
+    pullupsRepCount?: number | null;
+    pullupsElbowSymmetry?: number | null;
+  } | null;
 }
 
 export interface ExportResult {
@@ -61,6 +67,14 @@ async function renderEffectsToCanvas(
   activeEffects: any[],
   config: ExportConfig & { videoVisibility?: { showVideo: boolean; opacity: number; blendMode: GlobalCompositeOperation } }
 ): Promise<HTMLCanvasElement> {
+  const firstStatsConfig = activeEffects.find((e) =>
+    e.enabled &&
+    (e.effect.id === 'joint-angles' || e.effect.id === 'range-of-motion' || e.effect.id === 'metrics-chips')
+  )?.config || {};
+  const sharedStatsSnapshot = {
+    sportAnalysisKind: config.sportAnalysisKind ?? firstStatsConfig.sportAnalysisKind,
+    sportMetricsSnapshot: config.sportMetricsSnapshot ?? firstStatsConfig.sportMetricsSnapshot,
+  };
   // For Muybridge effects, calculate the actual visual size of the preview
   // The preview canvas is scaled down by CSS to fit the 400x711 container
   const hasMuybridgeEffect = activeEffects.some(e => e.enabled && e.effect.id === 'muybridge');
@@ -124,14 +138,6 @@ async function renderEffectsToCanvas(
       switch (effect.effect.id) {
         case 'motion-trails':
           renderMotionTrails(ctx, video, poses, effect.config, video.currentTime, true); // isExport = true
-          break;
-        case 'blob-tracking':
-          try {
-            renderBlobTracking(ctx, video, poses, effect.config, video.currentTime, true); // isExport = true
-          } catch (error) {
-            logEffectError('Failed to render blob tracking effect for image export:', error);
-            // Continue with other effects even if blob tracking fails
-          }
           break;
         case 'skeleton-overlay':
           // Render skeleton overlay for image export
@@ -217,8 +223,16 @@ async function renderEffectsToCanvas(
       switch (effect.effect.id) {
         case 'joint-angles':
         case 'range-of-motion':
+        case 'metrics-chips':
         case 'exercise-details':
-          renderStats(ctx, video, poses, { ...effect.config, isExport: true }, video.currentTime, true); // isExport = true
+          renderStats(
+            ctx,
+            video,
+            poses,
+            { ...effect.config, ...sharedStatsSnapshot, isExport: true },
+            video.currentTime,
+            true
+          ); // isExport = true
           break;
         default:
           // Skip non-stats effects
@@ -244,14 +258,6 @@ async function renderEffectsToCanvas(
                 renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
               } catch (error) {
                 logEffectError('Failed to render motion trails effect for export frame:', error);
-              }
-              break;
-            case 'blob-tracking':
-              try {
-                renderBlobTracking(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
-              } catch (error) {
-                logEffectError('Failed to render blob tracking effect for muybridge export frame:', error);
-                // Continue with other effects even if blob tracking fails
               }
               break;
             case 'skeleton-overlay':
@@ -336,7 +342,14 @@ async function renderEffectsToCanvas(
       // Render exercise-details once over the entire canvas (not in individual tiles)
       const exerciseDetailsEffect = activeEffects.find(e => e.effect.id === 'exercise-details' && e.enabled);
       if (exerciseDetailsEffect) {
-        renderStats(ctx, video, poses, exerciseDetailsEffect.config, video.currentTime, true); // isExport = true
+        renderStats(
+          ctx,
+          video,
+          poses,
+          { ...exerciseDetailsEffect.config, ...sharedStatsSnapshot, isExport: true },
+          video.currentTime,
+          true
+        ); // isExport = true
       }
     }
   
@@ -395,6 +408,14 @@ async function exportAsVideo(
   config: ExportConfig & { videoVisibility?: { showVideo: boolean; opacity: number; blendMode: GlobalCompositeOperation } }
 ): Promise<ExportResult> {
   try {
+    const firstStatsConfig = activeEffects.find((e) =>
+      e.enabled &&
+      (e.effect.id === 'joint-angles' || e.effect.id === 'range-of-motion' || e.effect.id === 'metrics-chips')
+    )?.config || {};
+    const sharedStatsSnapshot = {
+      sportAnalysisKind: config.sportAnalysisKind ?? firstStatsConfig.sportAnalysisKind,
+      sportMetricsSnapshot: config.sportMetricsSnapshot ?? firstStatsConfig.sportMetricsSnapshot,
+    };
     // Use actual video duration, but cap at config duration if provided
     const actualVideoDuration = video.duration || 0;
     const maxDuration = config.duration || actualVideoDuration;
@@ -475,13 +496,7 @@ async function exportAsVideo(
           // Ensure we don't seek beyond video duration
           video.currentTime = Math.min(frameTime, actualVideoDuration > 0 ? actualVideoDuration : duration);
           
-          // Check if blob tracking is active (requires more processing time)
-          const hasBlobTracking = activeEffects.some(effect => 
-            effect.enabled && effect.effect.id === 'blob-tracking'
-          );
-          
-          // Increase timeout for blob tracking since it does intensive pixel processing
-          const seekTimeout = hasBlobTracking ? 5000 : 2000; // 5 seconds for blob tracking, 2 seconds otherwise
+          const seekTimeout = 2000;
           
           // Wait for video to seek with timeout and error handling
           await new Promise<void>((resolve, reject) => {
@@ -547,14 +562,6 @@ async function exportAsVideo(
             switch (effect.effect.id) {
               case 'motion-trails':
                 renderMotionTrails(ctx, video, poses, effect.config, frameTime, true); // isExport = true
-                break;
-              case 'blob-tracking':
-                try {
-                  renderBlobTracking(ctx, video, poses, effect.config, frameTime, true); // isExport = true
-                } catch (error) {
-                  logEffectError('Failed to render blob tracking effect for video export frame:', error);
-                  // Continue with other effects even if blob tracking fails
-                }
                 break;
               case 'skeleton-overlay':
                 // Render skeleton overlay for video export
@@ -640,8 +647,16 @@ async function exportAsVideo(
             switch (effect.effect.id) {
               case 'joint-angles':
               case 'range-of-motion':
+              case 'metrics-chips':
               case 'exercise-details':
-                renderStats(ctx, video, poses, effect.config, frameTime, true); // isExport = true
+                renderStats(
+                  ctx,
+                  video,
+                  poses,
+                  { ...effect.config, ...sharedStatsSnapshot, isExport: true },
+                  frameTime,
+                  true
+                ); // isExport = true
                 break;
               default:
                 // Skip non-stats effects
@@ -667,14 +682,6 @@ async function exportAsVideo(
                       renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
                     } catch (error) {
                       logEffectError('Failed to render motion trails effect for video export frame:', error);
-                    }
-                    break;
-                  case 'blob-tracking':
-                    try {
-                      renderBlobTracking(frameCtx, frameVideo, framePoses, effect.config, frameTime, true); // isExport = true
-                    } catch (error) {
-                      logEffectError('Failed to render blob tracking effect for video export muybridge frame:', error);
-                      // Continue with other effects even if blob tracking fails
                     }
                     break;
                   case 'skeleton-overlay':
@@ -759,7 +766,14 @@ async function exportAsVideo(
             // Render exercise-details once over the entire canvas (not in individual tiles)
             const exerciseDetailsEffect = activeEffects.find(e => e.effect.id === 'exercise-details' && e.enabled);
             if (exerciseDetailsEffect) {
-              renderStats(ctx, video, poses, exerciseDetailsEffect.config, frameTime, true); // isExport = true
+              renderStats(
+                ctx,
+                video,
+                poses,
+                { ...exerciseDetailsEffect.config, ...sharedStatsSnapshot, isExport: true },
+                frameTime,
+                true
+              ); // isExport = true
             }
           }
           

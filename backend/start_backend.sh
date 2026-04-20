@@ -19,21 +19,24 @@ if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi
 
-# Activate virtual environment
-echo "🔧 Activating virtual environment..."
-source venv/bin/activate
+# Use venv binaries explicitly (avoids conda/system PATH conflicts)
+VENV_PYTHON="venv/bin/python"
+VENV_PIP="venv/bin/pip"
+VENV_UVICORN="venv/bin/uvicorn"
+
+echo "🔧 Using virtual environment (venv/bin)..."
 
 # Install/upgrade pip
 echo "📦 Upgrading pip..."
-pip install --upgrade pip
+"$VENV_PIP" install --upgrade pip
 
 # Install dependencies
 echo "📦 Installing dependencies..."
-pip install -r requirements.txt
+"$VENV_PIP" install -r requirements.txt
 
 # Check if all dependencies are installed
 echo "🔍 Checking dependencies..."
-python -c "
+"$VENV_PYTHON" -c "
 import sys
 required_packages = ['fastapi', 'numpy', 'scipy', 'sklearn', 'pandas', 'dtaidistance']
 missing_packages = []
@@ -67,4 +70,4 @@ echo ""
 echo "Press Ctrl+C to stop the server"
 echo ""
 
-uvicorn advanced_analysis:app --host 0.0.0.0 --port 8000 --reload 
+"$VENV_UVICORN" advanced_analysis:app --host 0.0.0.0 --port 8000 --reload

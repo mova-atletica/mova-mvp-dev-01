@@ -35,6 +35,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--surface', '#353839'); // onyx-90
       root.style.setProperty('--surface-hover', '#555950'); // onyx-80
       root.style.setProperty('--muted', '#9ba2a5'); // onyx-60
+      root.style.setProperty('--muted-foreground', '#c0c9cc'); // secondary body / chart ticks
       
       // Accent colors
       root.style.setProperty('--accent', '#3b82f6'); // blue-50
@@ -42,7 +43,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--info', '#3b82f6'); // blue-50
       
       // Borders
-      root.style.setProperty('--border', '#777d7f'); // onyx-70
+      root.style.setProperty('--border', '#353839'); // onyx-90
+      root.style.setProperty('--border-secondary', '#777d7f'); // onyx-70
       
       // Header & Navigation
       root.style.setProperty('--header-bg', 'rgba(53, 56, 57, 0.9)'); // onyx-100 with opacity
@@ -173,7 +175,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--results-tab-bg-active', '#353839');
       root.style.setProperty('--results-tab-bg-inactive', 'transparent');
       root.style.setProperty('--results-tab-text-active', '#eef0f1');
-      root.style.setProperty('--results-tab-text-inactive', '#c0c9cc');
+      root.style.setProperty('--results-tab-text-inactive', '#e2e5e7');
       root.style.setProperty('--results-tab-border-active', 'transparent');
       root.style.setProperty('--results-tab-border-inactive', 'transparent');
       root.style.setProperty('--results-tab-hover-bg', '#23272e');
@@ -214,9 +216,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Light mode - reset to original values
       root.style.setProperty('--background', '#c0c9cc'); // onyx-50
       root.style.setProperty('--foreground', '#353839'); // onyx-90
-      root.style.setProperty('--surface', '#353839'); // onyx-90
+      root.style.setProperty('--surface', '#eef0f1'); // onyx-40
       root.style.setProperty('--surface-hover', '#f4eedd'); // ap-30
       root.style.setProperty('--muted', '#9ba2a5'); // ap-70
+      root.style.setProperty('--muted-foreground', '#55595b'); // secondary body / chart ticks
       
       // Accent colors
       root.style.setProperty('--accent', '#3b82f6'); // blue-50
@@ -224,12 +227,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--info', '#3b82f6'); // blue-50
       
       // Borders
-      root.style.setProperty('--border', '#D7D8D9'); // onyx-50
+      root.style.setProperty('--border', '#D6DFE2'); // onyx-50
+      root.style.setProperty('--border-secondary', '#eef0f1'); // onyx-40
       
       // Header & Navigation
       root.style.setProperty('--header-bg', 'rgba(238, 240, 241, 0.9)'); // ap-10 with opacity
       root.style.setProperty('--header-text', '#17150f'); // ap-100
-      root.style.setProperty('--header-border', 'rgba(238, 240, 241, 0.0)'); // ap-50
+      root.style.setProperty('--header-border', 'rgba(238, 240, 241, 0.17)'); // ap-50
       root.style.setProperty('--logo-color', 'invert(0) brightness(1)'); // ap-100
       
       // Buttons & Interactive
@@ -274,7 +278,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--featured-secondary-button-hover-bg', 'rgba(255, 255, 255, 0.3)');
       
       // Exercise Cards
-      root.style.setProperty('--card-bg', '#f6f1e3'); // ap-10
+      root.style.setProperty('--card-bg', '#eef0f1'); // ap-10
       root.style.setProperty('--card-overlay', 'rgba(0, 0, 0, 0.8)');
       root.style.setProperty('--card-title', '#ffffff');
       root.style.setProperty('--card-description', '#ffffff');
@@ -393,6 +397,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Chart cursor, highlight, selection (Light)
       root.style.setProperty('--results-chart-highlight', '#F59E42');
       root.style.setProperty('--results-chart-selection', '#06B6D4');
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("theme", theme);
+    } catch {
+      // ignore
     }
   }, [theme]);
 

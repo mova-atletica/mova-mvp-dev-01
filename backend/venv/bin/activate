@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/treybradley/mova-mvp-dev-01/backend/venv"
+VIRTUAL_ENV="/Users/treybradley/Desktop/mova-mvp-dev-01/backend/venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

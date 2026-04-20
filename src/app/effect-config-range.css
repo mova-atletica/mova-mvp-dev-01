@@ -1,0 +1,51 @@
+/**
+ * Effect configuration range sliders — loaded after globals.css so these rules
+ * win over Tailwind / preflight (pseudo-elements cannot use inline styles).
+ */
+input[type="range"].effect-config-range {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: transparent !important;
+  accent-color: var(--foreground);
+  cursor: pointer;
+}
+
+input[type="range"].effect-config-range:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--foreground) 40%, transparent);
+  outline-offset: 2px;
+}
+
+input[type="range"].effect-config-range::-webkit-slider-runnable-track {
+  height: 8px !important;
+  border-radius: 9999px !important;
+  background: color-mix(in srgb, var(--foreground) 24%, transparent) !important;
+}
+
+input[type="range"].effect-config-range::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin-top: -4px !important;
+  border-radius: 50% !important;
+  background: var(--foreground) !important;
+  border: none !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 80%, transparent) !important;
+  cursor: pointer !important;
+}
+
+input[type="range"].effect-config-range::-moz-range-track {
+  height: 8px !important;
+  border-radius: 9999px !important;
+  background: color-mix(in srgb, var(--foreground) 24%, transparent) !important;
+}
+
+input[type="range"].effect-config-range::-moz-range-thumb {
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: var(--foreground) !important;
+  border: none !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 80%, transparent) !important;
+  cursor: pointer !important;
+}

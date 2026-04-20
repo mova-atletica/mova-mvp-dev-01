@@ -255,3 +255,72 @@ html {
 .effect-pills-container::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
 }
+
+/* Open Move rail accordion animations */
+.rail-accordion-content[data-state="open"] {
+  animation: railAccordionDown 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rail-accordion-content[data-state="closed"] {
+  animation: railAccordionUp 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes railAccordionDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes railAccordionUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* Open Move studio route: no global header offset, full viewport */
+body.studio-route {
+  padding-top: 0 !important;
+  min-height: 100dvh;
+  background-color: var(--background);
+}
+
+.open-move-studio-panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent) transparent;
+}
+
+.open-move-studio-panel-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.open-move-studio-panel-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--foreground) 22%, transparent);
+  border-radius: 3px;
+}
+
+/*
+ * Theme border — plain CSS at end of file so rules always ship and win cascade over currentColor.
+ * (Tailwind v4 + @layer utilities for these classes was not reliably emitted in devtools.)
+ * ThemeContext sets --border on documentElement.
+ */
+.border-border-theme {
+  border-color: var(--border);
+}
+
+.decoration-border-theme {
+  text-decoration-color: var(--border);
+}
+
+.hover\:border-border-theme:hover {
+  border-color: var(--border);
+}

@@ -255,10 +255,10 @@ export default function Home() {
             {/* Interest Form Link */}
             <div className="pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
               <p className="text-sm mb-4" style={{ color: 'var(--section-subtitle)' }}>
-                Have interest in motion analysis technology? Fill out our form and stay tuned for updates!
+                Stay tuned for updates!
               </p>
               <a 
-                href="https://www.mova-atletica.xyz/join-mova-beta"
+                href="https://www.mova-atletica.xyz"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block px-4 py-2 font-light text-small transition-colors mb-4"
@@ -269,7 +269,7 @@ export default function Home() {
                   borderRadius: '6px'
                 }}
               >
-                move with us
+                Learn more
               </a>
               
             </div>
@@ -514,7 +514,7 @@ export default function Home() {
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '8px'
           }}
-          onClick={() => router.push('/open-move')}
+          onClick={() => router.push('/open-move-v2')}
         >
           <div className="absolute inset-0 bg-black bg-opacity-20"></div>
           <div className="relative z-10 p-8 h-full flex flex-col justify-center text-white">

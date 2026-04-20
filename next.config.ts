@@ -1,6 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/open-move",
+        destination: "/open-move-v2",
+        permanent: true,
+      },
+      {
+        source: "/motion-explore",
+        destination: "/open-move-v2",
+        permanent: true,
+      },
+    ];
+  },
   eslint: {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors.

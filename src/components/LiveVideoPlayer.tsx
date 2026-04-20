@@ -1074,7 +1074,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
 
   // Exercise-type-specific content renderer
   const renderExerciseTypeSpecificContent = () => {
-    // Don't render anything if exercise is null/undefined (e.g., for open-move)
+    // Don't render anything if exercise is null/undefined (e.g., Open Move Studio)
     if (!exercise) {
       return null;
     }
@@ -1372,7 +1372,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       console.log('🌊 Flow feedback overlay: HIDDEN (not implemented yet)');
       return { type: null };
     } else {
-      // No feedback overlay for unsupported exercise types (expected for open-move page)
+      // No feedback overlay for unsupported exercise types (expected for Open Move Studio)
       return { type: null };
     }
   };

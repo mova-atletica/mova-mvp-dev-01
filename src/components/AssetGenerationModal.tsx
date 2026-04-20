@@ -1503,11 +1503,8 @@ export default function AssetGenerationModal({
                   {selectedCategory === 'export' ? (
                     // Export Settings Menu
                     <>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#181A1A', marginBottom: '8px' }}>
-                        Download Settings
-                      </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div ref={formatDropdownRef} style={{ position: 'relative' }}>
+                        <div ref={formatDropdownRef} style={{ position: 'relative' }}>
                             <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>
                               Media
                               {isVideoExportDisabled() && (

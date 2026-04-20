@@ -82,9 +82,54 @@ export interface StatsConfig {
   // Safe Zone Settings
   safeZoneEnabled: boolean;
   canvasAspectRatio: '9:16' | '16:9' | 'custom';
+
+  /** Centered time-series overlay: one or two joints, shared 0–180° Y domain, no grid */
+  showJointAngleChart?: boolean;
+  jointAngleChartJointA?: string;
+  jointAngleChartJointB?: string;
+  jointAngleChartColorA?: string;
+  jointAngleChartColorB?: string;
+  /** When false, only series A is drawn */
+  jointAngleChartSecondSeries?: boolean;
+  jointAngleChartLineStyleA?: 'solid' | 'dashed';
+  jointAngleChartLineStyleB?: 'solid' | 'dashed';
+  /** Base stroke width; multiplied by preview/export scale (matches prior default ~2) */
+  jointAngleChartLineThickness?: number;
+  /** Linearly interpolate short NaN runs between valid samples */
+  jointAngleChartInterpolateGaps?: boolean;
+  /** Max consecutive missing frames to interpolate; larger gaps stay broken */
+  jointAngleChartMaxInterpGapFrames?: number;
+
+  /** Text-only metrics chips overlay (preview/export parity; max 3 rendered). */
+  showMetricChips?: boolean;
+  metricChipLayout?: 'bottom_center_row' | 'bottom_center_stack' | 'top_center_row' | 'top_center_stack';
+  metricChipTextColor?: string;
+  metricChips?: MetricChipConfig[];
+  sportAnalysisKind?: 'cycling' | 'pullups';
+  sportMetricsSnapshot?: SportMetricsSnapshot | null;
   
   // Export mode flag
   isExport?: boolean;
+}
+
+export type MetricChipKind =
+  | 'rom_joint'
+  | 'cycling_cadence'
+  | 'cycling_stroke_repeatability'
+  | 'pullups_reps'
+  | 'pullups_elbow_symmetry';
+
+export interface MetricChipConfig {
+  id: string;
+  kind: MetricChipKind;
+  jointName?: string;
+}
+
+export interface SportMetricsSnapshot {
+  cyclingCadenceRpm?: number | null;
+  cyclingStrokeRepeatability?: number | null;
+  pullupsRepCount?: number | null;
+  pullupsElbowSymmetry?: number | null;
 }
 
 export interface SafeZone {
@@ -114,8 +159,376 @@ export interface ROMData {
   position: { x: number; y: number };
 }
 
+const JOINT_LABELS: Record<string, string> = {
+  left_knee: 'L Knee',
+  right_knee: 'R Knee',
+  left_hip: 'L Hip',
+  right_hip: 'R Hip',
+  left_elbow: 'L Elbow',
+  right_elbow: 'R Elbow',
+};
+
+interface ResolvedMetricChip {
+  id: string;
+  label: string;
+  value: string;
+}
+
+interface FixedROMSnapshot {
+  min: number;
+  max: number;
+  range: number;
+}
+
+const fixedRomSnapshotCache = new WeakMap<any[], Map<string, FixedROMSnapshot>>();
+
 // ROM tracking storage (persistent across frames)
 const romStorage = new Map<string, { min: number; max: number; history: number[] }>();
+
+/** Per-poses-array cache of precomputed angle series per joint (avoids O(n) work each frame). */
+const angleSeriesCache = new WeakMap<any[], Map<string, number[]>>();
+
+function getAngleSeriesForJoint(poses: any[], jointName: string): number[] {
+  let byJoint = angleSeriesCache.get(poses);
+  if (!byJoint) {
+    byJoint = new Map();
+    angleSeriesCache.set(poses, byJoint);
+  }
+  const hit = byJoint.get(jointName);
+  if (hit) return hit;
+  const arr = new Array(poses.length);
+  for (let i = 0; i < poses.length; i++) {
+    const angles = extractJointAngles(poses, i);
+    const j = angles.find((a) => a.jointName === jointName);
+    arr[i] = j ? j.angle : NaN;
+  }
+  byJoint.set(jointName, arr);
+  return arr;
+}
+
+/** User-space width/height (undo ctx.scale so layout matches video drawImage coords). */
+function getLogicalCanvasDimensions(ctx: CanvasRenderingContext2D): { width: number; height: number } {
+  const t = ctx.getTransform();
+  const a = t.a || 1;
+  const d = t.d || 1;
+  return {
+    width: ctx.canvas.width / a,
+    height: ctx.canvas.height / d,
+  };
+}
+
+/**
+ * Fill NaN runs strictly between two valid angles (gap length ≤ maxGap), then hold first/last valid at edges.
+ */
+function interpolateAngleGaps(series: number[], maxGap: number): number[] {
+  const n = series.length;
+  const out = series.slice();
+  let i = 0;
+  while (i < n) {
+    if (!Number.isNaN(out[i])) {
+      i++;
+      continue;
+    }
+    const start = i;
+    while (i < n && Number.isNaN(out[i])) i++;
+    const end = i - 1;
+    const gapLen = end - start + 1;
+    const leftVal = start > 0 ? out[start - 1] : NaN;
+    const rightVal = i < n ? out[i] : NaN;
+    if (!Number.isNaN(leftVal) && !Number.isNaN(rightVal) && gapLen <= maxGap) {
+      const leftIdx = start - 1;
+      const rightIdx = i;
+      const denom = rightIdx - leftIdx;
+      for (let k = start; k <= end; k++) {
+        const t = (k - leftIdx) / denom;
+        out[k] = leftVal + (rightVal - leftVal) * t;
+      }
+    }
+  }
+  let firstValid = -1;
+  for (let j = 0; j < n; j++) {
+    if (!Number.isNaN(out[j])) {
+      firstValid = j;
+      break;
+    }
+  }
+  if (firstValid === -1) return out;
+  for (let j = 0; j < firstValid; j++) out[j] = out[firstValid];
+  let lastValid = -1;
+  for (let j = n - 1; j >= 0; j--) {
+    if (!Number.isNaN(out[j])) {
+      lastValid = j;
+      break;
+    }
+  }
+  for (let j = lastValid + 1; j < n; j++) out[j] = out[lastValid];
+  return out;
+}
+
+function getSafeZoneForStats(
+  canvasWidth: number,
+  canvasHeight: number,
+  config: Partial<StatsConfig>
+): SafeZone {
+  return config.safeZoneEnabled
+    ? calculateSafeZone(canvasWidth, canvasHeight)
+    : {
+        top: 20,
+        bottom: canvasHeight - 20,
+        left: 20,
+        right: canvasWidth - 20,
+        centerX: canvasWidth / 2,
+        centerY: canvasHeight / 2,
+        safeWidth: canvasWidth - 40,
+        safeHeight: canvasHeight - 40,
+      };
+}
+
+/** Indices 0,2,4,… up to `upto`, plus `upto` if odd so the polyline reaches the playhead. */
+function decimatedFrameIndices(upto: number): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i <= upto; i += 2) indices.push(i);
+  if (upto >= 0 && (indices.length === 0 || indices[indices.length - 1] !== upto)) {
+    indices.push(upto);
+  }
+  return indices;
+}
+
+function statsCanvasScaleFactor(ctx: CanvasRenderingContext2D): number {
+  const { width, height } = getLogicalCanvasDimensions(ctx);
+  const referenceWidth = 400;
+  const referenceHeight = 711;
+  return Math.min(width / referenceWidth, height / referenceHeight);
+}
+
+/**
+ * Joint angle time-series overlay (preview + export): one or two series, 0–180°, decimated polyline + endpoint markers.
+ */
+export function renderJointAngleChart(
+  ctx: CanvasRenderingContext2D,
+  poses: any[],
+  config: Partial<StatsConfig>,
+  currentFrameIndex: number
+): void {
+  if (!config.showJointAngleChart) return;
+  const jointA = config.jointAngleChartJointA;
+  if (!jointA) return;
+
+  const secondOn = config.jointAngleChartSecondSeries !== false;
+  const jointB = config.jointAngleChartJointB;
+  if (secondOn && (!jointB || jointB === jointA)) return;
+
+  const rawA = getAngleSeriesForJoint(poses, jointA);
+  const rawB = secondOn && jointB ? getAngleSeriesForJoint(poses, jointB) : null;
+
+  const maxGap = Math.max(0, Math.round(config.jointAngleChartMaxInterpGapFrames ?? 20));
+  const doInterp = config.jointAngleChartInterpolateGaps !== false;
+  const seriesA = doInterp ? interpolateAngleGaps(rawA, maxGap) : rawA;
+  const seriesB = rawB && doInterp ? interpolateAngleGaps(rawB, maxGap) : rawB;
+
+  const { width: logicalW, height: logicalH } = getLogicalCanvasDimensions(ctx);
+  const scaleFactor = statsCanvasScaleFactor(ctx);
+  const safeZone = getSafeZoneForStats(logicalW, logicalH, config);
+
+  const plotW = safeZone.safeWidth * 0.72;
+  const plotH = safeZone.safeHeight * 0.25;
+  const plotLeft = safeZone.centerX - plotW / 2;
+  const plotTop = safeZone.centerY - plotH / 2;
+
+  const n = poses.length;
+  const xDenom = Math.max(1, n - 1);
+
+  const colorA = config.jointAngleChartColorA || '#000000';
+  const colorB = config.jointAngleChartColorB || '#ffffff';
+  const styleA = config.jointAngleChartLineStyleA || 'solid';
+  const styleB = config.jointAngleChartLineStyleB || 'solid';
+  const baseThick = config.jointAngleChartLineThickness ?? 2;
+
+  const frameToX = (frameIdx: number) => plotLeft + (frameIdx / xDenom) * plotW;
+  const degToY = (deg: number) => {
+    const clamped = Math.max(0, Math.min(180, deg));
+    return plotTop + plotH - (clamped / 180) * plotH;
+  };
+
+  const lineW = Math.max(1, baseThick * scaleFactor);
+  const markerR = Math.max(2, (baseThick * 1.75) * scaleFactor);
+  const dashUnit = Math.max(2, 3 * scaleFactor);
+
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  const strokeSeries = (series: number[], stroke: string, lineStyle: 'solid' | 'dashed') => {
+    const idx = decimatedFrameIndices(currentFrameIndex);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineW;
+    ctx.setLineDash(lineStyle === 'dashed' ? [dashUnit, dashUnit * 0.75] : []);
+    ctx.beginPath();
+    let started = false;
+    for (const i of idx) {
+      const v = series[i];
+      if (Number.isNaN(v)) {
+        started = false;
+        continue;
+      }
+      const x = frameToX(i);
+      const y = degToY(v);
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+  };
+
+  strokeSeries(seriesA, colorA, styleA);
+  if (seriesB && jointB) strokeSeries(seriesB, colorB, styleB);
+
+  ctx.setLineDash([]);
+
+  const drawMarker = (series: number[], fill: string) => {
+    const v = series[currentFrameIndex];
+    if (Number.isNaN(v)) return;
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(frameToX(currentFrameIndex), degToY(v), markerR, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  drawMarker(seriesA, colorA);
+  if (seriesB && jointB) drawMarker(seriesB, colorB);
+
+  ctx.restore();
+}
+
+function resolveMetricChip(
+  chip: MetricChipConfig,
+  romData: ROMData[],
+  sport: SportMetricsSnapshot | null | undefined,
+  sportKind: 'cycling' | 'pullups',
+  poses: any[]
+): ResolvedMetricChip | null {
+  if (chip.kind === 'rom_joint') {
+    if (!chip.jointName) return null;
+    const byJoint = fixedRomSnapshotCache.get(poses) ?? new Map<string, FixedROMSnapshot>();
+    if (!fixedRomSnapshotCache.has(poses)) fixedRomSnapshotCache.set(poses, byJoint);
+    let snap = byJoint.get(chip.jointName);
+    if (!snap) {
+      const series = getAngleSeriesForJoint(poses, chip.jointName);
+      const valid = series.filter((v) => !Number.isNaN(v));
+      if (valid.length === 0) return null;
+      const min = Math.min(...valid);
+      const max = Math.max(...valid);
+      snap = { min, max, range: max - min };
+      byJoint.set(chip.jointName, snap);
+    }
+    const jointLabel = JOINT_LABELS[chip.jointName] || chip.jointName;
+    return { id: chip.id, label: `ROM ${jointLabel}`, value: `${Math.round(snap.range)}°` };
+  }
+
+  if (chip.kind === 'cycling_cadence') {
+    if (sportKind !== 'cycling') return null;
+    const v = sport?.cyclingCadenceRpm;
+    if (v == null || !Number.isFinite(v)) return null;
+    return { id: chip.id, label: `Cadence`, value: `${Math.round(v)}rpm` };
+  }
+
+  if (chip.kind === 'cycling_stroke_repeatability') {
+    if (sportKind !== 'cycling') return null;
+    const v = sport?.cyclingStrokeRepeatability;
+    if (v == null || !Number.isFinite(v)) return null;
+    return { id: chip.id, label: `Stroke`, value: `${Math.round(v)}%` };
+  }
+
+  if (chip.kind === 'pullups_reps') {
+    if (sportKind !== 'pullups') return null;
+    const v = sport?.pullupsRepCount;
+    if (v == null || !Number.isFinite(v)) return null;
+    return { id: chip.id, label: `Pull-up reps`, value: `${Math.round(v)}` };
+  }
+
+  if (chip.kind === 'pullups_elbow_symmetry') {
+    if (sportKind !== 'pullups') return null;
+    const v = sport?.pullupsElbowSymmetry;
+    if (v == null || !Number.isFinite(v)) return null;
+    return { id: chip.id, label: `Elbow symmetry`, value: `${Math.round(v)}%` };
+  }
+
+  return null;
+}
+
+export function renderMetricChips(
+  ctx: CanvasRenderingContext2D,
+  poses: any[],
+  romData: ROMData[],
+  config: Partial<StatsConfig>
+): void {
+  if (!config.showMetricChips) return;
+  const chipsCfg = config.metricChips || [];
+  if (chipsCfg.length === 0) return;
+
+  const sportKind = config.sportAnalysisKind || 'cycling';
+  const resolved = chipsCfg
+    .map((c) => resolveMetricChip(c, romData, config.sportMetricsSnapshot, sportKind, poses))
+    .filter((c): c is ResolvedMetricChip => Boolean(c))
+    .slice(0, 3);
+  if (resolved.length === 0) return;
+
+  const { width: logicalW, height: logicalH } = getLogicalCanvasDimensions(ctx);
+  const safe = getSafeZoneForStats(logicalW, logicalH, config);
+  const scale = statsCanvasScaleFactor(ctx);
+
+  const textColor = config.metricChipTextColor || '#ffffff';
+  const labelPx = Math.max(9, Math.round(12 * scale));
+  const valuePx = Math.max(18, Math.round(21 * scale));
+  const gap = Math.max(8, Math.round(10 * scale));
+  const lanePad = Math.max(10, Math.round(16 * scale));
+  const chipH = Math.round(labelPx * 1.1 + valuePx * 1.25);
+  const layout = config.metricChipLayout || 'bottom_center_row';
+  const isTop = layout.startsWith('top_');
+  const isStack = layout.endsWith('_stack');
+
+  ctx.save();
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (isStack) {
+    const totalH = resolved.length * chipH + (resolved.length - 1) * gap;
+    let y = isTop ? safe.top + lanePad + chipH / 2 : safe.bottom - lanePad - totalH + chipH / 2;
+    for (const chip of resolved) {
+      ctx.font = `100 ${labelPx}px 'Roboto Mono', monospace`;
+      ctx.fillText(chip.label, safe.centerX, y - valuePx * 0.6);
+      ctx.font = `500 ${valuePx}px 'Roboto Mono', monospace`;
+      ctx.fillText(chip.value, safe.centerX, y + labelPx * 0.9);
+      y += chipH + gap;
+    }
+  } else {
+    const widths = resolved.map((chip) => {
+      ctx.font = `100 ${labelPx}px 'Roboto Mono', monospace`;
+      const labelW = ctx.measureText(chip.label).width;
+      ctx.font = `700 ${valuePx}px 'Roboto Mono', monospace`;
+      const valueW = ctx.measureText(chip.value).width;
+      return Math.max(labelW, valueW);
+    });
+    const totalW = widths.reduce((sum, w) => sum + w, 0) + (resolved.length - 1) * gap;
+    let x = safe.centerX - totalW / 2;
+    const y = isTop ? safe.top + lanePad + chipH / 2 : safe.bottom - lanePad - chipH / 2;
+    for (let i = 0; i < resolved.length; i++) {
+      const w = widths[i];
+      const center = x + w / 2;
+      ctx.font = `100 ${labelPx}px 'Roboto Mono', monospace`;
+      ctx.fillText(resolved[i].label, center, y - valuePx * 0.6);
+      ctx.font = `500 ${valuePx}px 'Roboto Mono', monospace`;
+      ctx.fillText(resolved[i].value, center, y + labelPx * 0.9);
+      x += w + gap;
+    }
+  }
+
+  ctx.restore();
+}
 
 /**
  * Calculate safe zones for Instagram Stories/Reels compliance
@@ -663,6 +1076,9 @@ export function renderStats(
   
   // Render ROM stats
   renderROMStats(ctx, romData, config);
+
+  renderJointAngleChart(ctx, poses, config, currentFrameIndex);
+  renderMetricChips(ctx, poses, romData, config);
   
   // Render global overlays
   renderGlobalOverlays(ctx, config);
