@@ -21,12 +21,17 @@ export interface ExportConfig {
   quality: 'low' | 'medium' | 'high';
   duration?: number; // for video exports
   framerate?: number; // for video exports
-  sportAnalysisKind?: 'cycling' | 'pullups';
+  sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat';
   sportMetricsSnapshot?: {
     cyclingCadenceRpm?: number | null;
     cyclingStrokeRepeatability?: number | null;
     pullupsRepCount?: number | null;
     pullupsElbowSymmetry?: number | null;
+    plankHoldDurationSec?: number | null;
+    plankCorrectionCount?: number | null;
+    plankAvgHipDeviation?: number | null;
+    plankAvgHipAngleDeg?: number | null;
+    squatRepCount?: number | null;
   } | null;
 }
 

@@ -6,6 +6,8 @@ import { useOptionalAssetVideoEngine } from "./assetVideoEngineContext";
 
 export type AssetVideoPlayerStageProps = {
   videoUrl: string;
+  /** Optional source list for browser fallback order (first supported source plays). */
+  videoSources?: Array<{ src: string; type: string }>;
   /** When omitted, uses AssetVideoEngineProvider context */
   engine?: AssetVideoEngine;
   children?: React.ReactNode;
@@ -21,6 +23,7 @@ export type AssetVideoPlayerStageProps = {
 
 export default function AssetVideoPlayerStage({
   videoUrl,
+  videoSources,
   engine: engineProp,
   children,
   className,
@@ -61,7 +64,7 @@ export default function AssetVideoPlayerStage({
     >
       <video
         ref={videoRef}
-        src={videoUrl}
+        src={videoSources?.length ? undefined : videoUrl}
         style={{
           display: "block",
           width: "100%",
@@ -87,7 +90,11 @@ export default function AssetVideoPlayerStage({
         preload="metadata"
         disablePictureInPicture
         controlsList="nodownload nofullscreen noremoteplayback"
-      />
+      >
+        {videoSources?.map((source) => (
+          <source key={`${source.src}-${source.type}`} src={source.src} type={source.type} />
+        ))}
+      </video>
 
       <canvas
         ref={canvasRef}

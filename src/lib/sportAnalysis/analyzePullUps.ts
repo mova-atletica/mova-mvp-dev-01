@@ -4,9 +4,9 @@ const SCHEMA_VERSION = 1 as const;
 const MAX_SAMPLES = 30_000;
 const MAX_GAP_INTERPOLATE = 5;
 const MAX_NULL_FRACTION = 0.35;
-const MOVING_AVG_WINDOW_SEC = 0.45;
+const MOVING_AVG_WINDOW_SEC = 0.95;
 /** Minimum time between counted reps (NMS spacing). */
-const MIN_REP_SPACING_SEC = 0.25;
+const MIN_REP_SPACING_SEC = 0.55;
 /** Minimum flexion ROM (degrees) from recent extension before each top. */
 const MIN_ROM_DEG = 35;
 /** Window to look back for “extended” elbow before each minimum. */

@@ -25,12 +25,18 @@ interface CoreVideoPlayerProps {
   onPlayPause?: () => void;
   onSeek?: (time: number) => void;
   hidePlayBar?: boolean; // New prop to hide the play bar
-  
+  /** Fill parent; letterbox video with flex center (live fullscreen). */
+  fillContainer?: boolean;
+  /** Renders first in the vertical toolbar (e.g. dismiss fullscreen live modal). */
+  onToolbarClose?: () => void;
+  /** Centered strip over the video (e.g. live record / change method). */
+  bottomOverlay?: React.ReactNode;
+
   // Remove: repCountOverlay?: { enabled: boolean; count: number; onReset: () => void };
   
   // Add: unified feedback system
   feedbackOverlay?: {
-    type: 'rep' | 'pose' | 'flow' | null;
+    type: 'rep' | 'pose' | 'flow' | 'plank' | null;
     // Rep-based data
     repCount?: number;
     onResetRep?: () => void;
@@ -42,6 +48,8 @@ interface CoreVideoPlayerProps {
     // Flow-based data (placeholder)
     flowPhase?: string;
     flowProgress?: number;
+    plankMessage?: string;
+    plankVariant?: 'good' | 'adjust' | 'setup';
   };
 }
 
@@ -81,6 +89,12 @@ const FocusIcon = () => (
   </svg>
 );
 
+const CloseToolbarIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18 6L6 18M6 6l12 12" />
+  </svg>
+);
+
 // Helper function to format time
 const formatTime = (time: number): string => {
   const minutes = Math.floor(time / 60);
@@ -110,6 +124,9 @@ export default function CoreVideoPlayer({
   onPlayPause,
   onSeek,
   hidePlayBar = false, // New prop to hide the play bar
+  fillContainer = false,
+  onToolbarClose,
+  bottomOverlay,
   feedbackOverlay, // New prop for unified feedback overlay
 }: CoreVideoPlayerProps) {
   // If controlled props are provided, use them; otherwise, use local state (for backward compatibility)
@@ -134,21 +151,82 @@ export default function CoreVideoPlayer({
         className={`flex flex-col items-center ${containerClassName}`} 
         style={{ ...style, height: height || undefined }}
       >
-        <div className="flex flex-col items-center w-full h-full">
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', position: 'relative', width: '100%', height: '100%' }}>
+        <div className={`flex flex-col items-center w-full h-full ${fillContainer ? 'min-h-0' : ''}`}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              minHeight: fillContainer ? 0 : undefined,
+            }}
+          >
             {/* Video Player Container */}
-            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', position: 'relative' }}>
-              <div style={{ display: 'inline-block', position: 'relative' }}>
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                minHeight: fillContainer ? 0 : undefined,
+                minWidth: fillContainer ? 0 : undefined,
+                width: '100%',
+                height: '100%',
+              }}
+            >
+              <div
+                style={
+                  fillContainer
+                    ? {
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        width: '100%',
+                        height: '100%',
+                        minHeight: 0,
+                        minWidth: 0,
+                      }
+                    : { display: 'inline-block', position: 'relative' }
+                }
+              >
                 {/* --- New Vertical Controls Overlay (moved here) --- */}
                 <div style={{
                   position: 'absolute',
-                  top: 12,
-                  right: 12,
-                  zIndex: 40,
+                  top: fillContainer ? 'max(12px, env(safe-area-inset-top))' : 12,
+                  right: fillContainer ? 'max(12px, env(safe-area-inset-right))' : 12,
+                  zIndex: 50,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px', // Reduced gap for smaller buttons
                 }}>
+                  {onToolbarClose ? (
+                    <button
+                      type="button"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 6,
+                        background: 'var(--vp-panel-icon-bg)',
+                        border: 'none',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        color: 'var(--vp-panel-icon)',
+                        borderBottom: '1px solid var(--vp-panel-border)',
+                      }}
+                      onClick={onToolbarClose}
+                      aria-label="Close"
+                    >
+                      <CloseToolbarIcon />
+                    </button>
+                  ) : null}
                   {/* Download Button */}
                   <button
                     style={{
@@ -201,13 +279,19 @@ export default function CoreVideoPlayer({
                 {openMenu && (
                   <div style={{
                     position: 'absolute',
-                    top: 12,
-                    right: 51, // Adjusted for smaller buttons
+                    top: fillContainer ? 'max(12px, env(safe-area-inset-top))' : 12,
+                    right: fillContainer
+                      ? onToolbarClose
+                        ? 'max(87px, calc(env(safe-area-inset-right) + 75px))'
+                        : 'max(51px, calc(env(safe-area-inset-right) + 39px))'
+                      : onToolbarClose
+                        ? 87
+                        : 51,
                     background: 'var(--vp-panel-bg)',
                     borderRadius: 9,
                     boxShadow: 'var(--vp-panel-shadow)',
                     padding: '12px 12px',
-                    zIndex: 41,
+                    zIndex: 52,
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 15,
@@ -241,19 +325,44 @@ export default function CoreVideoPlayer({
                 {/* Unified Feedback Overlay */}
                 {feedbackOverlay?.type && (
                   <div
-                    style={{
-                      position: 'absolute',
-                      top: 12,
-                      left: 12,
-                      zIndex: 30,
-                      background: 'rgba(0, 0, 0, 0.7)',
-                      borderRadius: '6px',
-                      padding: '8px 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.2)'
-                    }}
+                    style={
+                      feedbackOverlay.type === 'plank'
+                        ? {
+                            position: 'absolute',
+                            top: fillContainer ? 'max(12px, env(safe-area-inset-top))' : 12,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            zIndex: 35,
+                            maxWidth: 'min(92vw, 22rem)',
+                            borderRadius: 10,
+                            padding: '10px 14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            textAlign: 'center',
+                            border: '1px solid rgba(255,255,255,0.22)',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+                            background:
+                              feedbackOverlay.plankVariant === 'good'
+                                ? 'rgba(22, 163, 74, 0.9)'
+                                : feedbackOverlay.plankVariant === 'setup'
+                                  ? 'rgba(180, 83, 9, 0.92)'
+                                  : 'rgba(220, 38, 38, 0.9)',
+                          }
+                        : {
+                            position: 'absolute',
+                            top: 12,
+                            left: 12,
+                            zIndex: 30,
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            borderRadius: '6px',
+                            padding: '8px 12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                          }
+                    }
                   >
                     {/* Rep-based Feedback */}
                     {feedbackOverlay.type === 'rep' && (
@@ -321,8 +430,52 @@ export default function CoreVideoPlayer({
                         </span>
                       </>
                     )}
+
+                    {feedbackOverlay.type === 'plank' && feedbackOverlay.plankMessage ? (
+                      <span
+                        style={{
+                          color: 'white',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {feedbackOverlay.plankMessage}
+                      </span>
+                    ) : null}
                   </div>
                 )}
+                {bottomOverlay ? (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      bottom: fillContainer ? 'max(14px, env(safe-area-inset-bottom))' : 14,
+                      zIndex: 48,
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      pointerEvents: 'none',
+                      paddingLeft: fillContainer ? 'max(8px, env(safe-area-inset-left))' : 8,
+                      paddingRight: fillContainer ? 'max(8px, env(safe-area-inset-right))' : 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        pointerEvents: 'auto',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 10,
+                        maxWidth: 'min(96vw, 28rem)',
+                      }}
+                    >
+                      {bottomOverlay}
+                    </div>
+                  </div>
+                ) : null}
                 {/* Playback Bar - Simplified and more visible */}
                 {!hidePlayBar && (
                   <div 

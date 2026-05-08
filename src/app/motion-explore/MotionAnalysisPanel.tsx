@@ -18,7 +18,9 @@ import {
 import type {
   CyclingDualAnalysisResult,
   CyclingPerspectiveMetrics,
+  PlankAnalysisResult,
   PullUpsAnalysisResult,
+  SquatAnalysisResult,
   SportAnalysisKind,
 } from "../../lib/sportAnalysis";
 import InfoTooltip from "../../components/InfoTooltip";
@@ -49,6 +51,10 @@ interface MotionAnalysisPanelProps {
   cyclingAnalysisError?: string | null;
   pullUpsAnalysisResult?: PullUpsAnalysisResult | null;
   pullUpsAnalysisError?: string | null;
+  plankAnalysisResult?: PlankAnalysisResult | null;
+  plankAnalysisError?: string | null;
+  squatAnalysisResult?: SquatAnalysisResult | null;
+  squatAnalysisError?: string | null;
 }
 
 type TabType = 'overview' | 'joints' | 'sport';
@@ -110,6 +116,10 @@ export default function MotionAnalysisPanel({
   cyclingAnalysisError = null,
   pullUpsAnalysisResult = null,
   pullUpsAnalysisError = null,
+  plankAnalysisResult = null,
+  plankAnalysisError = null,
+  squatAnalysisResult = null,
+  squatAnalysisError = null,
 }: MotionAnalysisPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [hoveredFrame, setHoveredFrame] = useState<number | null>(null);
@@ -463,6 +473,310 @@ export default function MotionAnalysisPanel({
       );
     }
 
+    if (sportAnalysisKind === "plank") {
+      if (plankAnalysisError) {
+        return (
+          <div className="space-y-2 text-sm" style={{ color: "var(--foreground)" }}>
+            <p className="text-red-500/90">{plankAnalysisError}</p>
+            <p style={{ color: "var(--muted-foreground)" }}>
+              Film from the side with your full body in frame, then run <strong>Analyze</strong> again.
+            </p>
+          </div>
+        );
+      }
+      if (!plankAnalysisResult) {
+        return (
+          <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            In the side rail, open <strong>3. Sport analysis</strong>, choose <strong>Plank</strong>, then click{" "}
+            <strong>Analyze</strong>. We estimate hold time, corrections, and joint angles (hip, knee, shoulder) from side
+            view.
+          </p>
+        );
+      }
+
+      const r = plankAnalysisResult;
+      const dt = frameIntervalSec && frameIntervalSec > 0 ? frameIntervalSec : 1 / 30;
+      const n = Math.max(
+        r.hipAngleSeries.length,
+        r.kneeAngleSeries.length,
+        r.shoulderAngleSeries.length
+      );
+      const angleRows = Array.from({ length: n }, (_, i) => ({
+        t: i * dt,
+        hip: r.hipAngleSeries[i] != null && Number.isFinite(r.hipAngleSeries[i]!) ? r.hipAngleSeries[i] : null,
+        knee: r.kneeAngleSeries[i] != null && Number.isFinite(r.kneeAngleSeries[i]!) ? r.kneeAngleSeries[i] : null,
+        shoulder:
+          r.shoulderAngleSeries[i] != null && Number.isFinite(r.shoulderAngleSeries[i]!)
+            ? r.shoulderAngleSeries[i]
+            : null,
+      }));
+      const tMax = angleRows.length > 0 ? angleRows[angleRows.length - 1].t : 0;
+      const holdLabel =
+        r.holdDurationSec < 60
+          ? `${Math.round(r.holdDurationSec)}s`
+          : `${Math.floor(r.holdDurationSec / 60)}m ${Math.round(r.holdDurationSec % 60)}s`;
+
+      return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-normal" style={{ color: "var(--foreground)" }}>
+            Plank Analysis
+          </h3>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            Angle-based side view analysis. Switch "Side toward camera" in the side panel if results look weird.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Hold (in plank)
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-blue-600">{holdLabel}</div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Time all targets
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-green-600">
+                {r.timeInZonePct.toFixed(0)}%
+              </div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Corrections
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-amber-600">{r.correctionCount}</div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Frames knee ≥ 155°
+              </div>
+              <div className="text-2xl font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {r.timeKneeExtendedPct.toFixed(0)}%
+              </div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Frames hip 125–170°
+              </div>
+              <div className="text-2xl font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {r.timeHipNeutralPct.toFixed(0)}%
+              </div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Frames shoulder 70–130°
+              </div>
+              <div className="text-2xl font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {r.timeShoulderStackPct.toFixed(0)}%
+              </div>
+            </div>
+            <div className="rounded-lg p-3 sm:col-span-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Mean angles while in plank (°)
+              </div>
+              <div className="mt-1 text-sm tabular-nums" style={{ color: "var(--foreground)" }}>
+                Hip {r.avgHipAngleDeg.toFixed(0)}° · Knee {r.avgKneeAngleDeg.toFixed(0)}° · Shoulder{" "}
+                {r.avgShoulderAngleDeg.toFixed(0)}°
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-medium" style={{ color: "var(--foreground)" }}>
+              Angles over time (smoothed)
+            </h4>
+            <p className="mb-2 text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+              Hip, knee, and shoulder (selected side). Nulls when keypoints are unclear.
+            </p>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={angleRows} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.45} />
+                <XAxis
+                  dataKey="t"
+                  type="number"
+                  domain={[0, tMax]}
+                  tick={CHART_AXIS_TICK}
+                  stroke="var(--border)"
+                  tickFormatter={(v: number) => `${v.toFixed(1)}s`}
+                />
+                <YAxis tick={CHART_AXIS_TICK} stroke="var(--border)" domain={[0, 180]} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--results-chart-tooltip-bg)",
+                    color: "var(--results-chart-tooltip-text)",
+                    border: "none",
+                    borderRadius: 8,
+                    fontSize: "12px",
+                  }}
+                  labelFormatter={(t) => `t = ${Number(t).toFixed(2)} s`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="hip"
+                  name="Hip °"
+                  stroke="var(--accent, #3b82f6)"
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="knee"
+                  name="Knee °"
+                  stroke="#22c55e"
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="shoulder"
+                  name="Shoulder °"
+                  stroke="#a855f7"
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      );
+    }
+
+    if (sportAnalysisKind === "squat") {
+      if (squatAnalysisError) {
+        return (
+          <div className="space-y-2 text-sm" style={{ color: "var(--foreground)" }}>
+            <p className="text-red-500/90">{squatAnalysisError}</p>
+            <p style={{ color: "var(--muted-foreground)" }}>
+              Use side view, pick the side facing camera, and perform clear down-and-up squats.
+            </p>
+          </div>
+        );
+      }
+      if (!squatAnalysisResult) {
+        return (
+          <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            In the side rail, open <strong>3. Sport analysis</strong>, choose <strong>Squat</strong>, then click{" "}
+            <strong>Analyze</strong>. We count reps from the selected knee angle using a state machine.
+          </p>
+        );
+      }
+
+      const r = squatAnalysisResult;
+      const dt = frameIntervalSec && frameIntervalSec > 0 ? frameIntervalSec : 1 / 30;
+      const kneeRows = r.chart_smoothed_knee.map((v, i) => ({
+        t: i * dt,
+        knee: v != null && Number.isFinite(v) ? v : null,
+      }));
+      const tMax = kneeRows.length > 0 ? kneeRows[kneeRows.length - 1].t : 0;
+
+      return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-normal" style={{ color: "var(--foreground)" }}>
+            Squat
+          </h3>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            Side-view knee-angle state machine: top ≥155°, depth target ≤100°, min ROM 28°, spacing 0.55s.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Reps
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-blue-600">{r.rep_count}</div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Depth pass
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-green-600">{r.depthPassPct.toFixed(0)}%</div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Avg bottom knee
+              </div>
+              <div className="text-2xl font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {r.avgBottomKneeDeg.toFixed(0)}°
+              </div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Advisory: knee over ankle
+              </div>
+              <div className="text-2xl font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {r.advisoryKneeOverAnklePct.toFixed(0)}%
+              </div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Advisory: trunk lean
+              </div>
+              <div className="text-2xl font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {r.advisoryTrunkLeanPct.toFixed(0)}%
+              </div>
+            </div>
+          </div>
+
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={kneeRows} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.45} />
+              <XAxis
+                dataKey="t"
+                type="number"
+                domain={[0, tMax]}
+                tick={CHART_AXIS_TICK}
+                stroke="var(--border)"
+                tickFormatter={(v: number) => `${v.toFixed(1)}s`}
+              />
+              <YAxis tick={CHART_AXIS_TICK} stroke="var(--border)" domain={[0, 180]} />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--results-chart-tooltip-bg)",
+                  color: "var(--results-chart-tooltip-text)",
+                  border: "none",
+                  borderRadius: 8,
+                  fontSize: "12px",
+                }}
+                labelFormatter={(t) => `t = ${Number(t).toFixed(2)} s`}
+              />
+              <Line
+                type="monotone"
+                dataKey="knee"
+                name="Knee °"
+                stroke="var(--accent, #3b82f6)"
+                strokeWidth={2}
+                dot={false}
+                connectNulls={false}
+                isAnimationActive={false}
+              />
+              {r.rep_times_sec.map((tRep, i) => (
+                <ReferenceLine
+                  key={`squat-rep-${i}`}
+                  x={tRep}
+                  stroke="color-mix(in srgb, var(--accent, #3b82f6) 65%, transparent)"
+                  strokeDasharray="4 4"
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    if (sportAnalysisKind !== "cycling") {
+      return (
+        <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+          Choose a sport in the studio rail under <strong>3. Sport analysis</strong>, then run <strong>Analyze</strong>.
+        </p>
+      );
+    }
+
     const tipCadence =
       "Roughly how fast you’re spinning the pedals.\n\nWe count full revolutions from your knee trace, time them, and convert to RPM. Values can differ slightly between bottom- vs top-detected strokes if the trace is uneven.";
 
@@ -775,6 +1089,8 @@ export default function MotionAnalysisPanel({
     sportAnalysisKind,
     pullUpsAnalysisResult,
     pullUpsAnalysisError,
+    plankAnalysisResult,
+    plankAnalysisError,
     frameIntervalSec,
     cyclingAnalysisResult,
     cyclingAnalysisError,

@@ -105,7 +105,7 @@ export interface StatsConfig {
   metricChipLayout?: 'bottom_center_row' | 'bottom_center_stack' | 'top_center_row' | 'top_center_stack';
   metricChipTextColor?: string;
   metricChips?: MetricChipConfig[];
-  sportAnalysisKind?: 'cycling' | 'pullups';
+  sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat';
   sportMetricsSnapshot?: SportMetricsSnapshot | null;
   
   // Export mode flag
@@ -117,7 +117,10 @@ export type MetricChipKind =
   | 'cycling_cadence'
   | 'cycling_stroke_repeatability'
   | 'pullups_reps'
-  | 'pullups_elbow_symmetry';
+  | 'pullups_elbow_symmetry'
+  | 'plank_hold_sec'
+  | 'plank_correction_count'
+  | 'plank_avg_hip_dev';
 
 export interface MetricChipConfig {
   id: string;
@@ -130,6 +133,16 @@ export interface SportMetricsSnapshot {
   cyclingStrokeRepeatability?: number | null;
   pullupsRepCount?: number | null;
   pullupsElbowSymmetry?: number | null;
+  /** Plank hold duration from analyzed clip (seconds). */
+  plankHoldDurationSec?: number | null;
+  /** Voice-style correction events counted from sustained bad form segments. */
+  plankCorrectionCount?: number | null;
+  /** @deprecated Angle-based plank uses {@link plankAvgHipAngleDeg}. */
+  plankAvgHipDeviation?: number | null;
+  /** Mean hip angle (shoulder–hip–knee, °) while in detected plank. */
+  plankAvgHipAngleDeg?: number | null;
+  /** Squat reps counted by side-view knee-angle state machine. */
+  squatRepCount?: number | null;
 }
 
 export interface SafeZone {
@@ -407,7 +420,7 @@ function resolveMetricChip(
   chip: MetricChipConfig,
   romData: ROMData[],
   sport: SportMetricsSnapshot | null | undefined,
-  sportKind: 'cycling' | 'pullups',
+  sportKind: 'cycling' | 'pullups' | 'plank' | 'squat',
   poses: any[]
 ): ResolvedMetricChip | null {
   if (chip.kind === 'rom_joint') {
@@ -454,6 +467,31 @@ function resolveMetricChip(
     const v = sport?.pullupsElbowSymmetry;
     if (v == null || !Number.isFinite(v)) return null;
     return { id: chip.id, label: `Elbow symmetry`, value: `${Math.round(v)}%` };
+  }
+
+  if (chip.kind === 'plank_hold_sec') {
+    if (sportKind !== 'plank') return null;
+    const v = sport?.plankHoldDurationSec;
+    if (v == null || !Number.isFinite(v)) return null;
+    return { id: chip.id, label: `Plank hold`, value: `${v < 60 ? `${Math.round(v)}s` : `${Math.floor(v / 60)}m ${Math.round(v % 60)}s`}` };
+  }
+
+  if (chip.kind === 'plank_correction_count') {
+    if (sportKind !== 'plank') return null;
+    const v = sport?.plankCorrectionCount;
+    if (v == null || !Number.isFinite(v)) return null;
+    return { id: chip.id, label: `Corrections`, value: `${Math.round(v)}` };
+  }
+
+  if (chip.kind === 'plank_avg_hip_dev') {
+    if (sportKind !== 'plank') return null;
+    const deg = sport?.plankAvgHipAngleDeg;
+    if (deg != null && Number.isFinite(deg)) {
+      return { id: chip.id, label: `Avg hip`, value: `${deg.toFixed(0)}°` };
+    }
+    const legacy = sport?.plankAvgHipDeviation;
+    if (legacy == null || !Number.isFinite(legacy)) return null;
+    return { id: chip.id, label: `Hip line`, value: `${(legacy * 1000).toFixed(0)}` };
   }
 
   return null;

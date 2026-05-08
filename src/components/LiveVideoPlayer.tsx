@@ -8,12 +8,94 @@ import CoreVideoPlayer from "./CoreVideoPlayer";
 import { getAngleWithConfidence } from '../lib/analysisUtils';
 import { analyzeCurrentPose, calculateAnglesForPoseAnalysis, calculatePoseHoldDuration } from '../lib/poseAnalysisUtils';
 import { loadPoseDetectionModel } from '../lib/tensorflowUtils';
+import {
+  createPlankCoachRefs,
+  speakPlankLine,
+  stepPlankLiveCoach,
+  type PlankCoachRefs,
+} from '../lib/sportAnalysis/plankLiveCoach';
+import type { PlankFacingSide } from '../lib/sportAnalysis/plankTypes';
+import { PLANK_ANGLE_PRESET } from '../lib/sportAnalysis/plankConfig';
+import { analyzePlankFrame, type PlankFrameResult } from '../lib/sportAnalysis/plankGeometry';
+import {
+  createSquatCoachRefs,
+  stepSquatLiveCoach,
+  type SquatCoachRefs,
+} from "../lib/sportAnalysis/squatLiveCoach";
+import type { SquatSide } from "../lib/sportAnalysis/squatTypes";
+
+/** Throttle plank debug logs so rAF + pose does not flood the console. */
+const PLANK_LIVE_DEBUG_INTERVAL_MS = 800;
+
+function plankSelectedSideScores(
+  pose: { keypoints?: Array<{ x: number; y: number; score?: number }> } | null,
+  facingSide: PlankFacingSide
+): { nose?: number; ipsiEar?: number; shoulder?: number; hip?: number; ankle?: number } {
+  const kp = pose?.keypoints;
+  if (!kp?.length) return {};
+  const idx =
+    facingSide === 'left'
+      ? { shoulder: 5, hip: 11, ankle: 15, ear: 3 }
+      : { shoulder: 6, hip: 12, ankle: 16, ear: 4 };
+  return {
+    nose: kp[0]?.score,
+    ipsiEar: kp[idx.ear]?.score,
+    shoulder: kp[idx.shoulder]?.score,
+    hip: kp[idx.hip]?.score,
+    ankle: kp[idx.ankle]?.score,
+  };
+}
+
+/** Dev aid: open DevTools → Console while plank live coach is on. */
+function logPlankLiveDebug(payload: {
+  facingSide: PlankFacingSide;
+  pose: { keypoints?: Array<{ x: number; y: number; score?: number }> } | null;
+  frame: PlankFrameResult | null;
+  hipZone: 'ok' | 'hip_high' | 'hip_low';
+}): void {
+  const { facingSide, pose, frame, hipZone } = payload;
+  const scores = plankSelectedSideScores(pose, facingSide);
+  if (!frame) {
+    let hint = 'no_pose_or_missing_core_keypoints';
+    const kp = pose?.keypoints;
+    if (kp?.length) {
+      if (!kp[5] || !kp[6] || !kp[11] || !kp[12] || !kp[15] || !kp[16]) {
+        hint = 'missing_moveNet_shoulders_hips_ankles';
+      }
+    }
+    console.log('[plank-live]', { facingSide, frame: null, hint, scores });
+    return;
+  }
+  const primary = frame.issues[0];
+  console.log('[plank-live]', {
+    facingSide,
+    hipZone,
+    in_plank: frame.in_plank,
+    primaryKey: primary?.key,
+    issueKeys: frame.issues.map((i) => i.key),
+    hip_deg: frame.metrics.hip_angle_deg != null ? Number(frame.metrics.hip_angle_deg.toFixed(1)) : null,
+    knee_deg: frame.metrics.knee_angle_deg != null ? Number(frame.metrics.knee_angle_deg.toFixed(1)) : null,
+    shoulder_deg: frame.metrics.shoulder_angle_deg != null ? Number(frame.metrics.shoulder_angle_deg.toFixed(1)) : null,
+    scores,
+  });
+}
 
 interface LiveVideoPlayerProps {
   onRecordingComplete: (videoUrl: string, duration: number, realTimeAnalysisData?: any[]) => void;
   onMethodChange: () => void;
   referenceAngles?: any;
   exercise: any;
+  /** Open Move Studio: side-view plank voice cues (speechSynthesis) while camera is active. */
+  plankLiveCoach?: boolean;
+  /** Which side faces the camera for plank geometry (must match Studio export panel). */
+  plankFacingSide?: PlankFacingSide;
+  /** Open Move Studio: side-view squat cues + squat counter while camera is active. */
+  squatLiveCoach?: boolean;
+  squatSide?: SquatSide;
+  /** Studio live modal: edge-to-edge video, safe-area controls, optional orientation toggle (mobile). */
+  layoutVariant?: 'default' | 'embeddedFullscreen';
+  /** Fullscreen: first toolbar button closes the host (e.g. dialog). */
+  onEmbeddedClose?: () => void;
 }
 
 const ANGLE_OPTIONS = [
@@ -57,7 +139,18 @@ const BONE_OPTIONS = [
   { key: '6-12', label: 'Right Torso' },
 ];
 
-export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, referenceAngles, exercise }: LiveVideoPlayerProps) {
+export default function LiveVideoPlayer({
+  onRecordingComplete,
+  onMethodChange,
+  referenceAngles,
+  exercise,
+  plankLiveCoach = false,
+  plankFacingSide = 'left',
+  squatLiveCoach = false,
+  squatSide = 'left',
+  layoutVariant = 'default',
+  onEmbeddedClose,
+}: LiveVideoPlayerProps) {
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [detector, setDetector] = useState<poseDetection.PoseDetector | null>(null);
@@ -137,6 +230,23 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
   const [currentPoseResult, setCurrentPoseResult] = useState<any>(null);
   const [poseHistory, setPoseHistory] = useState<any[]>([]);
 
+  const plankCoachRef = useRef<PlankCoachRefs>(createPlankCoachRefs());
+  const plankDebugLastLogRef = useRef(0);
+  const plankBannerKeyRef = useRef('');
+  const [plankBanner, setPlankBanner] = useState<{
+    message: string;
+    variant: 'good' | 'adjust' | 'setup';
+  } | null>(null);
+  const squatCoachRef = useRef<SquatCoachRefs>(createSquatCoachRefs());
+  const squatBannerKeyRef = useRef("");
+  const [squatBanner, setSquatBanner] = useState<{ message: string; variant: "good" | "adjust" | "setup" } | null>(
+    null
+  );
+  const [squatRepCount, setSquatRepCount] = useState(0);
+
+  const embeddedFullscreen = layoutVariant === 'embeddedFullscreen';
+  const [captureAspect, setCaptureAspect] = useState<'portrait' | 'landscape'>('portrait');
+
   // Detect mobile device (safe for SSR)
   const [isMobile, setIsMobile] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -151,24 +261,72 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
 
   // Memoize videoConstraints to only create on client side (SSR-safe)
   const videoConstraints = useMemo(() => {
-    // Return safe defaults during SSR
     if (!isMounted) {
       return {
         width: 360,
         height: 640,
         aspectRatio: 9 / 16,
-        facingMode: "user",
+        facingMode: "user" as const,
       };
     }
-    // Return actual constraints after mount
-    const facingMode = isMobile ? "environment" : "user";
+    const facingMode = isMobile ? ("environment" as const) : ("user" as const);
+    if (!embeddedFullscreen) {
+      return {
+        width: 360,
+        height: 640,
+        aspectRatio: 9 / 16,
+        facingMode,
+      };
+    }
+    // Studio fullscreen on desktop: landscape capture (plank / side view); mobile uses toggle below.
+    if (!isMobile) {
+      return {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        aspectRatio: 16 / 9,
+        facingMode,
+      };
+    }
+    if (captureAspect === "landscape") {
+      return {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        aspectRatio: 16 / 9,
+        facingMode,
+      };
+    }
     return {
-      width: 360,
-      height: 640,
+      width: { ideal: 720 },
+      height: { ideal: 1280 },
       aspectRatio: 9 / 16,
-      facingMode: facingMode,
+      facingMode,
     };
-  }, [isMounted, isMobile]);
+  }, [isMounted, isMobile, embeddedFullscreen, captureAspect]);
+
+  useEffect(() => {
+    if (!plankLiveCoach) {
+      plankBannerKeyRef.current = '';
+      setPlankBanner(null);
+    }
+    plankCoachRef.current = createPlankCoachRefs();
+  }, [plankLiveCoach, plankFacingSide]);
+
+  useEffect(() => {
+    if (!squatLiveCoach) {
+      squatBannerKeyRef.current = "";
+      setSquatBanner(null);
+      setSquatRepCount(0);
+    }
+    squatCoachRef.current = createSquatCoachRefs();
+    setSquatRepCount(0);
+  }, [squatLiveCoach, squatSide]);
+
+  useEffect(() => {
+    if (cameraActive) {
+      setShowKeypoints(true);
+      setShowAngles(true);
+    }
+  }, [cameraActive]);
 
   // Load pose detection model
   useEffect(() => {
@@ -219,7 +377,7 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       };
       checkVideoSize();
     }
-  }, [cameraActive]);
+  }, [cameraActive, embeddedFullscreen, captureAspect]);
 
   // Live pose detection loop
   useEffect(() => {
@@ -243,6 +401,55 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
           // Keep only the last 10 poses to avoid memory issues
           return newPoses.slice(-10);
         });
+        if (plankLiveCoach) {
+          const nowSec = performance.now() / 1000;
+          const line = stepPlankLiveCoach(pose, nowSec, plankCoachRef.current, plankFacingSide);
+          if (line) speakPlankLine(line);
+
+          const frame = analyzePlankFrame(pose, PLANK_ANGLE_PRESET, {
+            facingSide: plankFacingSide,
+            hipHysteresis: plankCoachRef.current.hipHysteresis,
+            rolling: plankCoachRef.current.rolling,
+          });
+          const nowMs = performance.now();
+          if (nowMs - plankDebugLastLogRef.current >= PLANK_LIVE_DEBUG_INTERVAL_MS) {
+            plankDebugLastLogRef.current = nowMs;
+            logPlankLiveDebug({
+              facingSide: plankFacingSide,
+              pose,
+              frame,
+              hipZone: plankCoachRef.current.hipHysteresis.zone,
+            });
+          }
+          if (frame) {
+            const primary = frame.issues[0];
+            const variant: 'good' | 'adjust' | 'setup' =
+              primary.key === 'good_form' ? 'good' : primary.key === 'not_in_plank' ? 'setup' : 'adjust';
+            const key = `${variant}|${primary.message}`;
+            if (key !== plankBannerKeyRef.current) {
+              plankBannerKeyRef.current = key;
+              setPlankBanner({ message: primary.message, variant });
+            }
+          } else if (plankBannerKeyRef.current !== '') {
+            plankBannerKeyRef.current = '';
+            setPlankBanner(null);
+          }
+        } else if (squatLiveCoach) {
+          const nowSec = performance.now() / 1000;
+          const { line, frame } = stepSquatLiveCoach(pose, nowSec, squatCoachRef.current, squatSide);
+          if (line) speakPlankLine(line);
+          if (frame) {
+            setSquatRepCount((prev) => (prev === frame.repCount ? prev : frame.repCount));
+            const key = `${frame.variant}|${frame.message}|${frame.repCount}`;
+            if (key !== squatBannerKeyRef.current) {
+              squatBannerKeyRef.current = key;
+              setSquatBanner({ message: frame.message, variant: frame.variant });
+            }
+          } else if (squatBannerKeyRef.current !== "") {
+            squatBannerKeyRef.current = "";
+            setSquatBanner(null);
+          }
+        }
       } catch (error) {
         console.error('Error in pose detection:', error);
       }
@@ -255,8 +462,11 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
 
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      if ((plankLiveCoach || squatLiveCoach) && typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     };
-  }, [cameraActive, detector]);
+  }, [cameraActive, detector, plankLiveCoach, plankFacingSide, squatLiveCoach, squatSide]);
 
   // Draw skeletal overlay on canvas
   useEffect(() => {
@@ -302,16 +512,24 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
     // Calculate scale factors for object-fit: contain
     const videoAspectRatio = videoWidth / videoHeight;
     const canvasAspectRatio = canvasWidth / canvasHeight;
-    
-    let scaleX, scaleY, offsetX = 0, offsetY = 0;
-    
-    if (videoAspectRatio > canvasAspectRatio) {
-      // Video is wider than canvas - scale by width, center vertically
+
+    let scaleX: number;
+    let scaleY: number;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (embeddedFullscreen) {
+      // Match CSS object-fit: cover (fill view, center crop)
+      const scale = Math.max(canvasWidth / videoWidth, canvasHeight / videoHeight);
+      scaleX = scale;
+      scaleY = scale;
+      offsetX = (canvasWidth - videoWidth * scale) / 2;
+      offsetY = (canvasHeight - videoHeight * scale) / 2;
+    } else if (videoAspectRatio > canvasAspectRatio) {
       scaleX = canvasWidth / videoWidth;
       scaleY = scaleX;
       offsetY = (canvasHeight - videoHeight * scaleY) / 2;
     } else {
-      // Video is taller than canvas - scale by height, center horizontally
       scaleY = canvasHeight / videoHeight;
       scaleX = scaleY;
       offsetX = (canvasWidth - videoWidth * scaleX) / 2;
@@ -416,7 +634,20 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
         }
       });
     }
-  }, [showKeypoints, showAngles, allPoses, selectedAngles, selectedJoints, selectedBones, boneColor, jointColor, boneWeight, jointSize, cameraActive]);
+  }, [
+    showKeypoints,
+    showAngles,
+    allPoses,
+    selectedAngles,
+    selectedJoints,
+    selectedBones,
+    boneColor,
+    jointColor,
+    boneWeight,
+    jointSize,
+    cameraActive,
+    embeddedFullscreen,
+  ]);
 
   // Process pose feedback on each frame
   const processPoseFeedback = useCallback(() => {
@@ -1376,7 +1607,21 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
       return { type: null };
     }
   };
-  
+
+  const sportBanner =
+    (plankLiveCoach && plankBanner) || (squatLiveCoach && squatBanner) || null;
+
+  const feedbackForPlayer =
+    sportBanner
+      ? {
+          type: 'plank' as const,
+          plankMessage: sportBanner.message,
+          plankVariant: sportBanner.variant,
+        }
+      : renderFeedbackOverlay();
+
+  const showOrientationToggle = isMobile && embeddedFullscreen;
+
   // Don't render Webcam during SSR
   if (!isMounted) {
     return (
@@ -1391,58 +1636,132 @@ export default function LiveVideoPlayer({ onRecordingComplete, onMethodChange, r
     );
   }
 
+  const liveBottomOverlay = (
+    <>
+      {showOrientationToggle ? (
+        <button
+          type="button"
+          className="rounded px-3 py-2 text-[11px] font-medium shadow-md backdrop-blur-sm"
+          style={{
+            background: 'rgba(0, 0, 0, 0.55)',
+            color: '#f3f3f4',
+            border: '1px solid rgba(255,255,255,0.35)',
+          }}
+          onClick={() => setCaptureAspect((a) => (a === 'portrait' ? 'landscape' : 'portrait'))}
+        >
+          {captureAspect === 'portrait' ? 'Use landscape' : 'Use portrait'}
+        </button>
+      ) : null}
+      {controls}
+    </>
+  );
+
+  const squatRepOverlay =
+    squatLiveCoach ? (
+      <div
+        style={{
+          position: "absolute",
+          top: embeddedFullscreen ? "max(12px, env(safe-area-inset-top))" : 12,
+          left: embeddedFullscreen ? "max(12px, env(safe-area-inset-left))" : 12,
+          zIndex: 36,
+          background: "rgba(0, 0, 0, 0.7)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          borderRadius: 8,
+          padding: "8px 10px",
+          color: "white",
+          minWidth: 78,
+          pointerEvents: "none",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
+        }}
+      >
+        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.04em", opacity: 0.9 }}>SQUAT REPS</div>
+        <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.1 }}>{squatRepCount}</div>
+      </div>
+    ) : null;
+
+  const videoShell = (
+    <div style={{ width: '100%', height: embeddedFullscreen ? '100%' : undefined, minHeight: embeddedFullscreen ? 0 : undefined }}>
+      <CoreVideoPlayer
+        videoElement={
+          <div
+            style={{
+              opacity: videoVisible ? 1 : 0,
+              pointerEvents: videoVisible ? 'auto' : 'none',
+              transition: 'opacity 0.2s ease-in-out',
+              width: embeddedFullscreen ? '100%' : undefined,
+              height: embeddedFullscreen ? '100%' : undefined,
+              minHeight: embeddedFullscreen ? 0 : undefined,
+              position: embeddedFullscreen ? 'relative' : undefined,
+            }}
+          >
+            <Webcam
+              key={
+                embeddedFullscreen
+                  ? isMobile
+                    ? `live-${captureAspect}`
+                    : "live-fs-desktop-landscape"
+                  : "live-default"
+              }
+              ref={webcamRef}
+              audio={false}
+              videoConstraints={videoConstraints}
+              className={
+                embeddedFullscreen
+                  ? 'block h-full w-full min-h-0 object-cover'
+                  : 'rounded w-full'
+              }
+            />
+          </div>
+        }
+        canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
+        overlays={squatRepOverlay}
+        panelContent={panelContent}
+        openMenu={openMenu}
+        setOpenMenu={setOpenMenu}
+        showAdvancedPanel={showAdvancedPanel}
+        onCloseAdvancedPanel={() => setShowAdvancedPanel(v => !v)}
+        hidePlayBar={true}
+        fillContainer={embeddedFullscreen}
+        onToolbarClose={embeddedFullscreen ? onEmbeddedClose : undefined}
+        bottomOverlay={liveBottomOverlay}
+        containerClassName={embeddedFullscreen ? 'w-full h-full min-h-0' : ''}
+        style={embeddedFullscreen ? { width: '100%', height: '100%', minHeight: 0 } : undefined}
+        feedbackOverlay={feedbackForPlayer}
+      />
+    </div>
+  );
+
+  if (embeddedFullscreen) {
+    return (
+      <div
+        className="relative flex min-h-0 w-full flex-1 flex-col bg-black"
+        style={{ minHeight: 0, width: '100%' }}
+      >
+        {recording ? (
+          <div
+            className="pointer-events-none absolute left-1/2 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-white shadow-lg animate-pulse"
+            style={{ top: 'max(10px, env(safe-area-inset-top))' }}
+          >
+            <span className="h-2 w-2 animate-ping rounded-full bg-white" />
+            <span className="text-xs font-medium">Recording</span>
+          </div>
+        ) : null}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">{videoShell}</div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-      
-      {/* Recording Indicator */}
       {recording && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg animate-pulse">
-          <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+        <div className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white animate-pulse">
+          <div className="h-2 w-2 animate-ping rounded-full bg-white" />
           <span className="text-sm font-regular">Recording...</span>
         </div>
       )}
-      
-      {/* Main video container */}
+
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-        {/* Video player */}
-        <div style={{ position: 'relative' }}>
-          <CoreVideoPlayer
-            videoElement={
-              <div style={{ opacity: videoVisible ? 1 : 0, pointerEvents: videoVisible ? 'auto' : 'none', transition: 'opacity 0.2s ease-in-out' }}>
-                <Webcam
-                  ref={webcamRef}
-                  audio={false}
-                  videoConstraints={videoConstraints}
-                  className="rounded w-full"
-                />
-              </div>
-            }
-            canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
-            overlays={<></>}
-            panelContent={panelContent}
-            openMenu={openMenu}
-            setOpenMenu={setOpenMenu}
-            showAdvancedPanel={showAdvancedPanel}
-            onCloseAdvancedPanel={() => setShowAdvancedPanel(v => !v)}
-            hidePlayBar={true}
-            feedbackOverlay={renderFeedbackOverlay()}
-          />
-          
-          {/* Recording controls overlaid with absolute positioning */}
-          <div style={{
-            position: 'absolute',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: '12px',
-            zIndex: 20
-          }}>
-            {controls}
-          </div>
-        </div>
-        
-        {/* Remove the controls from outside the video player */}
+        {videoShell}
       </div>
     </div>
   );

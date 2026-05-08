@@ -17,7 +17,10 @@ type MetricChipKind =
   | "cycling_cadence"
   | "cycling_stroke_repeatability"
   | "pullups_reps"
-  | "pullups_elbow_symmetry";
+  | "pullups_elbow_symmetry"
+  | "plank_hold_sec"
+  | "plank_correction_count"
+  | "plank_avg_hip_dev";
 
 type MetricChipRow = { id: string; kind: MetricChipKind; jointName?: string };
 
@@ -76,6 +79,9 @@ const ALL_METRIC_CHIP_OPTIONS: Array<{ value: MetricChipKind; label: string }> =
   { value: "cycling_stroke_repeatability", label: "Cycling stroke repeatability" },
   { value: "pullups_reps", label: "Pull-up reps" },
   { value: "pullups_elbow_symmetry", label: "Pull-up elbow symmetry" },
+  { value: "plank_hold_sec", label: "Plank hold" },
+  { value: "plank_correction_count", label: "Plank corrections" },
+  { value: "plank_avg_hip_dev", label: "Plank hip line" },
 ];
 
 export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigFormProps) {
@@ -94,9 +100,15 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
           cyclingStrokeRepeatability?: number | null;
           pullupsRepCount?: number | null;
           pullupsElbowSymmetry?: number | null;
+          plankHoldDurationSec?: number | null;
+          plankCorrectionCount?: number | null;
+          plankAvgHipDeviation?: number | null;
+          plankAvgHipAngleDeg?: number | null;
+          squatRepCount?: number | null;
         }
       | null) || null;
-  const sportAnalysisKind = (config.sportAnalysisKind as "cycling" | "pullups" | undefined) || "cycling";
+  const sportAnalysisKind =
+    (config.sportAnalysisKind as "cycling" | "pullups" | "plank" | "squat" | undefined) || "cycling";
 
   const chipLayoutOptions = [
     { value: "bottom_center_row", label: "Bottom center row" },
@@ -113,6 +125,10 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
       sportMetricsSnapshot.cyclingStrokeRepeatability,
       sportMetricsSnapshot.pullupsRepCount,
       sportMetricsSnapshot.pullupsElbowSymmetry,
+      sportMetricsSnapshot.plankHoldDurationSec,
+      sportMetricsSnapshot.plankCorrectionCount,
+      sportMetricsSnapshot.plankAvgHipDeviation,
+      sportMetricsSnapshot.plankAvgHipAngleDeg,
     ];
     return vals.some((v) => typeof v === "number" && Number.isFinite(v));
   }, [sportMetricsSnapshot]);
@@ -128,6 +144,20 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
         if (opt.value === "cycling_cadence") return Number.isFinite(sportMetricsSnapshot?.cyclingCadenceRpm ?? NaN);
         if (opt.value === "cycling_stroke_repeatability") {
           return Number.isFinite(sportMetricsSnapshot?.cyclingStrokeRepeatability ?? NaN);
+        }
+        return false;
+      }
+
+      if (sportAnalysisKind === "plank") {
+        if (opt.value === "plank_hold_sec") return Number.isFinite(sportMetricsSnapshot?.plankHoldDurationSec ?? NaN);
+        if (opt.value === "plank_correction_count") {
+          return Number.isFinite(sportMetricsSnapshot?.plankCorrectionCount ?? NaN);
+        }
+        if (opt.value === "plank_avg_hip_dev") {
+          return (
+            Number.isFinite(sportMetricsSnapshot?.plankAvgHipAngleDeg ?? NaN) ||
+            Number.isFinite(sportMetricsSnapshot?.plankAvgHipDeviation ?? NaN)
+          );
         }
         return false;
       }

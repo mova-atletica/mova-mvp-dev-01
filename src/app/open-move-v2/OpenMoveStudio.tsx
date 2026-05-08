@@ -23,25 +23,25 @@ import {
 import LiveVideoPlayer from "../../components/LiveVideoPlayer";
 import { UsageGuideCarousel } from "../../components/UsageGuideCarousel";
 import {
-  fetchFeaturedContent,
-  fetchExerciseById,
-} from "../../lib/exerciseService";
-import {
   computeAngleSeriesFromOpenMovePoses,
   optimizeOpenMovePosesForClient,
 } from "../../lib/openMoveAngleSeries";
 import {
   createMoveNetDetector,
-  getPoseSamplingFrameIntervalSec,
   processVideoUrlForPoses,
 } from "../../lib/tfjsProcessVideo";
-import { analyzeCyclingDual, analyzePullUps } from "../../lib/sportAnalysis";
+import { analyzeCyclingDual, analyzePlank, analyzePullUps, analyzeSquat } from "../../lib/sportAnalysis";
 import type {
   CyclingDualAnalysisResult,
   CyclingLeg,
+  PlankAnalysisResult,
+  PlankFacingSide,
   PullUpsAnalysisResult,
+  SquatAnalysisResult,
+  SquatSide,
   SportAnalysisKind,
 } from "../../lib/sportAnalysis";
+import type { SportMetricsSnapshot } from "../../lib/effects/stats";
 
 import AssetVideoPlayerStage from "../motion-explore/AssetVideoPlayerStage";
 import MotionAnalysisPanel from "../motion-explore/MotionAnalysisPanel";
@@ -75,6 +75,10 @@ const openMoveRailWidthTransition = "width 0.35s ease-in-out";
 
 /** Desktop analysis drawer: fixed cap so landscape video keeps room in the stage row. */
 const DESKTOP_ANALYSIS_DRAWER_WIDTH = "min(34vw, 28rem)";
+const FEATURED_VIDEO_WEBM_PATH = "/featured/featured.webm";
+const FEATURED_VIDEO_MP4_PATH = "/featured/featured.mp4";
+const FEATURED_KEYPOINTS_PATH = "/featured/featured-keypoints.json";
+const FEATURED_FRAME_INTERVAL_SEC = 0.1;
 
 /** Play/pause in rail sticky header; only renders when engine exists (session ready). */
 function StudioRailPlaybackButton() {
@@ -121,12 +125,7 @@ function AssetVideoSessionBridge({
 }: {
   session: SessionState & { status: "ready"; videoUrl: string };
   sportAnalysisKind: SportAnalysisKind;
-  sportMetricsSnapshot: {
-    cyclingCadenceRpm?: number | null;
-    cyclingStrokeRepeatability?: number | null;
-    pullupsRepCount?: number | null;
-    pullupsElbowSymmetry?: number | null;
-  } | null;
+  sportMetricsSnapshot: SportMetricsSnapshot | null;
   children: React.ReactNode;
 }) {
   const engine = useAssetVideoEngine({
@@ -148,12 +147,7 @@ function ConditionalEngineBridge({
 }: {
   session: SessionState;
   sportAnalysisKind: SportAnalysisKind;
-  sportMetricsSnapshot: {
-    cyclingCadenceRpm?: number | null;
-    cyclingStrokeRepeatability?: number | null;
-    pullupsRepCount?: number | null;
-    pullupsElbowSymmetry?: number | null;
-  } | null;
+  sportMetricsSnapshot: SportMetricsSnapshot | null;
   children: React.ReactNode;
 }) {
   if (
@@ -184,6 +178,7 @@ type SessionState = {
   status: SessionStatus;
   errorMessage?: string;
   videoUrl: string | null;
+  videoSources: Array<{ src: string; type: string }> | null;
   poses: any[];
   angles: ReturnType<typeof computeAngleSeriesFromOpenMovePoses> | null;
   /** Time between pose samples (seconds); matches MoveNet video scan interval. */
@@ -197,6 +192,7 @@ type SessionState = {
 const initialSession: SessionState = {
   status: "loading_sample",
   videoUrl: null,
+  videoSources: null,
   poses: [],
   angles: null,
   frameIntervalSec: null,
@@ -211,10 +207,18 @@ export default function OpenMoveStudio() {
   const [cyclingAnalysisError, setCyclingAnalysisError] = useState<string | null>(null);
   const [pullUpsAnalysisResult, setPullUpsAnalysisResult] = useState<PullUpsAnalysisResult | null>(null);
   const [pullUpsAnalysisError, setPullUpsAnalysisError] = useState<string | null>(null);
+  const [plankAnalysisResult, setPlankAnalysisResult] = useState<PlankAnalysisResult | null>(null);
+  const [plankAnalysisError, setPlankAnalysisError] = useState<string | null>(null);
+  const [squatAnalysisResult, setSquatAnalysisResult] = useState<SquatAnalysisResult | null>(null);
+  const [squatAnalysisError, setSquatAnalysisError] = useState<string | null>(null);
   const [sportAnalysisKind, setSportAnalysisKind] = useState<SportAnalysisKind>("cycling");
   const [sportMenuOpen, setSportMenuOpen] = useState(false);
   const [cyclingLeg, setCyclingLeg] = useState<CyclingLeg>("left");
   const [cyclingKneeMenuOpen, setCyclingKneeMenuOpen] = useState(false);
+  const [plankFacingSide, setPlankFacingSide] = useState<PlankFacingSide>("left");
+  const [plankSideMenuOpen, setPlankSideMenuOpen] = useState(false);
+  const [squatSide, setSquatSide] = useState<SquatSide>("left");
+  const [squatSideMenuOpen, setSquatSideMenuOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [isDesktop, setIsDesktop] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -254,6 +258,7 @@ export default function OpenMoveStudio() {
         ? null
         : Math.max(0, Math.min(100, 100 - Math.min(100, repeatabilityRmse)));
     const repCount = pullUpsAnalysisResult?.rep_count ?? null;
+    const squatReps = squatAnalysisResult?.rep_count ?? null;
 
     const computeElbowSymmetry = () => {
       if (!session.angles) return null;
@@ -272,8 +277,13 @@ export default function OpenMoveStudio() {
       cyclingStrokeRepeatability: repeatabilityPct,
       pullupsRepCount: repCount,
       pullupsElbowSymmetry: computeElbowSymmetry(),
+      plankHoldDurationSec: plankAnalysisResult?.holdDurationSec ?? null,
+      plankCorrectionCount: plankAnalysisResult?.correctionCount ?? null,
+      plankAvgHipDeviation: null,
+      plankAvgHipAngleDeg: plankAnalysisResult?.avgHipAngleDeg ?? null,
+      squatRepCount: squatReps,
     };
-  }, [cyclingAnalysisResult, pullUpsAnalysisResult, session.angles]);
+  }, [cyclingAnalysisResult, pullUpsAnalysisResult, plankAnalysisResult, squatAnalysisResult, session.angles]);
 
   useEffect(() => {
     setPortalTarget(document.body);
@@ -406,6 +416,7 @@ export default function OpenMoveStudio() {
   const applyProcessedVideo = useCallback(
     (
       videoUrl: string,
+      videoSources: Array<{ src: string; type: string }> | null,
       poses: any[],
       label: string,
       source: SessionState["source"],
@@ -417,9 +428,12 @@ export default function OpenMoveStudio() {
       setCyclingAnalysisError(null);
       setPullUpsAnalysisResult(null);
       setPullUpsAnalysisError(null);
+      setPlankAnalysisResult(null);
+      setPlankAnalysisError(null);
       setSession({
         status: "ready",
         videoUrl,
+        videoSources,
         poses: optimized,
         angles,
         frameIntervalSec,
@@ -445,10 +459,13 @@ export default function OpenMoveStudio() {
       setCyclingAnalysisError(null);
       setPullUpsAnalysisResult(null);
       setPullUpsAnalysisError(null);
+      setPlankAnalysisResult(null);
+      setPlankAnalysisError(null);
       setSession((s) => ({
         ...s,
         status: "processing_video",
         videoUrl,
+        videoSources: null,
         errorMessage: undefined,
         sessionLabel: label,
         source,
@@ -463,7 +480,7 @@ export default function OpenMoveStudio() {
           videoUrl,
           (p) => setTfProgress(p)
         );
-        applyProcessedVideo(videoUrl, poses, label, source, frameIntervalSec);
+        applyProcessedVideo(videoUrl, null, poses, label, source, frameIntervalSec);
       } catch (e) {
         console.error(e);
         setSession((s) => ({
@@ -482,77 +499,44 @@ export default function OpenMoveStudio() {
     setCyclingAnalysisError(null);
     setPullUpsAnalysisResult(null);
     setPullUpsAnalysisError(null);
+    setPlankAnalysisResult(null);
+    setPlankAnalysisError(null);
     setSession({
       ...initialSession,
       status: "loading_sample",
     });
     try {
-      const featured = await fetchFeaturedContent();
-      if (!featured?.exerciseId) {
+      const keypointsRes = await fetch(FEATURED_KEYPOINTS_PATH, { cache: "no-store" });
+      if (!keypointsRes.ok) {
         setSession({
           ...initialSession,
           status: "error",
           errorMessage:
-            "No featured exercise in admin. Link an exercise to Featured Content.",
+            "Featured sample unavailable. Upload a video or record live to continue.",
         });
         return;
       }
-
-      const exercise = await fetchExerciseById(featured.exerciseId);
-      if (!exercise?.referenceVideoUrl) {
+      const raw = await keypointsRes.json();
+      const posesArray = Array.isArray(raw) ? raw : (raw as { poses?: any[] }).poses;
+      if (!posesArray?.length) {
         setSession({
           ...initialSession,
           status: "error",
-          errorMessage: "Featured exercise has no reference video.",
+          errorMessage:
+            "Featured sample unavailable. Upload a video or record live to continue.",
         });
         return;
       }
-
-      const videoUrl = `/api/storage/video-proxy?fileName=${encodeURIComponent(
-        exercise.referenceVideoUrl
-      )}`;
-      const keypointsUrl = exercise.referenceKeypointsUrl?.trim();
-
-      if (keypointsUrl) {
-        const proxyRes = await fetch("/api/storage/proxy", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileName: keypointsUrl }),
-        });
-        if (proxyRes.ok) {
-          const raw = await proxyRes.json();
-          const posesArray = Array.isArray(raw) ? raw : (raw as { poses?: any[] }).poses;
-          if (posesArray?.length) {
-            applyProcessedVideo(
-              videoUrl,
-              posesArray,
-              `${featured.title} — ${exercise.title}`,
-              "featured",
-              getPoseSamplingFrameIntervalSec()
-            );
-            return;
-          }
-        }
-      }
-
-      // Fallback: TFJS on featured reference video (wait for detector)
-      let waited = 0;
-      while (!detectorRef.current && waited < 30000) {
-        await new Promise((r) => setTimeout(r, 100));
-        waited += 100;
-      }
-      if (!detectorRef.current) {
-        setSession({
-          ...initialSession,
-          status: "error",
-          errorMessage: "Pose model did not load in time. Check your connection and retry.",
-        });
-        return;
-      }
-      await runTfjsOnUrl(
-        videoUrl,
-        `${featured.title} — ${exercise.title}`,
-        "featured"
+      applyProcessedVideo(
+        FEATURED_VIDEO_MP4_PATH,
+        [
+          { src: FEATURED_VIDEO_WEBM_PATH, type: "video/webm" },
+          { src: FEATURED_VIDEO_MP4_PATH, type: "video/mp4" },
+        ],
+        posesArray,
+        "Featured sample",
+        "featured",
+        FEATURED_FRAME_INTERVAL_SEC
       );
     } catch (e) {
       console.error(e);
@@ -560,10 +544,10 @@ export default function OpenMoveStudio() {
         ...initialSession,
         status: "error",
         errorMessage:
-          e instanceof Error ? e.message : "Failed to load featured sample.",
+          "Featured sample unavailable. Upload a video or record live to continue.",
       });
     }
-  }, [applyProcessedVideo, runTfjsOnUrl]);
+  }, [applyProcessedVideo]);
 
   const runSportAnalysis = useCallback(() => {
     if (!session.angles || session.frameIntervalSec == null) return;
@@ -585,21 +569,55 @@ export default function OpenMoveStudio() {
       }
       return;
     }
-    setPullUpsAnalysisResult(null);
-    setPullUpsAnalysisError(null);
-    const res = analyzePullUps({
-      leftElbowAngles: session.angles.leftElbowAngles,
-      rightElbowAngles: session.angles.rightElbowAngles,
-      frameIntervalSec: session.frameIntervalSec,
-    });
-    if (res.ok) {
-      setPullUpsAnalysisResult(res.result);
-      setPullUpsAnalysisError(null);
-    } else {
+    if (sportAnalysisKind === "pullups") {
       setPullUpsAnalysisResult(null);
-      setPullUpsAnalysisError(res.error);
+      setPullUpsAnalysisError(null);
+      const res = analyzePullUps({
+        leftElbowAngles: session.angles.leftElbowAngles,
+        rightElbowAngles: session.angles.rightElbowAngles,
+        frameIntervalSec: session.frameIntervalSec,
+      });
+      if (res.ok) {
+        setPullUpsAnalysisResult(res.result);
+        setPullUpsAnalysisError(null);
+      } else {
+        setPullUpsAnalysisResult(null);
+        setPullUpsAnalysisError(res.error);
+      }
+      return;
     }
-  }, [session.angles, session.frameIntervalSec, cyclingLeg, sportAnalysisKind]);
+    if (sportAnalysisKind === "plank") {
+      setPlankAnalysisResult(null);
+      setPlankAnalysisError(null);
+      const res = analyzePlank({
+        poses: session.poses,
+        frameIntervalSec: session.frameIntervalSec,
+        facingSide: plankFacingSide,
+      });
+      if (res.ok) {
+        setPlankAnalysisResult(res.result);
+        setPlankAnalysisError(null);
+      } else {
+        setPlankAnalysisResult(null);
+        setPlankAnalysisError(res.error);
+      }
+      return;
+    }
+    setSquatAnalysisResult(null);
+    setSquatAnalysisError(null);
+    const squatRes = analyzeSquat({
+      poses: session.poses,
+      frameIntervalSec: session.frameIntervalSec,
+      side: squatSide,
+    });
+    if (squatRes.ok) {
+      setSquatAnalysisResult(squatRes.result);
+      setSquatAnalysisError(null);
+    } else {
+      setSquatAnalysisResult(null);
+      setSquatAnalysisError(squatRes.error);
+    }
+  }, [session.angles, session.frameIntervalSec, session.poses, cyclingLeg, plankFacingSide, squatSide, sportAnalysisKind]);
 
   useEffect(() => {
     loadFeaturedSample();
@@ -833,7 +851,13 @@ export default function OpenMoveStudio() {
                     <Popover.Trigger asChild>
                       <button type="button" className={exportPanelSelectTriggerClass}>
                         <span className="truncate">
-                          {sportAnalysisKind === "cycling" ? "Cycling" : "Pull-ups"}
+                          {sportAnalysisKind === "cycling"
+                            ? "Cycling"
+                            : sportAnalysisKind === "pullups"
+                              ? "Pull-ups"
+                              : sportAnalysisKind === "plank"
+                                ? "Plank"
+                                : "Squat"}
                         </span>
                         <ChevronDown
                           className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${sportMenuOpen ? "rotate-180" : ""}`}
@@ -860,13 +884,33 @@ export default function OpenMoveStudio() {
                         </div>
                         <div
                           role="menuitem"
-                          className={`${exportPanelDropdownMenuItemClass} border-b-0`}
+                          className={exportPanelDropdownMenuItemClass}
                           onClick={() => {
                             setSportAnalysisKind("pullups");
                             setSportMenuOpen(false);
                           }}
                         >
                           Pull-ups
+                        </div>
+                        <div
+                          role="menuitem"
+                          className={exportPanelDropdownMenuItemClass}
+                          onClick={() => {
+                            setSportAnalysisKind("plank");
+                            setSportMenuOpen(false);
+                          }}
+                        >
+                          Plank
+                        </div>
+                        <div
+                          role="menuitem"
+                          className={`${exportPanelDropdownMenuItemClass} border-b-0`}
+                          onClick={() => {
+                            setSportAnalysisKind("squat");
+                            setSportMenuOpen(false);
+                          }}
+                        >
+                          Squat
                         </div>
                       </Popover.Content>
                     </Popover.Portal>
@@ -922,11 +966,111 @@ export default function OpenMoveStudio() {
                       (trough) and top-of-stroke (peak) timing from the same knee trace.
                     </p>
                   </>
-                ) : (
+                ) : sportAnalysisKind === "pullups" ? (
                   <p className="text-[10px] leading-snug text-[color:var(--muted)]">
                     We combine <strong className="text-[color:var(--foreground)]">left and right</strong> elbow angles,
                     then count reps from flexion peaks (smoothed + spacing + minimum range of motion).
                   </p>
+                ) : sportAnalysisKind === "plank" ? (
+                  <>
+                    <div className="min-w-0">
+                      <div className={exportPanelFieldLabelClass}>Side toward camera</div>
+                      <Popover.Root open={plankSideMenuOpen} onOpenChange={setPlankSideMenuOpen}>
+                        <Popover.Trigger asChild>
+                          <button type="button" className={exportPanelSelectTriggerClass}>
+                            <span className="truncate">{plankFacingSide === "left" ? "Left" : "Right"}</span>
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${plankSideMenuOpen ? "rotate-180" : ""}`}
+                            />
+                          </button>
+                        </Popover.Trigger>
+                        <Popover.Portal>
+                          <Popover.Content
+                            side="bottom"
+                            align="start"
+                            sideOffset={6}
+                            collisionPadding={12}
+                            className={exportPanelPopoverContentClass}
+                          >
+                            <div
+                              role="menuitem"
+                              className={exportPanelDropdownMenuItemClass}
+                              onClick={() => {
+                                setPlankFacingSide("left");
+                                setPlankSideMenuOpen(false);
+                              }}
+                            >
+                              Left
+                            </div>
+                            <div
+                              role="menuitem"
+                              className={`${exportPanelDropdownMenuItemClass} border-b-0`}
+                              onClick={() => {
+                                setPlankFacingSide("right");
+                                setPlankSideMenuOpen(false);
+                              }}
+                            >
+                              Right
+                            </div>
+                          </Popover.Content>
+                        </Popover.Portal>
+                      </Popover.Root>
+                    </div>
+                    <p className="text-[10px] leading-snug text-[color:var(--muted)]">
+                      Turn so the <strong className="text-[color:var(--foreground)]">selected side</strong> faces the
+                      camera. Form analysis uses hip, knee, and shoulder angles.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="min-w-0">
+                      <div className={exportPanelFieldLabelClass}>Side toward camera</div>
+                      <Popover.Root open={squatSideMenuOpen} onOpenChange={setSquatSideMenuOpen}>
+                        <Popover.Trigger asChild>
+                          <button type="button" className={exportPanelSelectTriggerClass}>
+                            <span className="truncate">{squatSide === "left" ? "Left" : "Right"}</span>
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${squatSideMenuOpen ? "rotate-180" : ""}`}
+                            />
+                          </button>
+                        </Popover.Trigger>
+                        <Popover.Portal>
+                          <Popover.Content
+                            side="bottom"
+                            align="start"
+                            sideOffset={6}
+                            collisionPadding={12}
+                            className={exportPanelPopoverContentClass}
+                          >
+                            <div
+                              role="menuitem"
+                              className={exportPanelDropdownMenuItemClass}
+                              onClick={() => {
+                                setSquatSide("left");
+                                setSquatSideMenuOpen(false);
+                              }}
+                            >
+                              Left
+                            </div>
+                            <div
+                              role="menuitem"
+                              className={`${exportPanelDropdownMenuItemClass} border-b-0`}
+                              onClick={() => {
+                                setSquatSide("right");
+                                setSquatSideMenuOpen(false);
+                              }}
+                            >
+                              Right
+                            </div>
+                          </Popover.Content>
+                        </Popover.Portal>
+                      </Popover.Root>
+                    </div>
+                    <p className="text-[10px] leading-snug text-[color:var(--muted)]">
+                      Side-view squat MVP: selected knee drives rep count and depth. Advisory cues use lightweight
+                      knee-over-ankle and trunk-lean proxies.
+                    </p>
+                  </>
                 )}
                 <button
                   type="button"
@@ -947,6 +1091,13 @@ export default function OpenMoveStudio() {
                 {sportAnalysisKind === "pullups" && pullUpsAnalysisError ? (
                   <p className="text-[10px] leading-snug text-red-500/90">{pullUpsAnalysisError}</p>
                 ) : sportAnalysisKind === "pullups" && pullUpsAnalysisResult ? (
+                  <p className="text-[10px] text-[color:var(--muted)]">
+                    Done — open analytics and the &quot;Sport analysis&quot; tab.
+                  </p>
+                ) : null}
+                {sportAnalysisKind === "plank" && plankAnalysisError ? (
+                  <p className="text-[10px] leading-snug text-red-500/90">{plankAnalysisError}</p>
+                ) : sportAnalysisKind === "plank" && plankAnalysisResult ? (
                   <p className="text-[10px] text-[color:var(--muted)]">
                     Done — open analytics and the &quot;Sport analysis&quot; tab.
                   </p>
@@ -1087,9 +1238,11 @@ export default function OpenMoveStudio() {
                 {session.status === "ready" && session.poses.length > 0 ? (
                   <div
                     className={
-                      isLandscapeVideo || expandStageToRemainingWidth
-                        ? "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full items-center justify-center md:max-h-[calc(100dvh-24px)]"
-                        : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-[min(100%,min(78vw,20rem))] items-center justify-center md:max-h-[calc(100dvh-24px)]"
+                      isDesktop
+                        ? isLandscapeVideo || expandStageToRemainingWidth
+                          ? "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full items-center justify-center md:max-h-[calc(100dvh-24px)]"
+                          : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-[min(100%,min(78vw,20rem))] items-center justify-center md:max-h-[calc(100dvh-24px)]"
+                        : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-[92vw] items-center justify-center"
                     }
                   >
                     <div className="flex h-full w-full min-w-0 flex-row items-stretch">
@@ -1138,15 +1291,16 @@ export default function OpenMoveStudio() {
                       >
                         <div
                           className={
-                            isLandscapeVideo
-                              ? isDesktop
+                            isDesktop
+                              ? isLandscapeVideo
                                 ? "flex min-h-0 min-w-0 flex-1 items-center justify-center self-stretch [contain:layout]"
-                                : "flex w-full min-h-0 min-w-0 max-w-full flex-1 items-center justify-center self-stretch [contain:layout]"
-                              : "flex h-full min-w-[min(200px,42vw)] flex-none items-start justify-center self-stretch [contain:layout]"
+                                : "flex h-full min-w-[min(200px,42vw)] flex-none items-start justify-center self-stretch [contain:layout]"
+                              : "flex w-full min-h-0 min-w-0 max-w-full flex-1 items-center justify-center self-stretch [contain:layout]"
                           }
                         >
                           <AssetVideoPlayerStage
                             videoUrl={session.videoUrl}
+                            videoSources={session.videoSources ?? undefined}
                             intrinsicAspect={videoIntrinsicAspect}
                             className={
                               isLandscapeVideo
@@ -1212,6 +1366,10 @@ export default function OpenMoveStudio() {
                                     cyclingAnalysisError={cyclingAnalysisError}
                                     pullUpsAnalysisResult={pullUpsAnalysisResult}
                                     pullUpsAnalysisError={pullUpsAnalysisError}
+                                    plankAnalysisResult={plankAnalysisResult}
+                                    plankAnalysisError={plankAnalysisError}
+                                    squatAnalysisResult={squatAnalysisResult}
+                                    squatAnalysisError={squatAnalysisError}
                                   />
                                 </div>
                               </div>
@@ -1340,6 +1498,10 @@ export default function OpenMoveStudio() {
                     cyclingAnalysisError={cyclingAnalysisError}
                     pullUpsAnalysisResult={pullUpsAnalysisResult}
                     pullUpsAnalysisError={pullUpsAnalysisError}
+                    plankAnalysisResult={plankAnalysisResult}
+                    plankAnalysisError={plankAnalysisError}
+                    squatAnalysisResult={squatAnalysisResult}
+                    squatAnalysisError={squatAnalysisError}
                   />
                 </Suspense>
               ) : (
@@ -1350,26 +1512,40 @@ export default function OpenMoveStudio() {
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* Live record modal */}
+      {/* Live record modal — fullscreen video; close via toolbar, Escape, or Change Method */}
       <Dialog.Root open={showLiveModal} onOpenChange={setShowLiveModal}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-[230]" />
-          <Dialog.Content
-            style={borderAllTheme}
-            className="fixed inset-2 z-[231] flex flex-col overflow-hidden rounded-xl bg-[var(--card-bg)] md:inset-8"
-          >
-            <div style={borderBottomTheme} className="flex justify-between items-center px-3 py-2 flex-shrink-0">
-              <Dialog.Title className="text-sm text-[color:var(--foreground)]">Live recording</Dialog.Title>
-              <Dialog.Close className="p-2 rounded-lg hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] text-[color:var(--foreground)]">
-                <X size={20} />
-              </Dialog.Close>
-            </div>
-            <div className="flex-1 min-h-0 flex items-center justify-center p-2 overflow-auto">
+          <Dialog.Overlay className="fixed inset-0 z-[230] bg-black" />
+          <Dialog.Content className="fixed inset-0 z-[231] flex flex-col overflow-hidden border-0 bg-black p-0 shadow-none outline-none">
+            <Dialog.Title
+              style={{
+                position: "absolute",
+                left: "-10000px",
+                top: "0",
+                width: "1px",
+                height: "1px",
+                margin: "-1px",
+                padding: 0,
+                overflow: "hidden",
+                clip: "rect(0, 0, 0, 0)",
+                whiteSpace: "nowrap",
+                border: 0,
+              }}
+            >
+              Record from camera
+            </Dialog.Title>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <LiveVideoPlayer
                 onRecordingComplete={onRecordingComplete}
                 onMethodChange={() => setShowLiveModal(false)}
+                onEmbeddedClose={() => setShowLiveModal(false)}
                 referenceAngles={undefined}
                 exercise={null}
+                plankLiveCoach={sportAnalysisKind === "plank"}
+                plankFacingSide={plankFacingSide}
+                squatLiveCoach={sportAnalysisKind === "squat"}
+                squatSide={squatSide}
+                layoutVariant="embeddedFullscreen"
               />
             </div>
           </Dialog.Content>
