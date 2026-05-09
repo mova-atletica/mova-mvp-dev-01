@@ -17,7 +17,6 @@ import {
   LayoutDashboard,
   X,
   Play,
-  Pause,
   ChevronDown,
 } from "lucide-react";
 import LiveVideoPlayer from "../../components/LiveVideoPlayer";
@@ -74,27 +73,42 @@ const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 const openMoveRailWidthTransition = "width 0.35s ease-in-out";
 
 /** Desktop analysis drawer: fixed cap so landscape video keeps room in the stage row. */
-const DESKTOP_ANALYSIS_DRAWER_WIDTH = "min(34vw, 28rem)";
-const FEATURED_VIDEO_WEBM_PATH = "/featured/featured.webm";
+const DESKTOP_ANALYSIS_DRAWER_WIDTH = "clamp(16rem, 36vw, 32rem)";
 const FEATURED_VIDEO_MP4_PATH = "/featured/featured.mp4";
 const FEATURED_KEYPOINTS_PATH = "/featured/featured-keypoints.json";
 const FEATURED_FRAME_INTERVAL_SEC = 0.1;
 
-/** Play/pause in rail sticky header; only renders when engine exists (session ready). */
-function StudioRailPlaybackButton() {
+/** Stage overlay play/pause — tap center play to start, tap video area to pause. */
+function StudioStagePlaybackOverlay() {
   const engine = useOptionalAssetVideoEngine();
   if (!engine) return null;
   const { isPlaying, toggleVideoPlayback } = engine;
   return (
-    <button
-      type="button"
-      onClick={toggleVideoPlayback}
-      style={borderAllTheme}
-      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] text-[color:var(--foreground)] shadow-sm backdrop-blur-md transition hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:opacity-95"
-      aria-label={isPlaying ? "Pause" : "Play"}
-    >
-      {isPlaying ? <Pause className="h-5 w-5" stroke="currentColor" /> : <Play className="h-5 w-5" stroke="currentColor" />}
-    </button>
+    <>
+      {isPlaying ? (
+        <button
+          type="button"
+          onClick={toggleVideoPlayback}
+          className="absolute inset-0 z-20 cursor-pointer"
+          aria-label="Pause video"
+        >
+          
+        </button>
+      ) : (
+        <div className="absolute inset-0 z-30 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={toggleVideoPlayback}
+            style={borderAllTheme}
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[color:color-mix(in_srgb,var(--card-bg)_88%,transparent)] text-[color:var(--foreground)] shadow-lg backdrop-blur-md transition hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
+            aria-label="Play video"
+            title="Play"
+          >
+            <Play className="h-5 w-5 translate-x-[1px]" stroke="currentColor" />
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -211,7 +225,7 @@ export default function OpenMoveStudio() {
   const [plankAnalysisError, setPlankAnalysisError] = useState<string | null>(null);
   const [squatAnalysisResult, setSquatAnalysisResult] = useState<SquatAnalysisResult | null>(null);
   const [squatAnalysisError, setSquatAnalysisError] = useState<string | null>(null);
-  const [sportAnalysisKind, setSportAnalysisKind] = useState<SportAnalysisKind>("cycling");
+  const [sportAnalysisKind, setSportAnalysisKind] = useState<SportAnalysisKind>("pullups");
   const [sportMenuOpen, setSportMenuOpen] = useState(false);
   const [cyclingLeg, setCyclingLeg] = useState<CyclingLeg>("left");
   const [cyclingKneeMenuOpen, setCyclingKneeMenuOpen] = useState(false);
@@ -246,6 +260,8 @@ export default function OpenMoveStudio() {
    * does not immediately hit the full-screen close target (ghost close).
    */
   const [mobileRailBackdropReady, setMobileRailBackdropReady] = useState(false);
+  /** Featured sample UX: auto-run once when clip is ready on pull-ups default. */
+  const didAutoAnalyzeFeaturedRef = useRef(false);
 
   const overlaySportMetricsSnapshot = useMemo(() => {
     const cadence = cyclingAnalysisResult?.trough?.cadence_rpm ?? cyclingAnalysisResult?.peak?.cadence_rpm ?? null;
@@ -529,10 +545,7 @@ export default function OpenMoveStudio() {
       }
       applyProcessedVideo(
         FEATURED_VIDEO_MP4_PATH,
-        [
-          { src: FEATURED_VIDEO_WEBM_PATH, type: "video/webm" },
-          { src: FEATURED_VIDEO_MP4_PATH, type: "video/mp4" },
-        ],
+        null,
         posesArray,
         "Featured sample",
         "featured",
@@ -623,6 +636,29 @@ export default function OpenMoveStudio() {
     loadFeaturedSample();
   }, [loadFeaturedSample]);
 
+  useEffect(() => {
+    // Reset one-shot guard whenever source/ready state changes away from featured-ready.
+    if (session.source !== "featured" || session.status !== "ready") {
+      didAutoAnalyzeFeaturedRef.current = false;
+    }
+  }, [session.source, session.status]);
+
+  useEffect(() => {
+    if (didAutoAnalyzeFeaturedRef.current) return;
+    if (session.source !== "featured" || session.status !== "ready") return;
+    if (!session.angles || session.frameIntervalSec == null) return;
+    if (sportAnalysisKind !== "pullups") return;
+    didAutoAnalyzeFeaturedRef.current = true;
+    runSportAnalysis();
+  }, [
+    session.source,
+    session.status,
+    session.angles,
+    session.frameIntervalSec,
+    sportAnalysisKind,
+    runSportAnalysis,
+  ]);
+
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -641,9 +677,9 @@ export default function OpenMoveStudio() {
       {/* Sticky header: title, upload/record, play/pause when ready */}
       <div
         style={borderBottomTheme}
-        className="sticky top-0 z-10 flex-shrink-0 px-4 pb-4 pt-4 md:px-8 md:pt-8"
+        className="sticky top-0 z-10 flex-shrink-0 p-8 pb-4"
       >
-        <div className="relative space-y-4">
+        <div className="relative space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <h1 className="font-light uppercase tracking-wider text-[color:var(--muted-foreground)]" style={{ fontSize: "24px" }}>
@@ -761,7 +797,7 @@ export default function OpenMoveStudio() {
             </div>
           </div>
 
-          <div style={borderTopTheme} className="space-y-3 pt-4">
+          <div style={borderTopTheme} className="space-y-2 pt-2">
             <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
               1. Upload or record video
             </p>
@@ -773,7 +809,7 @@ export default function OpenMoveStudio() {
                 style={borderAllTheme}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:opacity-50"
               >
-                <Upload size={16} /> Upload
+                <Upload size={12} /> Upload
               </button>
               <input
                 ref={fileInputRef}
@@ -795,7 +831,7 @@ export default function OpenMoveStudio() {
                 style={borderAllTheme}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:opacity-50"
               >
-                <Video size={16} /> Record
+                <Video size={12} /> Record
               </button>
             </div>
             {session.sessionLabel ? (
@@ -803,11 +839,6 @@ export default function OpenMoveStudio() {
                 <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
                 {session.sessionLabel}
               </p>
-            ) : null}
-            {session.status === "ready" ? (
-              <div className="relative z-0 pt-1">
-                <StudioRailPlaybackButton />
-              </div>
             ) : null}
           </div>
         </div>
@@ -819,7 +850,7 @@ export default function OpenMoveStudio() {
       */}
       <div className="flex min-h-0 flex-1 flex-col">
         {session.status === "processing_video" ? (
-          <div style={borderBottomTheme} className="flex-shrink-0 px-4 py-3 md:px-8">
+          <div style={borderBottomTheme} className="flex-shrink-0 p-2">
             <div className="h-1.5 overflow-hidden rounded-full bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]">
               <div
                 className="h-full bg-[var(--accent,#3b82f6)] transition-all"
@@ -834,13 +865,13 @@ export default function OpenMoveStudio() {
 
         {session.status === "ready" ? (
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="open-move-studio-panel-scroll min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-2 pr-0.5 md:px-8 md:pt-5 md:pb-3">
+            <div className="open-move-studio-panel-scroll min-h-0 flex-1 overflow-y-auto p-8 pt-2">
               <p className="mb-0 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                 2. Add Visualization Overlays
               </p>
               <StudioPanelChrome scrollContainer="passthrough" />
               <div
-                className="mt-2 space-y-2 pt-4 text-[color:var(--foreground)]"
+                className="mt-2 space-y-2 pt-2 text-[color:var(--foreground)]"
               >
                 <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                   3. Sport analysis
@@ -1171,37 +1202,39 @@ export default function OpenMoveStudio() {
           ) : null}
           {/* Video area */}
           <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center bg-[var(--background)]">
-          {!isDesktop && !panelOpen && !analyticsOpen ? (
-            <button
-              type="button"
-              onClick={() => setPanelOpen(true)}
-              className="fixed z-[100] inline-flex rounded-lg bg-[color:color-mix(in_srgb,var(--card-bg)_88%,transparent)] p-2 text-[color:var(--muted-foreground)] shadow-lg backdrop-blur-md transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:text-[color:var(--foreground)]"
+          {!isDesktop ? (
+            <div
+              className="absolute z-[100] flex flex-col gap-2"
               style={{
-                ...borderAllTheme,
                 top: "max(1rem, env(safe-area-inset-top))",
                 left: "max(1rem, env(safe-area-inset-left))",
               }}
-              aria-label="Open controls panel"
-              title="Open controls panel"
             >
-              <PanelLeftOpen size={18} />
-            </button>
-          ) : null}
-          {session.status === "ready" && session.angles && !analyticsOpen ? (
-            <button
-              type="button"
-              onClick={() => setAnalyticsOpen(true)}
-              className="absolute right-3 top-3 z-30 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[color:color-mix(in_srgb,var(--card-bg)_88%,transparent)] text-[color:var(--foreground)] shadow-lg backdrop-blur-md transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] md:hidden"
-              style={{
-                ...borderAllTheme,
-                top: "max(1rem, env(safe-area-inset-top))",
-                right: "max(1rem, env(safe-area-inset-right))",
-              }}
-              aria-label="Open motion analysis"
-              title="Motion analysis"
-            >
-              <BarChart3 size={16} stroke="currentColor" />
-            </button>
+              {!panelOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setPanelOpen(true)}
+                  className="inline-flex rounded-lg bg-[color:color-mix(in_srgb,var(--card-bg)_88%,transparent)] p-2 text-[color:var(--muted-foreground)] shadow-lg backdrop-blur-md transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:text-[color:var(--foreground)]"
+                  style={borderAllTheme}
+                  aria-label="Open controls panel"
+                  title="Open controls panel"
+                >
+                  <PanelLeftOpen size={18} />
+                </button>
+              ) : null}
+              {session.status === "ready" && session.angles && !analyticsOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setAnalyticsOpen(true)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[color:color-mix(in_srgb,var(--card-bg)_88%,transparent)] text-[color:var(--foreground)] shadow-lg backdrop-blur-md transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
+                  style={borderAllTheme}
+                  aria-label="Open motion analysis"
+                  title="Motion analysis"
+                >
+                  <BarChart3 size={16} stroke="currentColor" />
+                </button>
+              ) : null}
+            </div>
           ) : null}
           {session.status === "loading_sample" && (
             <div className="flex flex-col items-center gap-3 text-[color:var(--muted-foreground)]">
@@ -1234,7 +1267,7 @@ export default function OpenMoveStudio() {
 
           {(session.status === "ready" || session.status === "processing_video") &&
             session.videoUrl && (
-              <div className="absolute inset-0 flex items-center justify-center p-2 md:p-4">
+              <div className="absolute inset-0 flex items-center justify-center md:p-4">
                 {session.status === "ready" && session.poses.length > 0 ? (
                   <div
                     className={
@@ -1242,31 +1275,21 @@ export default function OpenMoveStudio() {
                         ? isLandscapeVideo || expandStageToRemainingWidth
                           ? "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full items-center justify-center md:max-h-[calc(100dvh-24px)]"
                           : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-[min(100%,min(78vw,20rem))] items-center justify-center md:max-h-[calc(100dvh-24px)]"
-                        : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-[92vw] items-center justify-center"
+                        : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full items-center justify-center"
                     }
                   >
                     <div className="flex h-full w-full min-w-0 flex-row items-stretch">
                       <div
                         className="min-h-0"
-                        style={
-                          analyticsDrawerContentMounted ||
-                          expandStageToRemainingWidth
-                            ? {
-                                flexGrow: 0,
-                                flexShrink: 0,
-                                flexBasis: 0,
-                                minWidth: 0,
-                                maxWidth: 0,
-                                overflow: "hidden",
-                                pointerEvents: "none",
-                              }
-                            : {
-                                flexGrow: 1,
-                                flexShrink: 1,
-                                flexBasis: 0,
-                                minWidth: 0,
-                              }
-                        }
+                        style={{
+                          flexGrow: 0,
+                          flexShrink: 0,
+                          flexBasis: 0,
+                          minWidth: 0,
+                          maxWidth: 0,
+                          overflow: "hidden",
+                          pointerEvents: "none",
+                        }}
                         aria-hidden
                       />
                       <div
@@ -1306,16 +1329,18 @@ export default function OpenMoveStudio() {
                               isLandscapeVideo
                                 ? isDesktop
                                   ? "relative mx-auto h-auto w-full max-h-[min(94dvh,calc(100dvh-24px))] max-w-full min-h-0 overflow-hidden rounded-lg bg-[#111214] shadow-lg"
-                                  : "relative mx-auto h-auto w-full max-h-[min(92dvh,calc(100dvh-48px))] max-w-full min-h-0 overflow-hidden rounded-lg bg-[#111214] shadow-lg"
+                                  : "relative mx-auto h-auto w-full max-h-[100dvh] max-w-full min-h-0 overflow-hidden"
                                 : expandStageToRemainingWidth
-                                  ? "relative h-full max-h-[min(100dvh,calc(100dvh-100px))] w-auto max-w-full overflow-hidden rounded-lg bg-[#111214] shadow-lg md:max-h-[min(94dvh,calc(100dvh-24px))]"
-                                  : "relative h-full max-h-[min(100dvh,calc(100dvh-100px))] w-auto max-w-[min(100%,min(100vw,56rem))] overflow-hidden rounded-lg bg-[#111214] shadow-lg md:max-h-[min(94dvh,calc(100dvh-24px))]"
+                                  ? "relative h-full max-h-[min(100dvh,calc(100dvh-0px))] w-auto max-w-full overflow-hidden rounded-lg bg-[#111214] shadow-lg md:max-h-[min(94dvh,calc(100dvh-24px))]"
+                                  : "relative h-full max-h-[min(100dvh,calc(100dvh-0px))] w-auto max-w-[min(100%,min(100vw,56rem))] overflow-hidden bg-[#111214] shadow-lg md:max-h-[min(100dvh,calc(100dvh-0px))]"
                             }
-                          />
+                          >
+                            <StudioStagePlaybackOverlay />
+                          </AssetVideoPlayerStage>
                         </div>
-                        {session.angles ? (
+                        {session.angles && isDesktop ? (
                           <div
-                            className="hidden min-h-0 min-w-0 shrink-0 flex-row items-stretch gap-2 md:flex"
+                            className="flex min-h-0 min-w-0 shrink-0 flex-row items-stretch gap-2"
                             style={{
                               flexGrow: 0,
                               flexShrink: 0,
@@ -1379,25 +1404,15 @@ export default function OpenMoveStudio() {
                       </div>
                       <div
                         className="min-h-0"
-                        style={
-                          analyticsDrawerContentMounted ||
-                          expandStageToRemainingWidth
-                            ? {
-                                flexGrow: 0,
-                                flexShrink: 0,
-                                flexBasis: 0,
-                                minWidth: 0,
-                                maxWidth: 0,
-                                overflow: "hidden",
-                                pointerEvents: "none",
-                              }
-                            : {
-                                flexGrow: 1,
-                                flexShrink: 1,
-                                flexBasis: 0,
-                                minWidth: 0,
-                              }
-                        }
+                        style={{
+                          flexGrow: 0,
+                          flexShrink: 0,
+                          flexBasis: 0,
+                          minWidth: 0,
+                          maxWidth: 0,
+                          overflow: "hidden",
+                          pointerEvents: "none",
+                        }}
                         aria-hidden
                       />
                     </div>
@@ -1465,12 +1480,12 @@ export default function OpenMoveStudio() {
       </Dialog.Root>
 
       {/* Mobile: analytics dialog */}
-      <Dialog.Root open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
+      <Dialog.Root open={!isDesktop && analyticsOpen} onOpenChange={setAnalyticsOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/70 z-[215] md:hidden" />
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 z-[215]" />
           <Dialog.Content
             style={borderAllTheme}
-            className="fixed inset-x-2 bottom-2 top-2 z-[220] flex flex-col overflow-hidden rounded-xl bg-[var(--background)] shadow-2xl backdrop-blur-xl md:hidden"
+            className="fixed inset-x-2 bottom-2 top-2 z-[220] flex flex-col overflow-hidden rounded-xl bg-[var(--background)] shadow-2xl backdrop-blur-xl"
           >
             <div style={borderBottomTheme} className="flex justify-between items-center px-2 py-2 flex-shrink-0">
               <Dialog.Title className="text-sm font-medium text-[color:var(--foreground)]">Motion analysis</Dialog.Title>

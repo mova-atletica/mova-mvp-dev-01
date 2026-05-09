@@ -70,14 +70,14 @@ type ChartJointKey =
   | "rightShoulder";
 
 const DEFAULT_JOINT_LINE_VISIBLE: Record<ChartJointKey, boolean> = {
-  leftKnee: true,
-  rightKnee: true,
-  leftHip: true,
-  rightHip: true,
+  leftKnee: false,
+  rightKnee: false,
+  leftHip: false,
+  rightHip: false,
   leftElbow: true,
   rightElbow: true,
-  leftShoulder: true,
-  rightShoulder: true,
+  leftShoulder: false,
+  rightShoulder: false,
 };
 
 const CHART_JOINT_SERIES: {
@@ -411,8 +411,25 @@ export default function MotionAnalysisPanel({
                   tick={CHART_AXIS_TICK}
                   stroke="var(--border)"
                   tickFormatter={(v: number) => `${v.toFixed(1)}s`}
+                  label={{
+                    value: "Time (s)",
+                    position: "insideBottom",
+                    dy: 9,
+                    ...CHART_AXIS_TICK,
+                  }}
                 />
-                <YAxis tick={CHART_AXIS_TICK} stroke="var(--border)" domain={["auto", "auto"]} />
+                <YAxis
+                  tick={CHART_AXIS_TICK}
+                  stroke="var(--border)"
+                  domain={["auto", "auto"]}
+                  label={{
+                    value: "Elbow angle (°)",
+                    angle: -90,
+                    position: "insideLeft",
+                    dx: 2,
+                    ...CHART_AXIS_TICK,
+                  }}
+                />
                 <Tooltip
                   contentStyle={{
                     background: "var(--results-chart-tooltip-bg)",

@@ -37,7 +37,7 @@ export default function AssetVideoPlayerStage({
     );
   }
 
-  const { videoRef, canvasRef, containerRef, setIsPlaying } = engine;
+  const { videoRef, canvasRef, overlayRef, containerRef, setIsPlaying } = engine;
 
   return (
     <div
@@ -105,7 +105,14 @@ export default function AssetVideoPlayerStage({
         }}
       />
 
-      {children}
+      <div
+        ref={overlayRef}
+        style={{
+          zIndex: 3,
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

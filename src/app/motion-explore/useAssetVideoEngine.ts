@@ -45,6 +45,7 @@ export function useAssetVideoEngine({
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Force one paint after canvas/layout resizes so overlays do not disappear.
   const needsRedrawRef = useRef(true);
@@ -130,9 +131,9 @@ export function useAssetVideoEngine({
       case 'joint-angles':
         return {
           showJointAngles: true,
-          enabledJoints: ['left_knee', 'right_knee', 'left_hip', 'right_hip'],
+          enabledJoints: ['left_elbow', 'right_elbow'],
           angleColor: '#00ff00',
-          angleSize: 18,
+          angleSize: 12,
           showROM: false,
           romJoints: [],
           showGlobalStats: false,
@@ -190,6 +191,24 @@ export function useAssetVideoEngine({
         return {};
     }
   };
+
+  // Default-on behavior for Open Move: initialize with joint angles enabled.
+  useEffect(() => {
+    setActiveEffects((prev) => {
+      if (prev.length > 0) return prev;
+      const jointAnglesEffect = availableEffects.find((effect) => effect.id === "joint-angles");
+      if (!jointAnglesEffect) return prev;
+      return [
+        {
+          id: jointAnglesEffect.id,
+          effect: jointAnglesEffect,
+          config: getDefaultConfigForEffect(jointAnglesEffect),
+          enabled: true,
+          order: 0,
+        },
+      ];
+    });
+  }, []);
 
   const removeEffect = (effectId: string) => {
     setActiveEffects(prev => prev.filter(effect => effect.id !== effectId));
@@ -265,8 +284,17 @@ export function useAssetVideoEngine({
           const configHash = JSON.stringify(activeEffects.map(e => ({ id: e.effect.id, enabled: e.enabled, config: e.config })));
           const timeChanged = Math.abs(currentTime - lastDrawTime) > 0.1; // Update every 100ms
           const configChanged = configHash !== lastConfigHash;
-          
-          if (!timeChanged && !configChanged && !needsRedrawRef.current) {
+          // Until the first frame is decodable, drawImage can be blank; keep redrawing instead of
+          // skipping (paused at t=0 would otherwise freeze an empty canvas on Safari/Edge).
+          const videoReadyToPaint =
+            video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+
+          if (
+            videoReadyToPaint &&
+            !timeChanged &&
+            !configChanged &&
+            !needsRedrawRef.current
+          ) {
             rafId = requestAnimationFrame(draw);
             return;
           }
@@ -678,8 +706,19 @@ export function useAssetVideoEngine({
       canvas.style.width = `${displayWidth}px`;
       canvas.style.height = `${displayHeight}px`;
       canvas.style.position = "absolute";
-      canvas.style.top = `${(containerHeight - displayHeight) / 2}px`;
-      canvas.style.left = `${(containerWidth - displayWidth) / 2}px`;
+      const overlayTop = `${(containerHeight - displayHeight) / 2}px`;
+      const overlayLeft = `${(containerWidth - displayWidth) / 2}px`;
+      canvas.style.top = overlayTop;
+      canvas.style.left = overlayLeft;
+
+      const overlay = overlayRef.current;
+      if (overlay) {
+        overlay.style.position = "absolute";
+        overlay.style.width = `${displayWidth}px`;
+        overlay.style.height = `${displayHeight}px`;
+        overlay.style.top = overlayTop;
+        overlay.style.left = overlayLeft;
+      }
     }
 
     function tryAttachResizeObserver() {
@@ -692,7 +731,12 @@ export function useAssetVideoEngine({
     }
 
     const onMeta = () => syncCanvasSize();
+    const onFirstFrameReady = () => {
+      needsRedrawRef.current = true;
+    };
     video.addEventListener("loadedmetadata", onMeta);
+    video.addEventListener("loadeddata", onFirstFrameReady);
+    video.addEventListener("canplay", onFirstFrameReady);
     window.addEventListener("resize", syncCanvasSize);
 
     tryAttachResizeObserver();
@@ -715,6 +759,8 @@ export function useAssetVideoEngine({
     return () => {
       cancelled = true;
       video.removeEventListener("loadedmetadata", onMeta);
+      video.removeEventListener("loadeddata", onFirstFrameReady);
+      video.removeEventListener("canplay", onFirstFrameReady);
       window.removeEventListener("resize", syncCanvasSize);
       ro?.disconnect();
     };
@@ -731,7 +777,7 @@ export function useAssetVideoEngine({
     videoVisibility, setVideoVisibility,
     formatDropdownOpen, setFormatDropdownOpen,
     qualityDropdownOpen, setQualityDropdownOpen,
-    videoRef, canvasRef, containerRef,
+    videoRef, canvasRef, overlayRef, containerRef,
     effectModulesRef,
     toggleVideoPlayback,
     addEffect, removeEffect, isEffectActive, getEffectsForCategory, hasProblematicCombination, handleExport,

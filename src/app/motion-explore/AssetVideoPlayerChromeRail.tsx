@@ -11,7 +11,7 @@ import { EffectSelectedCheckIcon } from "./EffectSelectedCheckIcon";
 
 /** Inline theme borders — `var(--border)` from ThemeContext; matches OpenMoveStudio (Tailwind `.border-border-theme` unreliable in bundle). */
 const borderBottomTheme = { borderBottom: "1px solid var(--border-secondary)" } as const;
-const borderTopTheme = { borderTop: "1px solid var(--border)" } as const;
+const borderTopTheme = { borderTop: "1px solid var(--border-secondary)" } as const;
 const borderAllTheme = { border: "1px solid var(--border)" } as const;
 
 /** Parque-style accordion triggers */
