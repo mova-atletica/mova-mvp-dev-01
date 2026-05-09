@@ -324,8 +324,8 @@ export default function MotionAnalysisPanel({
       if (!pullUpsAnalysisResult) {
         return (
           <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
-            In the side rail, open <strong>3. Sport analysis</strong>, choose <strong>Pull-ups</strong>, then click{" "}
-            <strong>Analyze</strong>. We estimate reps from combined elbow angles.
+            In the side rail, open <strong>2. Analyze Movement</strong>, select <strong>a sport</strong>, then click{" "}
+            <strong>Analyze</strong>. We estimate form from combined joint angle flexions and extensions.
           </p>
         );
       }
@@ -504,7 +504,7 @@ export default function MotionAnalysisPanel({
       if (!plankAnalysisResult) {
         return (
           <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
-            In the side rail, open <strong>3. Sport analysis</strong>, choose <strong>Plank</strong>, then click{" "}
+            In the side rail, open <strong>2. Sport analysis</strong>, choose <strong>Plank</strong>, then click{" "}
             <strong>Analyze</strong>. We estimate hold time, corrections, and joint angles (hip, knee, shoulder) from side
             view.
           </p>
@@ -678,7 +678,7 @@ export default function MotionAnalysisPanel({
       if (!squatAnalysisResult) {
         return (
           <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
-            In the side rail, open <strong>3. Sport analysis</strong>, choose <strong>Squat</strong>, then click{" "}
+            In the side rail, open <strong>2. Sport analysis</strong>, choose <strong>Squat</strong>, then click{" "}
             <strong>Analyze</strong>. We count reps from the selected knee angle using a state machine.
           </p>
         );
@@ -789,7 +789,7 @@ export default function MotionAnalysisPanel({
     if (sportAnalysisKind !== "cycling") {
       return (
         <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
-          Choose a sport in the studio rail under <strong>3. Sport analysis</strong>, then run <strong>Analyze</strong>.
+          Choose a sport in the studio rail under <strong>2. Sport analysis</strong>, then run <strong>Analyze</strong>.
         </p>
       );
     }
@@ -923,7 +923,7 @@ export default function MotionAnalysisPanel({
     if (!cyclingAnalysisResult) {
       return (
         <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
-          In the side rail, open <strong>3. Sport analysis</strong>, choose <strong>Cycling</strong>, set knee side, then
+          In the side rail, open <strong>2. Sport analysis</strong>, choose <strong>Cycling</strong>, set knee side, then
           click <strong>Analyze</strong>. We compute both bottom- and top-of-stroke perspectives automatically.
         </p>
       );

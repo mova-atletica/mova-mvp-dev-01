@@ -682,11 +682,11 @@ export default function OpenMoveStudio() {
         <div className="relative space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <h1 className="font-light uppercase tracking-wider text-[color:var(--muted-foreground)]" style={{ fontSize: "24px" }}>
+              <h1 className="font-light uppercase tracking-wider text-[color:var(--muted-foreground)]" style={{ fontSize: "18px" }}>
                 Mova Studio
               </h1>
               <p className="mt-0 text-xs font-normal leading-relaxed text-[color:var(--muted)]">
-                Analyze and visualize the body&apos;s movement — add effects to explore. For best results, please{" "}
+                Analyze and visualize the body&apos;s movement. For best results, please{" "}
                 <button
                   type="button"
                   onClick={() => setGuideOpen(true)}
@@ -724,7 +724,7 @@ export default function OpenMoveStudio() {
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 font-normal text-xs text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:text-[color:var(--foreground)]"
                     >
                       <Home size={12} />
-                      Back to Mova Archive
+                      Mova Archive
                     </Link>
                     <div className="mt-1 flex items-center gap-2 rounded-md bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] px-2 py-1.5 font-normal text-xs text-[color:var(--foreground)]">
                       <LayoutDashboard className="h-3 w-3" />
@@ -866,18 +866,12 @@ export default function OpenMoveStudio() {
         {session.status === "ready" ? (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="open-move-studio-panel-scroll min-h-0 flex-1 overflow-y-auto p-8 pt-2">
-              <p className="mb-0 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                2. Add Visualization Overlays
-              </p>
-              <StudioPanelChrome scrollContainer="passthrough" />
-              <div
-                className="mt-2 space-y-2 pt-2 text-[color:var(--foreground)]"
-              >
+              <div className="mb-0 space-y-2 text-[color:var(--foreground)]">
                 <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                  3. Sport analysis
+                  2. Sport Analysis
                 </p>
                 <div className="min-w-0">
-                  <div className={exportPanelFieldLabelClass}>Sport</div>
+                  <div className={exportPanelFieldLabelClass}>Select a movement</div>
                   <Popover.Root open={sportMenuOpen} onOpenChange={setSportMenuOpen}>
                     <Popover.Trigger asChild>
                       <button type="button" className={exportPanelSelectTriggerClass}>
@@ -1116,24 +1110,28 @@ export default function OpenMoveStudio() {
                   <p className="text-[10px] leading-snug text-red-500/90">{cyclingAnalysisError}</p>
                 ) : sportAnalysisKind === "cycling" && cyclingAnalysisResult ? (
                   <p className="text-[10px] text-[color:var(--muted)]">
-                    Done — open analytics and the &quot;Sport analysis&quot; tab.
+                    View results in the &quot;Sport analysis&quot; tab.
                   </p>
                 ) : null}
                 {sportAnalysisKind === "pullups" && pullUpsAnalysisError ? (
                   <p className="text-[10px] leading-snug text-red-500/90">{pullUpsAnalysisError}</p>
                 ) : sportAnalysisKind === "pullups" && pullUpsAnalysisResult ? (
                   <p className="text-[10px] text-[color:var(--muted)]">
-                    Done — open analytics and the &quot;Sport analysis&quot; tab.
+                    View results in the &quot;Sport analysis&quot; tab.
                   </p>
                 ) : null}
                 {sportAnalysisKind === "plank" && plankAnalysisError ? (
                   <p className="text-[10px] leading-snug text-red-500/90">{plankAnalysisError}</p>
                 ) : sportAnalysisKind === "plank" && plankAnalysisResult ? (
                   <p className="text-[10px] text-[color:var(--muted)]">
-                    Done — open analytics and the &quot;Sport analysis&quot; tab.
+                    View results in the &quot;Sport analysis&quot; tab.
                   </p>
                 ) : null}
               </div>
+              <p className="mb-0 mt-6 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                3. Movement Visualization
+              </p>
+              <StudioPanelChrome scrollContainer="passthrough" />
             </div>
             <StudioRailExportFooter />
           </div>
@@ -1487,7 +1485,7 @@ export default function OpenMoveStudio() {
             style={borderAllTheme}
             className="fixed inset-x-2 bottom-2 top-2 z-[220] flex flex-col overflow-hidden rounded-xl bg-[var(--background)] shadow-2xl backdrop-blur-xl"
           >
-            <div style={borderBottomTheme} className="flex justify-between items-center px-2 py-2 flex-shrink-0">
+            <div className="flex justify-between items-center px-2 py-2 flex-shrink-0">
               <Dialog.Title className="text-sm font-medium text-[color:var(--foreground)]">Motion analysis</Dialog.Title>
               <Dialog.Close className="p-1 rounded text-[color:var(--muted-foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]">
                 <X size={18} />

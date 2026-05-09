@@ -158,7 +158,7 @@ const exportTriggerClass =
 /** Full-width export block — render outside padded column for side-rail edge bleed. */
 export function AssetVideoPlayerChromeExportFooter({
   engine,
-  accordionTitle = "3. Download & export",
+  accordionTitle = "4. Download & export",
 }: {
   engine: AssetVideoEngine;
   /** Open Move Studio passes step 4 when sport analysis is step 3 in the rail. */
@@ -167,7 +167,7 @@ export function AssetVideoPlayerChromeExportFooter({
   return (
     <div style={borderTopTheme} className="w-full flex-shrink-0 py-4 bg-[var(--header-bg)] backdrop-blur-xxl">
       <Accordion.Root type="single" collapsible defaultValue={undefined}>
-        <Accordion.Item value="export" className="border-0 px-0">
+        <Accordion.Item value="export" className="border-0 px-4">
           <Accordion.Header>
             <Accordion.Trigger className={exportTriggerClass}>
               <span className="mb-0 shrink-0 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
@@ -177,7 +177,7 @@ export function AssetVideoPlayerChromeExportFooter({
             </Accordion.Trigger>
           </Accordion.Header>
           <Accordion.Content className={`${contentClass} data-[state=open]:overflow-visible`}>
-            <div className="bg-[color:color-mix(in_srgb,var(--header-bg)_95%)] px-4 py-3 shadow-inner backdrop-blur-sm md:px-8 overflow-visible">
+            <div className="bg-[color:color-mix(in_srgb,var(--header-bg)_100%)] px-4 py-3 md:px-8 overflow-visible">
               <AssetVideoPlayerExportPanel engine={engine} />
             </div>
           </Accordion.Content>
