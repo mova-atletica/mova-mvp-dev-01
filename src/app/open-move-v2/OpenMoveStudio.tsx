@@ -205,7 +205,8 @@ type SessionState = {
 
 const initialSession: SessionState = {
   status: "loading_sample",
-  videoUrl: null,
+  /** Featured clip URL from first paint so the browser can fetch video while keypoints load. */
+  videoUrl: FEATURED_VIDEO_MP4_PATH,
   videoSources: null,
   poses: [],
   angles: null,
@@ -336,7 +337,15 @@ export default function OpenMoveStudio() {
   }, []);
 
   useEffect(() => {
-    if (session.status !== "ready" || !session.videoUrl) {
+    if (!session.videoUrl) {
+      setVideoIntrinsicAspect(null);
+      return;
+    }
+    if (
+      session.status !== "ready" &&
+      session.status !== "loading_sample" &&
+      session.status !== "processing_video"
+    ) {
       setVideoIntrinsicAspect(null);
       return;
     }
@@ -517,16 +526,14 @@ export default function OpenMoveStudio() {
     setPullUpsAnalysisError(null);
     setPlankAnalysisResult(null);
     setPlankAnalysisError(null);
-    setSession({
-      ...initialSession,
-      status: "loading_sample",
-    });
+    setSession({ ...initialSession, status: "loading_sample" });
     try {
-      const keypointsRes = await fetch(FEATURED_KEYPOINTS_PATH, { cache: "no-store" });
+      const keypointsRes = await fetch(FEATURED_KEYPOINTS_PATH, { cache: "default" });
       if (!keypointsRes.ok) {
         setSession({
           ...initialSession,
           status: "error",
+          videoUrl: null,
           errorMessage:
             "Featured sample unavailable. Upload a video or record live to continue.",
         });
@@ -538,6 +545,7 @@ export default function OpenMoveStudio() {
         setSession({
           ...initialSession,
           status: "error",
+          videoUrl: null,
           errorMessage:
             "Featured sample unavailable. Upload a video or record live to continue.",
         });
@@ -556,6 +564,7 @@ export default function OpenMoveStudio() {
       setSession({
         ...initialSession,
         status: "error",
+        videoUrl: null,
         errorMessage:
           "Featured sample unavailable. Upload a video or record live to continue.",
       });
@@ -1234,7 +1243,7 @@ export default function OpenMoveStudio() {
               ) : null}
             </div>
           ) : null}
-          {session.status === "loading_sample" && (
+          {session.status === "loading_sample" && !session.videoUrl && (
             <div className="flex flex-col items-center gap-3 text-[color:var(--muted-foreground)]">
               <Loader2 className="h-9 w-9 animate-spin text-[var(--accent,#3b82f6)]" />
               <p className="text-md">Loading featured sample…</p>
@@ -1263,7 +1272,9 @@ export default function OpenMoveStudio() {
             </div>
           )}
 
-          {(session.status === "ready" || session.status === "processing_video") &&
+          {(session.status === "ready" ||
+            session.status === "processing_video" ||
+            session.status === "loading_sample") &&
             session.videoUrl && (
               <div className="absolute inset-0 flex items-center justify-center md:p-4">
                 {session.status === "ready" && session.poses.length > 0 ? (
@@ -1271,9 +1282,9 @@ export default function OpenMoveStudio() {
                     className={
                       isDesktop
                         ? isLandscapeVideo || expandStageToRemainingWidth
-                          ? "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full items-center justify-center md:max-h-[calc(100dvh-24px)]"
-                          : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-[min(100%,min(78vw,20rem))] items-center justify-center md:max-h-[calc(100dvh-24px)]"
-                        : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full items-center justify-center"
+                          ? "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full self-stretch items-stretch justify-center md:max-h-[calc(100dvh-24px)]"
+                          : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-[min(100%,min(78vw,20rem))] self-stretch items-stretch justify-center md:max-h-[calc(100dvh-24px)]"
+                        : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full self-stretch items-stretch justify-center"
                     }
                   >
                     <div className="flex h-full w-full min-w-0 flex-row items-stretch">
@@ -1315,7 +1326,7 @@ export default function OpenMoveStudio() {
                             isDesktop
                               ? isLandscapeVideo
                                 ? "flex min-h-0 min-w-0 flex-1 items-center justify-center self-stretch [contain:layout]"
-                                : "flex h-full min-w-[min(200px,42vw)] flex-none items-start justify-center self-stretch [contain:layout]"
+                                : "flex h-full min-w-[min(200px,42vw)] flex-none items-stretch justify-center self-stretch"
                               : "flex w-full min-h-0 min-w-0 max-w-full flex-1 items-center justify-center self-stretch [contain:layout]"
                           }
                         >
@@ -1430,6 +1441,24 @@ export default function OpenMoveStudio() {
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[color:color-mix(in_srgb,var(--foreground)_35%,transparent)]">
                       <Loader2 className="h-8 w-8 animate-spin text-[var(--accent,#3b82f6)]" />
                       <p className="text-sm text-[color:var(--foreground)]">Analyzing motion… {tfProgress}%</p>
+                    </div>
+                  </div>
+                ) : session.status === "loading_sample" ? (
+                  <div
+                    style={borderAllTheme}
+                    className="relative aspect-[9/16] max-h-[70dvh] w-full max-w-lg overflow-hidden rounded-lg bg-[var(--surface)]"
+                  >
+                    <video
+                      src={session.videoUrl}
+                      className="w-full h-full object-contain opacity-40"
+                      muted
+                      playsInline
+                      preload="auto"
+                      controls={false}
+                    />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[color:color-mix(in_srgb,var(--foreground)_35%,transparent)]">
+                      <Loader2 className="h-8 w-8 animate-spin text-[var(--accent,#3b82f6)]" />
+                      <p className="text-sm text-[color:var(--foreground)]">Loading featured sample…</p>
                     </div>
                   </div>
                 ) : null}
