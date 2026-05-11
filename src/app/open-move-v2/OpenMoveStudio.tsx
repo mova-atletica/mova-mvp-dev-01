@@ -167,7 +167,7 @@ function ConditionalEngineBridge({
   if (
     session.status === "ready" &&
     session.videoUrl &&
-    session.poses.length > 0
+    (session.poses?.length ?? 0) > 0
   ) {
     return (
       <AssetVideoSessionBridge
@@ -279,8 +279,11 @@ export default function OpenMoveStudio() {
 
     const computeElbowSymmetry = () => {
       if (!session.angles) return null;
-      const left = session.angles.leftElbowAngles.filter((v) => v != null) as number[];
-      const right = session.angles.rightElbowAngles.filter((v) => v != null) as number[];
+      const leftRaw = session.angles.leftElbowAngles;
+      const rightRaw = session.angles.rightElbowAngles;
+      if (!leftRaw?.length || !rightRaw?.length) return null;
+      const left = leftRaw.filter((v) => v != null) as number[];
+      const right = rightRaw.filter((v) => v != null) as number[];
       if (left.length === 0 || right.length === 0) return null;
       const lAvg = left.reduce((s, v) => s + v, 0) / left.length;
       const rAvg = right.reduce((s, v) => s + v, 0) / right.length;
@@ -1277,7 +1280,7 @@ export default function OpenMoveStudio() {
             session.status === "loading_sample") &&
             session.videoUrl && (
               <div className="absolute inset-0 flex items-center justify-center md:p-4">
-                {session.status === "ready" && session.poses.length > 0 ? (
+                {session.status === "ready" && (session.poses?.length ?? 0) > 0 ? (
                   <div
                     className={
                       isDesktop

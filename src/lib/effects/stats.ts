@@ -7,11 +7,15 @@ let logoLoaded = false;
 
 function loadLogo(): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (typeof Image === "undefined") {
+      resolve();
+      return;
+    }
     if (logoLoaded && logoImage) {
       resolve();
       return;
     }
-    
+
     logoImage = new Image();
     logoImage.onload = () => {
       logoLoaded = true;
@@ -22,8 +26,10 @@ function loadLogo(): Promise<void> {
   });
 }
 
-// Pre-load the logo when the module is imported
-loadLogo().catch(console.warn);
+// Pre-load the logo on the client only (Node/SSR has no `Image` constructor).
+if (typeof Image !== "undefined") {
+  loadLogo().catch(console.warn);
+}
 
 // PoseNet keypoint name to index mapping (COCO-17 format)
 const KEYPOINT_NAME_TO_INDEX: { [key: string]: number } = {
