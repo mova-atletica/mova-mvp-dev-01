@@ -34,7 +34,6 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
     isExporting,
     exportSuccess,
     handleExport,
-    hasProblematicCombination,
   } = engine;
 
   return (
@@ -73,18 +72,13 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
                   </div>
                   <div
                     role="menuitem"
-                    className={`${exportPanelDropdownMenuItemClass} ${hasProblematicCombination() ? "cursor-not-allowed opacity-40" : ""}`}
+                    className={exportPanelDropdownMenuItemClass}
                     onClick={() => {
-                      if (!hasProblematicCombination()) {
-                        setExportConfig({ ...exportConfig, format: "webm" });
-                        setFormatDropdownOpen(false);
-                      }
+                      setExportConfig({ ...exportConfig, format: "webm" });
+                      setFormatDropdownOpen(false);
                     }}
                   >
-                    Video
-                    {hasProblematicCombination() && (
-                      <span className="ml-1 text-[10px] text-[color:var(--muted)]">(disabled)</span>
-                    )}
+                    Video (MP4/WebM)
                   </div>
                 </Popover.Content>
               </Popover.Portal>
@@ -149,13 +143,7 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
           </div>
         </div>
 
-        {hasProblematicCombination() && (
-          <p className="text-[10px] font-light leading-snug text-amber-400/90 normal-case tracking-normal">
-            ⚠️ Video export is disabled when Muybridge is active.
-          </p>
-        )}
-
-        {exportConfig.format === "webm" && !hasProblematicCombination() && (
+        {exportConfig.format === "webm" && (
           <>
             <div>
               <div className={exportPanelFieldLabelClass}>
@@ -173,10 +161,9 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
                 step="1"
                 value={exportConfig.duration || 3}
                 onChange={(e) => setExportConfig({ ...exportConfig, duration: parseInt(e.target.value) })}
-                disabled={hasProblematicCombination()}
-                className="h-1 w-full cursor-pointer appearance-none rounded-lg accent-[var(--accent,#3b82f6)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-1 w-full cursor-pointer appearance-none rounded-lg accent-[var(--accent,#3b82f6)]"
                 style={{
-                  background: hasProblematicCombination() ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.15)",
+                  background: "rgba(255,255,255,0.15)",
                 }}
               />
               <div className="mt-2 text-center text-[10px] text-[color:var(--muted)]">
@@ -198,23 +185,14 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
                 step="5"
                 value={exportConfig.framerate || 30}
                 onChange={(e) => setExportConfig({ ...exportConfig, framerate: parseInt(e.target.value) })}
-                disabled={hasProblematicCombination()}
-                className="h-1 w-full cursor-pointer appearance-none rounded-lg accent-[var(--accent,#3b82f6)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-1 w-full cursor-pointer appearance-none rounded-lg accent-[var(--accent,#3b82f6)]"
                 style={{
-                  background: hasProblematicCombination() ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.15)",
+                  background: "rgba(255,255,255,0.15)",
                 }}
               />
               <div className="mt-2 text-center text-[10px] text-[color:var(--muted)]">
                 {exportConfig.framerate || 30} fps
-                {hasProblematicCombination() && (
-                  <span className="ml-1 text-amber-400/90">(disabled — Muybridge active)</span>
-                )}
               </div>
-              {hasProblematicCombination() && (
-                <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[9px] leading-snug text-amber-200/90">
-                  Video export is disabled when Muybridge is active (grid replaces full video).
-                </div>
-              )}
             </div>
           </>
         )}

@@ -1,8 +1,14 @@
 "use client";
 import { useRef, useState, useEffect, useLayoutEffect } from "react";
 import { exportAsset, downloadBlob, type ExportConfig } from "../../lib/exportService";
-import { renderMuybridge, renderMuybridgeFromCanvas } from "../../lib/effects/muybridge";
+import {
+  renderMuybridge,
+  renderMuybridgeFromCanvas,
+  preExtractKeyFrames,
+  clearFrameCache,
+} from "../../lib/effects/muybridge";
 import { renderMotionTrails } from "../../lib/effects/motion-trails";
+import { renderMuybridgeTileEffects } from "../../lib/effects/muybridgeTileRenderer";
 import { renderStats } from "../../lib/effects/stats";
 import type { AssetVideoPlayerProps, Effect, ActiveEffect, EffectType } from "./assetVideoTypes";
 import { availableEffects } from "./assetVideoTypes";
@@ -225,8 +231,44 @@ export function useAssetVideoEngine({
   }, []);
 
   const removeEffect = (effectId: string) => {
+    if (effectId === 'muybridge') {
+      clearFrameCache();
+    }
     setActiveEffects(prev => prev.filter(effect => effect.id !== effectId));
   };
+
+  // Pre-extract staggered frames so Muybridge preview tiles show distinct poses (no per-frame seek).
+  useEffect(() => {
+    const muybridgeEffect = activeEffects.find(
+      (e) => e.effect.id === 'muybridge' && e.enabled
+    );
+    if (!muybridgeEffect) return;
+
+    const video = videoRef.current;
+    if (!video?.src) return;
+
+    const config = muybridgeEffect.config;
+
+    const extract = () => {
+      clearFrameCache(video.src);
+      preExtractKeyFrames(video, config)
+        .then(() => {
+          needsRedrawRef.current = true;
+        })
+        .catch(console.error);
+    };
+
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      extract();
+    } else {
+      video.addEventListener('canplay', extract, { once: true });
+      return () => video.removeEventListener('canplay', extract);
+    }
+  }, [activeEffects, videoUrl]);
+
+  useEffect(() => {
+    clearFrameCache();
+  }, [videoUrl]);
 
   const isEffectActive = (effectId: string) => {
     return activeEffects.some(effect => effect.id === effectId);
@@ -236,11 +278,7 @@ export function useAssetVideoEngine({
     return availableEffects.filter(effect => effect.category === category);
   };
 
-  const hasProblematicCombination = () => {
-    const hasMuybridge = activeEffects.some(e => e.id === 'muybridge');
-    // Disable video export if Muybridge is active (it replaces video with grid of frames)
-    return hasMuybridge;
-  };
+  const hasProblematicCombination = () => false;
 
   const handleExport = async () => {
     const video = videoRef.current;
@@ -352,145 +390,17 @@ export function useAssetVideoEngine({
               // Clear the main canvas for muybridge to render to
               ctx.clearRect(0, 0, canvas.width, canvas.height);
               
-              // Create a synchronous effect renderer function that applies all non-muybridge effects
-              const effectRenderer = (frameCtx: CanvasRenderingContext2D, frameVideo: HTMLVideoElement, framePoses: any[], frameTime: number) => {
-                
-                // First apply visual-guide effects (background layer)
-                for (const effect of activeEffects) {
-                  if (!effect.enabled || effect.effect.id === 'muybridge') continue;
-                  
-                  switch (effect.effect.id) {
-                    case 'motion-trails':
-                      if (effectModulesRef.current.renderMotionTrails) {
-                        effectModulesRef.current.renderMotionTrails(frameCtx, frameVideo, framePoses, effect.config, frameTime);
-                      }
-                      break;
-                    case 'skeleton-overlay':
-                      // Render skeleton overlay in Muybridge tiles
-                      if (framePoses && framePoses.length > 0) {
-                        const currentFrameIndex = Math.floor(frameTime * (framePoses.length / (frameVideo.duration || 1)));
-                        if (currentFrameIndex < framePoses.length) {
-                          const pose = framePoses[currentFrameIndex];
-                          if (pose && pose.keypoints) {
-                            const keypoints = pose.keypoints;
-                            
-                            // Get frame dimensions for scaling
-                            const frameWidth = frameVideo.videoWidth;
-                            const frameHeight = frameVideo.videoHeight;
-                            const canvasWidth = frameCtx.canvas.width;
-                            const canvasHeight = frameCtx.canvas.height;
-                            
-                            // Calculate scale factors for object-fit: contain
-                            const videoAspectRatio = frameWidth / frameHeight;
-                            const canvasAspectRatio = canvasWidth / canvasHeight;
-                            
-                            let scaleX, scaleY, offsetX = 0, offsetY = 0;
-                            
-                            if (videoAspectRatio > canvasAspectRatio) {
-                              scaleX = canvasWidth / frameWidth;
-                              scaleY = scaleX;
-                              offsetY = (canvasHeight - frameHeight * scaleY) / 2;
-                            } else {
-                              scaleY = canvasHeight / frameHeight;
-                              scaleX = scaleY;
-                              offsetX = (canvasWidth - frameWidth * scaleX) / 2;
-                            }
-                            
-                            frameCtx.save();
-                            
-                            // Draw skeleton connections (bones)
-                            if (effect.config.showBones) {
-                              frameCtx.strokeStyle = effect.config.boneColor || '#00ff00';
-                              frameCtx.lineWidth = effect.config.boneWeight || 2;
-                              
-                              const allConnections = [
-                                [5, 7], [7, 9], // Left arm
-                                [6, 8], [8, 10], // Right arm
-                                [11, 13], [13, 15], // Left leg
-                                [12, 14], [14, 16], // Right leg
-                                [5, 6], // Shoulders
-                                [11, 12], // Hips
-                                [5, 11], // Left torso
-                                [6, 12], // Right torso
-                              ];
-                              
-                              // Only draw selected bones
-                              allConnections.forEach(([start, end]) => {
-                                const key = `${start}-${end}`;
-                                if (!effect.config.selectedBones?.includes(key)) return;
-                                
-                                const startPoint = keypoints[start];
-                                const endPoint = keypoints[end];
-                                
-                                if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
-                                  frameCtx.beginPath();
-                                  frameCtx.moveTo(startPoint.x * scaleX + offsetX, startPoint.y * scaleY + offsetY);
-                                  frameCtx.lineTo(endPoint.x * scaleX + offsetX, endPoint.y * scaleY + offsetY);
-                                  frameCtx.stroke();
-                                }
-                              });
-                            }
-                            
-                            // Draw joints
-                            if (effect.config.showJoints) {
-                              frameCtx.fillStyle = effect.config.jointColor || '#00ff00';
-                              
-                              keypoints.forEach((keypoint: any, idx: number) => {
-                                if (keypoint.score > 0.3 && effect.config.selectedJoints?.includes(idx)) {
-                                  frameCtx.beginPath();
-                                  frameCtx.arc(
-                                    keypoint.x * scaleX + offsetX, 
-                                    keypoint.y * scaleY + offsetY, 
-                                    effect.config.jointSize || 4, 
-                                    0, 
-                                    2 * Math.PI
-                                  );
-                                  frameCtx.fill();
-                                }
-                              });
-                            }
-                            
-                            frameCtx.restore();
-                          }
-                        }
-                      }
-                      break;
-                    default:
-                      // Skip stats effects for now - render them last
-                      break;
-                  }
-                }
-                
-                // Then apply stats effects last (foreground effects)
-                for (const effect of activeEffects) {
-                  if (!effect.enabled || effect.effect.id === 'muybridge') continue;
-                  
-                  switch (effect.effect.id) {
-                    case 'joint-angles':
-                    case 'range-of-motion':
-                    case 'metrics-chips':
-                    case 'mobility-geometry':
-                      // Only render joint angles and ROM in individual tiles
-                      if (effectModulesRef.current.renderStats && framePoses && framePoses.length > 0) {
-                        effectModulesRef.current.renderStats(
-                          frameCtx,
-                          frameVideo,
-                          framePoses,
-                          {
-                            ...effect.config,
-                            sportAnalysisKind,
-                            sportMetricsSnapshot,
-                          },
-                          frameTime
-                        );
-                      }
-                      break;
-
-                    default:
-                      // Skip non-stats effects
-                      break;
-                  }
-                }
+              const effectRenderer = (
+                frameCtx: CanvasRenderingContext2D,
+                frameVideo: HTMLVideoElement,
+                framePoses: any[],
+                frameTime: number
+              ) => {
+                renderMuybridgeTileEffects(frameCtx, frameVideo, framePoses, frameTime, {
+                  activeEffects,
+                  sharedStatsSnapshot: { sportAnalysisKind, sportMetricsSnapshot },
+                  isExport: false,
+                });
               };
               
               // Render muybridge with effects applied to each frame (now synchronous)
