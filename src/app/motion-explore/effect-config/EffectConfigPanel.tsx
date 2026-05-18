@@ -4,6 +4,7 @@ import { useCallback, useMemo, type ReactNode } from "react";
 import { JointAnglesEffectConfig } from "./JointAnglesEffectConfig";
 import { MotionTrailsEffectConfig } from "./MotionTrailsEffectConfig";
 import { MetricsChipsEffectConfig } from "./MetricsChipsEffectConfig";
+import { MobilityGeometryEffectConfig } from "./MobilityGeometryEffectConfig";
 import { MuybridgeEffectConfig } from "./MuybridgeEffectConfig";
 import { RangeOfMotionEffectConfig } from "./RangeOfMotionEffectConfig";
 import { SkeletonOverlayEffectConfig } from "./SkeletonOverlayEffectConfig";
@@ -62,6 +63,9 @@ export function EffectConfigPanel({
       break;
     case "metrics-chips":
       body = <MetricsChipsEffectConfig {...formProps} />;
+      break;
+    case "mobility-geometry":
+      body = <MobilityGeometryEffectConfig {...formProps} />;
       break;
     case "skeleton-overlay":
       body = <SkeletonOverlayEffectConfig {...formProps} />;

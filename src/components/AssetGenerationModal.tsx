@@ -44,7 +44,7 @@ interface ActiveEffect {
 }
 
 const availableEffects: Effect[] = [
-  // Motion Effects (Working)
+  // Visual guides (Muybridge, motion trails, …)
   { 
     id: "muybridge", 
     name: "Muybridge", 
@@ -619,7 +619,7 @@ export default function AssetGenerationModal({
               // Create a synchronous effect renderer function that applies all non-muybridge effects
               const effectRenderer = (frameCtx: CanvasRenderingContext2D, frameVideo: HTMLVideoElement, framePoses: any[], frameTime: number) => {
                 
-                // First apply motion effects (background effects)
+                // First apply visual-guide effects (background layer)
                 for (const effect of activeEffects) {
                   if (!effect.enabled || effect.effect.id === 'muybridge') continue;
                   
@@ -667,7 +667,7 @@ export default function AssetGenerationModal({
             }
           } else {
             // If no Muybridge effect, render effects in proper order
-            // First render motion effects (background effects)
+            // First render visual-guide effects (background layer)
             for (const effect of activeEffects) {
               if (!effect.enabled) continue;
               
@@ -1444,9 +1444,12 @@ export default function AssetGenerationModal({
                   }} />
                 </button>
 
-                {(['Motion', 'Stats'] as EffectType[]).map((category) => (
+                {(["Motion", "Stats"] as EffectType[]).map((category) => (
                   <button
                     key={category}
+                    type="button"
+                    title={category === "Motion" ? "Visual guides" : "Stats overlays"}
+                    aria-label={category === "Motion" ? "Visual guides" : "Stats overlays"}
                     onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
                     style={{
                       width: '40px',
@@ -1855,7 +1858,11 @@ export default function AssetGenerationModal({
                     // Effect Category Menu
                     <>
                       <div style={{ fontSize: '12px', fontWeight: 600, color: '#181A1A', marginBottom: '8px' }}>
-                        {selectedCategory === 'Stats' ? 'Stats Overlays' : `${selectedCategory} Effects`}
+                        {selectedCategory === "Stats"
+                          ? "Stats overlays"
+                          : selectedCategory === "Motion"
+                            ? "Visual guides"
+                            : `${selectedCategory} effects`}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {getEffectsForCategory(selectedCategory).map((effect) => {

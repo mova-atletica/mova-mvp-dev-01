@@ -1,7 +1,18 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { EFFECT_CONFIG_JOINT_OPTIONS } from "./jointOptions";
+import { useState, type ReactNode } from "react";
+import * as Popover from "@radix-ui/react-popover";
+import { ChevronDown } from "lucide-react";
+import {
+  EFFECT_CONFIG_JOINT_OPTIONS,
+  hasSideSpecificOptions,
+  mergeSelectedWithSideKeys,
+  optionKeysForSide,
+} from "./jointOptions";
+import {
+  exportPanelPopoverContentClass,
+  exportPanelSelectTriggerClass,
+} from "../AssetVideoPlayerExportPanel";
 
 /** Inline styles — theme via :root vars from ThemeContext (light/dark). */
 const borderSubtle = "1px solid color-mix(in srgb, var(--border) 100%, var(--foreground) 50%)";
@@ -284,5 +295,134 @@ export function ConfigJointCheckboxGrid({
         </label>
       ))}
     </div>
+  );
+}
+
+/** Compact multi-select with Radix popover (shared by motion/stats effect rails). */
+function QuickSelectBar({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap gap-x-2 gap-y-1 border-b border-border-theme px-2 py-1.5">
+      {children}
+    </div>
+  );
+}
+
+function QuickSelectButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="text-[10px] font-light text-[color:var(--foreground)] underline underline-offset-2 hover:opacity-90"
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function ConfigMultiSelect({
+  options,
+  selectedKeys,
+  onChange,
+  placeholder = "Select…",
+  showSelectAllNone = false,
+  showSideQuickSelect = false,
+}: {
+  options: readonly { key: string; label: string }[];
+  selectedKeys: string[];
+  onChange: (next: string[]) => void;
+  placeholder?: string;
+  showSelectAllNone?: boolean;
+  /** Adds Left / Right quick-select when options include L/R pairs. */
+  showSideQuickSelect?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedSet = new Set(selectedKeys);
+  const sideQuickSelect = showSideQuickSelect && hasSideSpecificOptions(options);
+  const leftKeys = sideQuickSelect ? optionKeysForSide(options, "left") : [];
+  const rightKeys = sideQuickSelect ? optionKeysForSide(options, "right") : [];
+  const summary =
+    selectedKeys.length === 0
+      ? placeholder
+      : selectedKeys.length <= 2
+        ? selectedKeys
+            .map((k) => options.find((o) => o.key === k)?.label ?? k)
+            .join(", ")
+        : `${selectedKeys.length} selected`;
+
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        <button type="button" className={exportPanelSelectTriggerClass}>
+          <span className="min-w-0 flex-1 truncate text-left">{summary}</span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          className={`${exportPanelPopoverContentClass} max-h-[min(260px,55vh)] overflow-y-auto p-0`}
+        >
+          {showSelectAllNone || sideQuickSelect ? (
+            <QuickSelectBar>
+              {showSelectAllNone ? (
+                <>
+                  <QuickSelectButton label="All" onClick={() => onChange(options.map((o) => o.key))} />
+                  <QuickSelectButton label="None" onClick={() => onChange([])} />
+                </>
+              ) : null}
+              {sideQuickSelect ? (
+                <>
+                  <QuickSelectButton
+                    label="Left"
+                    onClick={() => onChange(mergeSelectedWithSideKeys(selectedKeys, leftKeys))}
+                  />
+                  <QuickSelectButton
+                    label="Right"
+                    onClick={() => onChange(mergeSelectedWithSideKeys(selectedKeys, rightKeys))}
+                  />
+                </>
+              ) : null}
+            </QuickSelectBar>
+          ) : null}
+          {options.map((opt) => {
+            const checked = selectedSet.has(opt.key);
+            return (
+              <label
+                key={opt.key}
+                className="flex cursor-pointer items-center gap-2 border-b border-border-theme px-2 py-1.5 text-[11px] text-[color:var(--foreground)] transition-colors last:border-b-0 hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                      ? [...selectedKeys, opt.key]
+                      : selectedKeys.filter((k) => k !== opt.key);
+                    onChange(next);
+                  }}
+                  style={configFieldStyles.checkbox12}
+                />
+                <span className="text-[11px] text-[color:var(--foreground)]">{opt.label}</span>
+              </label>
+            );
+          })}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

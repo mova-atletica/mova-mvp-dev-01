@@ -3,7 +3,6 @@
 import type { EffectConfigFormProps } from "./types";
 import {
   ConfigCheckboxInline,
-  ConfigJointCheckboxGrid,
   ConfigRoot,
   ConfigSection,
   ConfigSliderRow,

@@ -4,7 +4,10 @@ import Webcam from "react-webcam";
 import * as poseDetection from "@tensorflow-models/pose-detection";
 import "@tensorflow/tfjs-backend-webgl";
 import * as tf from "@tensorflow/tfjs-core";
-import CoreVideoPlayer from "./CoreVideoPlayer";
+import CoreVideoPlayer, {
+  type CoreVideoPlayerOpenMenu,
+  type CoreVideoToolbarAction,
+} from "./CoreVideoPlayer";
 import { getAngleWithConfidence } from '../lib/analysisUtils';
 import { analyzeCurrentPose, calculateAnglesForPoseAnalysis, calculatePoseHoldDuration } from '../lib/poseAnalysisUtils';
 import { loadPoseDetectionModel } from '../lib/tensorflowUtils';
@@ -79,6 +82,27 @@ function logPlankLiveDebug(payload: {
     scores,
   });
 }
+
+const PortraitPhoneIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <rect x="8" y="3" width="8" height="18" rx="1.5" />
+    <circle cx="12" cy="18" r="0.75" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const LandscapePhoneIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <rect x="3" y="8" width="18" height="8" rx="1.5" />
+    <circle cx="18" cy="12" r="0.75" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const SwitchCameraIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h11a3 3 0 0 1 3 3v1M19 16H8a3 3 0 0 1-3-3v-1" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 5L5 8l3 3M16 19l3-3-3-3" />
+  </svg>
+);
 
 interface LiveVideoPlayerProps {
   onRecordingComplete: (videoUrl: string, duration: number, realTimeAnalysisData?: any[]) => void;
@@ -166,12 +190,10 @@ export default function LiveVideoPlayer({
 
   // Advanced panel state
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(true);
-  const [advancedTab, setAdvancedTab] = useState<'focus' | 'style'>('focus');
-  const [openDropdown, setOpenDropdown] = useState<'angles' | 'joints' | 'bones' | 'focus' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'angles' | 'joints' | 'bones' | null>(null);
   const [selectedAngles, setSelectedAngles] = useState<string[]>(ANGLE_OPTIONS.map(a => a.key));
   const [selectedJoints, setSelectedJoints] = useState<number[]>(JOINT_OPTIONS.map(j => j.key));
   const [selectedBones, setSelectedBones] = useState<string[]>(BONE_OPTIONS.map(b => b.key));
-  const [zoomTarget, setZoomTarget] = useState<'full' | 'upper-body' | 'lower-body' | 'knees' | 'shoulders' | 'hips'>('full');
   const [boneColor, setBoneColor] = useState<string>('#00ff00');
   const [jointColor, setJointColor] = useState<string>('#00ff00');
   const [boneWeight, setBoneWeight] = useState<number>(2);
@@ -180,8 +202,7 @@ export default function LiveVideoPlayer({
   const [showKeypoints, setShowKeypoints] = useState(false);
   const [showAngles, setShowAngles] = useState(false);
 
-  // Refs for dropdown containers
-  const focusDropdownRef = useRef<HTMLDivElement>(null);
+  // Refs for dropdown containers (focus selection panel on non-studio layouts)
   const anglesDropdownRef = useRef<HTMLDivElement>(null);
   const jointsDropdownRef = useRef<HTMLDivElement>(null);
   const bonesDropdownRef = useRef<HTMLDivElement>(null);
@@ -191,9 +212,7 @@ export default function LiveVideoPlayer({
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
       
-      if (openDropdown === 'focus' && focusDropdownRef.current && !focusDropdownRef.current.contains(target)) {
-        setOpenDropdown(null);
-      } else if (openDropdown === 'angles' && anglesDropdownRef.current && !anglesDropdownRef.current.contains(target)) {
+      if (openDropdown === 'angles' && anglesDropdownRef.current && !anglesDropdownRef.current.contains(target)) {
         setOpenDropdown(null);
       } else if (openDropdown === 'joints' && jointsDropdownRef.current && !jointsDropdownRef.current.contains(target)) {
         setOpenDropdown(null);
@@ -212,7 +231,7 @@ export default function LiveVideoPlayer({
   }, [openDropdown]);
 
   // Controls for panel switching
-  const [openMenu, setOpenMenu] = useState<null | 'export' | 'style' | 'focus' | 'analysis'>(null);
+  const [openMenu, setOpenMenu] = useState<CoreVideoPlayerOpenMenu>(null);
 
   // Simple rep counting state (matching VideoPlayer)
   const [currentPose, setCurrentPose] = useState<any>(null);
@@ -246,6 +265,7 @@ export default function LiveVideoPlayer({
 
   const embeddedFullscreen = layoutVariant === 'embeddedFullscreen';
   const [captureAspect, setCaptureAspect] = useState<'portrait' | 'landscape'>('portrait');
+  const [cameraFacing, setCameraFacing] = useState<'user' | 'environment'>('environment');
 
   // Detect mobile device (safe for SSR)
   const [isMobile, setIsMobile] = useState(false);
@@ -269,7 +289,12 @@ export default function LiveVideoPlayer({
         facingMode: "user" as const,
       };
     }
-    const facingMode = isMobile ? ("environment" as const) : ("user" as const);
+    const facingMode =
+      isMobile && embeddedFullscreen
+        ? cameraFacing
+        : isMobile
+          ? ("environment" as const)
+          : ("user" as const);
     if (!embeddedFullscreen) {
       return {
         width: 360,
@@ -301,7 +326,7 @@ export default function LiveVideoPlayer({
       aspectRatio: 9 / 16,
       facingMode,
     };
-  }, [isMounted, isMobile, embeddedFullscreen, captureAspect]);
+  }, [isMounted, isMobile, embeddedFullscreen, captureAspect, cameraFacing]);
 
   useEffect(() => {
     if (!plankLiveCoach) {
@@ -377,7 +402,7 @@ export default function LiveVideoPlayer({
       };
       checkVideoSize();
     }
-  }, [cameraActive, embeddedFullscreen, captureAspect]);
+  }, [cameraActive, embeddedFullscreen, captureAspect, cameraFacing]);
 
   // Live pose detection loop
   useEffect(() => {
@@ -981,10 +1006,6 @@ export default function LiveVideoPlayer({
     console.log('🔄 Rep count and states reset');
   };
 
-  const setZoomPreset = (target: typeof zoomTarget) => {
-    setZoomTarget(target);
-  };
-
   const exportCurrentFrame = () => {
     if (!webcamRef.current || !canvasRef.current) return;
     const video = webcamRef.current.video;
@@ -1238,11 +1259,8 @@ export default function LiveVideoPlayer({
       </div>
     </div>
   );
-  const stylePanel = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Style</div>
-      {/* Overlay Theme Controls */}
-      <div className="flex flex-col gap-2" style={{ borderTop: '0px solid var(--vp-border)', paddingTop: '6px' }}>
+  const stylePanelControls = (
+    <div className="flex flex-col gap-2" style={{ borderTop: '0px solid var(--vp-border)', paddingTop: '6px' }}>
         <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
           Bone Color
           <input
@@ -1285,7 +1303,13 @@ export default function LiveVideoPlayer({
           />
           <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--vp-label)' }}>{jointSize}px</span>
         </label>
-      </div>
+    </div>
+  );
+
+  const stylePanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Style</div>
+      {stylePanelControls}
     </div>
   );
 
@@ -1548,21 +1572,146 @@ export default function LiveVideoPlayer({
       {/* Exercise-Type-Specific Content */}
       {renderExerciseTypeSpecificContent()}
 
+
+    </div>
+  );
+
+  const motionVizPanel = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '300px' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Motion viz</div>
+
       
-      {/* Export Frame Button */}
+      {/* Exercise Type and Classification */}
+      {exercise && (
+        <div style={{ 
+          background: 'var(--vp-dropdown-bg)', 
+          border: '1px solid var(--vp-dropdown-border)', 
+          borderRadius: '4px', 
+          padding: '8px', 
+          marginBottom: '8px' 
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>Motion Classification:</div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Type: <span style={{ color: '#3b82f6', fontWeight: 500 }}>{exerciseAnalysisData?.exerciseType || 'Unknown'}</span>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: '2px' }}>
+            Joints of Interest: <span style={{ color: '#10b981', fontWeight: 500 }}>
+              {exercise?.jointsOfInterest && Array.isArray(exercise.jointsOfInterest) && exercise.jointsOfInterest.length > 0 
+                ? exercise.jointsOfInterest.join(', ')
+                : 'None specified'
+              }
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Skeleton Toggle */}
       <button
-        onClick={exportCurrentFrame}
-        className="px-3 py-2 rounded text-xs vp-btn"
+        onClick={() => setShowKeypoints(!showKeypoints)}
+        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
         style={{ marginBottom: '4px' }}
       >
-        Export Frame
+        {showKeypoints ? EyeIcon : EyeOffIcon}Skeleton
       </button>
+      
+      {/* Angles Toggle */}
+      <button
+        onClick={() => setShowAngles(!showAngles)}
+        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
+        style={{ marginBottom: '4px' }}
+      >
+        {showAngles ? EyeIcon : EyeOffIcon}Angles
+      </button>
+      
+      {/* Video Toggle */}
+      <button
+        onClick={() => setVideoVisible(v => !v)}
+        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
+        style={{ marginBottom: '4px' }}
+      >
+        {videoVisible ? EyeIcon : EyeOffIcon}Video
+      </button>
+
+      {/* Rep Counting Toggle - Only show for rep-based exercises */}
+      {(exercise?.exerciseType === 'repetition' || exercise?.exerciseType === 'rep-based') && (
+        <div style={{ 
+          background: 'var(--vp-dropdown-bg)', 
+          border: '1px solid var(--vp-dropdown-border)', 
+          borderRadius: '4px', 
+          padding: '8px', 
+          marginBottom: '8px' 
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
+            Rep Counting:
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: 'var(--vp-dropdown-item-text)' }}>
+            <input
+              type="checkbox"
+              checked={repCountingEnabled}
+              onChange={(e) => toggleRepCounting(e.target.checked)}
+              style={{ marginRight: '6px' }}
+            />
+            Enable real-time rep counting
+          </label>
+          <div style={{ fontSize: 9, color: 'var(--vp-dropdown-item-text)', marginTop: '2px', fontStyle: 'italic' }}>
+            Skeleton and angles will be automatically enabled
+          </div>
+        </div>
+      )}
+
+      {/* Pose Feedback Toggle - Only show for pose-based exercises */}
+      {(exercise?.exerciseType === 'pose' || exercise?.exerciseType === 'pose-based') && (
+        <div style={{ 
+          background: 'var(--vp-dropdown-bg)', 
+          border: '1px solid var(--vp-dropdown-border)', 
+          borderRadius: '4px', 
+          padding: '8px', 
+          marginBottom: '8px' 
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--vp-dropdown-item-text)', marginBottom: '4px' }}>
+            Pose Feedback:
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, color: 'var(--vp-dropdown-item-text)' }}>
+            <input
+              type="checkbox"
+              checked={poseFeedbackEnabled}
+              onChange={(e) => togglePoseFeedback(e.target.checked)}
+              style={{ marginRight: '6px' }}
+            />
+            Enable real-time pose feedback
+          </label>
+          <div style={{ fontSize: 9, color: 'var(--vp-dropdown-item-text)', marginTop: '2px', fontStyle: 'italic' }}>
+            Skeleton and angles will be automatically enabled
+          </div>
+        </div>
+      )}
+
+      {/* Exercise-Type-Specific Content */}
+      {renderExerciseTypeSpecificContent()}
+
+
+
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 600,
+          color: 'var(--vp-panel-title)',
+          marginTop: '8px',
+          marginBottom: '4px',
+        }}
+      >
+        Style
+      </div>
+      {stylePanelControls}
     </div>
   );
 
   // --- Panel Content Switch ---
   let panelContent: React.ReactNode = null;
-  if (openMenu === 'focus') panelContent = selectionPanel; // Changed from 'selection'
+  if (embeddedFullscreen) {
+    if (openMenu === 'export') panelContent = exportPanel;
+    else if (openMenu === 'motionViz') panelContent = motionVizPanel;
+  } else if (openMenu === 'focus') panelContent = selectionPanel;
   else if (openMenu === 'style') panelContent = stylePanel;
   else if (openMenu === 'export') panelContent = exportPanel;
   else if (openMenu === 'analysis') panelContent = analysisPanel;
@@ -1620,7 +1769,30 @@ export default function LiveVideoPlayer({
         }
       : renderFeedbackOverlay();
 
-  const showOrientationToggle = isMobile && embeddedFullscreen;
+  const showMobileLiveToolbar = isMobile && embeddedFullscreen;
+  const cameraControlsDisabled = recording;
+
+  const mobileLiveToolbarActions: CoreVideoToolbarAction[] | undefined = showMobileLiveToolbar
+    ? [
+        {
+          id: 'orientation',
+          ariaLabel:
+            captureAspect === 'portrait' ? 'Switch to landscape' : 'Switch to portrait',
+          disabled: cameraControlsDisabled,
+          onClick: () =>
+            setCaptureAspect((a) => (a === 'portrait' ? 'landscape' : 'portrait')),
+          icon: captureAspect === 'portrait' ? <PortraitPhoneIcon /> : <LandscapePhoneIcon />,
+        },
+        {
+          id: 'camera-facing',
+          ariaLabel: cameraFacing === 'environment' ? 'Use front camera' : 'Use back camera',
+          disabled: cameraControlsDisabled,
+          onClick: () =>
+            setCameraFacing((f) => (f === 'environment' ? 'user' : 'environment')),
+          icon: <SwitchCameraIcon />,
+        },
+      ]
+    : undefined;
 
   // Don't render Webcam during SSR
   if (!isMounted) {
@@ -1636,25 +1808,7 @@ export default function LiveVideoPlayer({
     );
   }
 
-  const liveBottomOverlay = (
-    <>
-      {showOrientationToggle ? (
-        <button
-          type="button"
-          className="rounded px-3 py-2 text-[11px] font-medium shadow-md backdrop-blur-sm"
-          style={{
-            background: 'rgba(0, 0, 0, 0.55)',
-            color: '#f3f3f4',
-            border: '1px solid rgba(255,255,255,0.35)',
-          }}
-          onClick={() => setCaptureAspect((a) => (a === 'portrait' ? 'landscape' : 'portrait'))}
-        >
-          {captureAspect === 'portrait' ? 'Use landscape' : 'Use portrait'}
-        </button>
-      ) : null}
-      {controls}
-    </>
-  );
+  const liveBottomOverlay = controls;
 
   const squatRepOverlay =
     squatLiveCoach ? (
@@ -1698,7 +1852,7 @@ export default function LiveVideoPlayer({
               key={
                 embeddedFullscreen
                   ? isMobile
-                    ? `live-${captureAspect}`
+                    ? `live-${captureAspect}-${cameraFacing}`
                     : "live-fs-desktop-landscape"
                   : "live-default"
               }
@@ -1723,6 +1877,8 @@ export default function LiveVideoPlayer({
         hidePlayBar={true}
         fillContainer={embeddedFullscreen}
         onToolbarClose={embeddedFullscreen ? onEmbeddedClose : undefined}
+        toolbarActions={mobileLiveToolbarActions}
+        compactToolbar={embeddedFullscreen}
         bottomOverlay={liveBottomOverlay}
         containerClassName={embeddedFullscreen ? 'w-full h-full min-h-0' : ''}
         style={embeddedFullscreen ? { width: '100%', height: '100%', minHeight: 0 } : undefined}

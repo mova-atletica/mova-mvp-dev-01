@@ -10,7 +10,7 @@ export type EffectConfigFormProps = {
 export type EffectConfigPanelProps = {
   activeEffect: ActiveEffect;
   setActiveEffects: Dispatch<SetStateAction<ActiveEffect[]>>;
-  sportAnalysisKind?: "cycling" | "pullups" | "plank" | "squat";
+  sportAnalysisKind?: "cycling" | "pullups" | "plank" | "squat" | "poseFlexibility";
   sportMetricsSnapshot?: {
     cyclingCadenceRpm?: number | null;
     cyclingStrokeRepeatability?: number | null;
@@ -21,6 +21,10 @@ export type EffectConfigPanelProps = {
     plankAvgHipDeviation?: number | null;
     plankAvgHipAngleDeg?: number | null;
     squatRepCount?: number | null;
+    poseFlexibilityLegsDeg?: number | null;
+    poseFlexibilityHipsDeg?: number | null;
+    poseFlexibilityTorsoDeg?: number | null;
+    poseFlexibilityShouldersDeg?: number | null;
   } | null;
   /** When false, omit the "{name} Settings" heading (inline-under-toggle UX). Default true. */
   showTitle?: boolean;

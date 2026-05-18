@@ -4,15 +4,24 @@ import type { EffectConfigFormProps } from "./types";
 import {
   ConfigCheckboxInline,
   ConfigColorHexRow,
+  ConfigMultiSelect,
   ConfigOptionsRow,
   ConfigRoot,
   ConfigSection,
   ConfigSliderRow,
 } from "./fields";
+import {
+  SKELETON_BONE_OPTIONS,
+  SKELETON_JOINT_OPTIONS,
+  skeletonIndicesFromKeys,
+  skeletonJointKeysFromIndices,
+} from "./jointOptions";
 
 export function SkeletonOverlayEffectConfig({ config, updateConfig }: EffectConfigFormProps) {
   const boneColor = (config.boneColor as string) || "#00ff00";
   const jointColor = (config.jointColor as string) || "#00ff00";
+  const selectedJoints = skeletonJointKeysFromIndices((config.selectedJoints as number[]) || []);
+  const selectedBones = (config.selectedBones as string[]) || [];
 
   return (
     <ConfigRoot>
@@ -35,6 +44,17 @@ export function SkeletonOverlayEffectConfig({ config, updateConfig }: EffectConf
         />
       </ConfigSection>
 
+      <ConfigSection title="Bones">
+        <ConfigMultiSelect
+          options={SKELETON_BONE_OPTIONS}
+          selectedKeys={selectedBones}
+          onChange={(next) => updateConfig({ selectedBones: next })}
+          placeholder="No bones"
+          showSelectAllNone
+          showSideQuickSelect
+        />
+      </ConfigSection>
+
       <ConfigSection title="Joint Settings">
         <ConfigColorHexRow
           colorInputValue={jointColor}
@@ -51,6 +71,17 @@ export function SkeletonOverlayEffectConfig({ config, updateConfig }: EffectConf
           value={(config.jointSize as number) || 4}
           onChange={(n) => updateConfig({ jointSize: Math.round(n) })}
           displayValue={`${(config.jointSize as number) || 4}px`}
+        />
+      </ConfigSection>
+
+      <ConfigSection title="Joints">
+        <ConfigMultiSelect
+          options={SKELETON_JOINT_OPTIONS}
+          selectedKeys={selectedJoints}
+          onChange={(next) => updateConfig({ selectedJoints: skeletonIndicesFromKeys(next) })}
+          placeholder="No joints"
+          showSelectAllNone
+          showSideQuickSelect
         />
       </ConfigSection>
 

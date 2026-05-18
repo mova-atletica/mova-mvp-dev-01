@@ -29,10 +29,20 @@ import {
   createMoveNetDetector,
   processVideoUrlForPoses,
 } from "../../lib/tfjsProcessVideo";
-import { analyzeCyclingDual, analyzePlank, analyzePullUps, analyzeSquat } from "../../lib/sportAnalysis";
+import {
+  POSE_FLEXIBILITY_FOCUS_OPTIONS,
+  analyzeCyclingDual,
+  analyzePlank,
+  analyzePoseFlexibility,
+  analyzePullUps,
+  analyzeSquat,
+} from "../../lib/sportAnalysis";
 import type {
   CyclingDualAnalysisResult,
   CyclingLeg,
+  PoseFlexibilityAnalysisResult,
+  PoseFlexibilityFocusArea,
+  PoseFlexibilitySide,
   PlankAnalysisResult,
   PlankFacingSide,
   PullUpsAnalysisResult,
@@ -77,6 +87,7 @@ const DESKTOP_ANALYSIS_DRAWER_WIDTH = "clamp(16rem, 36vw, 32rem)";
 const FEATURED_VIDEO_MP4_PATH = "/featured/featured.mp4";
 const FEATURED_KEYPOINTS_PATH = "/featured/featured-keypoints.json";
 const FEATURED_FRAME_INTERVAL_SEC = 0.1;
+const MOBILE_PERFORMANCE_NOTICE_STORAGE_KEY = "openMoveMobilePerformanceNoticeDismissed";
 
 /** Stage overlay play/pause — tap center play to start, tap video area to pause. */
 function StudioStagePlaybackOverlay() {
@@ -110,6 +121,19 @@ function StudioStagePlaybackOverlay() {
       )}
     </>
   );
+}
+
+function PausePlaybackWhenMobileAnalyticsOpen({ active }: { active: boolean }) {
+  const engine = useOptionalAssetVideoEngine();
+
+  useEffect(() => {
+    if (!active) return;
+    const video = engine?.videoRef?.current;
+    if (!video || video.paused) return;
+    video.pause();
+  }, [active, engine]);
+
+  return null;
 }
 
 /** Download & export — full-bleed rail footer; only when engine exists (session ready). */
@@ -226,6 +250,9 @@ export default function OpenMoveStudio() {
   const [plankAnalysisError, setPlankAnalysisError] = useState<string | null>(null);
   const [squatAnalysisResult, setSquatAnalysisResult] = useState<SquatAnalysisResult | null>(null);
   const [squatAnalysisError, setSquatAnalysisError] = useState<string | null>(null);
+  const [poseFlexibilityAnalysisResult, setPoseFlexibilityAnalysisResult] =
+    useState<PoseFlexibilityAnalysisResult | null>(null);
+  const [poseFlexibilityAnalysisError, setPoseFlexibilityAnalysisError] = useState<string | null>(null);
   const [sportAnalysisKind, setSportAnalysisKind] = useState<SportAnalysisKind>("pullups");
   const [sportMenuOpen, setSportMenuOpen] = useState(false);
   const [cyclingLeg, setCyclingLeg] = useState<CyclingLeg>("left");
@@ -234,8 +261,15 @@ export default function OpenMoveStudio() {
   const [plankSideMenuOpen, setPlankSideMenuOpen] = useState(false);
   const [squatSide, setSquatSide] = useState<SquatSide>("left");
   const [squatSideMenuOpen, setSquatSideMenuOpen] = useState(false);
+  const [poseFlexibilitySide, setPoseFlexibilitySide] = useState<PoseFlexibilitySide>("left");
+  const [poseFlexibilitySideMenuOpen, setPoseFlexibilitySideMenuOpen] = useState(false);
+  const [poseFlexibilityFocusAreas, setPoseFlexibilityFocusAreas] = useState<PoseFlexibilityFocusArea[]>([
+    "hips",
+    "torso",
+  ]);
   const [panelOpen, setPanelOpen] = useState(true);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [viewportResolved, setViewportResolved] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [analyticsDrawerOpen, setAnalyticsDrawerOpen] = useState(true);
   /** Keeps analysis UI mounted until width collapse finishes so close animation stays smooth. */
@@ -243,6 +277,7 @@ export default function OpenMoveStudio() {
   const analyticsDrawerOpenRef = useRef(analyticsDrawerOpen);
   analyticsDrawerOpenRef.current = analyticsDrawerOpen;
   const [guideOpen, setGuideOpen] = useState(false);
+  const [mobilePerformanceNoticeOpen, setMobilePerformanceNoticeOpen] = useState(false);
   const [detectorReady, setDetectorReady] = useState(false);
   const [tfProgress, setTfProgress] = useState(0);
   const [showLiveModal, setShowLiveModal] = useState(false);
@@ -276,6 +311,9 @@ export default function OpenMoveStudio() {
         : Math.max(0, Math.min(100, 100 - Math.min(100, repeatabilityRmse)));
     const repCount = pullUpsAnalysisResult?.rep_count ?? null;
     const squatReps = squatAnalysisResult?.rep_count ?? null;
+    const poseFlexMetrics = poseFlexibilityAnalysisResult?.focusMetrics ?? [];
+    const poseMetric = (focusArea: PoseFlexibilityFocusArea) =>
+      poseFlexMetrics.find((metric) => metric.focusArea === focusArea)?.value ?? null;
 
     const computeElbowSymmetry = () => {
       if (!session.angles) return null;
@@ -302,8 +340,19 @@ export default function OpenMoveStudio() {
       plankAvgHipDeviation: null,
       plankAvgHipAngleDeg: plankAnalysisResult?.avgHipAngleDeg ?? null,
       squatRepCount: squatReps,
+      poseFlexibilityLegsDeg: poseMetric("legs"),
+      poseFlexibilityHipsDeg: poseMetric("hips"),
+      poseFlexibilityTorsoDeg: poseMetric("torso"),
+      poseFlexibilityShouldersDeg: poseMetric("shoulders"),
     };
-  }, [cyclingAnalysisResult, pullUpsAnalysisResult, plankAnalysisResult, squatAnalysisResult, session.angles]);
+  }, [
+    cyclingAnalysisResult,
+    pullUpsAnalysisResult,
+    plankAnalysisResult,
+    squatAnalysisResult,
+    poseFlexibilityAnalysisResult,
+    session.angles,
+  ]);
 
   useEffect(() => {
     setPortalTarget(document.body);
@@ -329,7 +378,10 @@ export default function OpenMoveStudio() {
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
-    const onChange = () => setIsDesktop(mq.matches);
+    const onChange = () => {
+      setIsDesktop(mq.matches);
+      setViewportResolved(true);
+    };
     onChange();
     if (typeof mq.addEventListener === "function") {
       mq.addEventListener("change", onChange);
@@ -337,6 +389,38 @@ export default function OpenMoveStudio() {
     }
     mq.addListener(onChange);
     return () => mq.removeListener(onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!viewportResolved) return;
+    if (isDesktop) {
+      setMobilePerformanceNoticeOpen(false);
+      return;
+    }
+    try {
+      if (window.localStorage.getItem(MOBILE_PERFORMANCE_NOTICE_STORAGE_KEY) === "true") return;
+    } catch {
+      // If storage is unavailable, show the notice for this session only.
+    }
+    setMobilePerformanceNoticeOpen(true);
+  }, [isDesktop, viewportResolved]);
+
+  const dismissMobilePerformanceNotice = useCallback(() => {
+    try {
+      window.localStorage.setItem(MOBILE_PERFORMANCE_NOTICE_STORAGE_KEY, "true");
+    } catch {
+      // Storage can be unavailable in restricted browser modes.
+    }
+    setMobilePerformanceNoticeOpen(false);
+  }, []);
+
+  const togglePoseFlexibilityFocusArea = useCallback((area: PoseFlexibilityFocusArea) => {
+    setPoseFlexibilityFocusAreas((prev) => {
+      if (prev.includes(area)) {
+        return prev.length <= 1 ? prev : prev.filter((item) => item !== area);
+      }
+      return prev.length >= 3 ? prev : [...prev, area];
+    });
   }, []);
 
   useEffect(() => {
@@ -458,6 +542,10 @@ export default function OpenMoveStudio() {
       setPullUpsAnalysisError(null);
       setPlankAnalysisResult(null);
       setPlankAnalysisError(null);
+      setSquatAnalysisResult(null);
+      setSquatAnalysisError(null);
+      setPoseFlexibilityAnalysisResult(null);
+      setPoseFlexibilityAnalysisError(null);
       setSession({
         status: "ready",
         videoUrl,
@@ -489,6 +577,10 @@ export default function OpenMoveStudio() {
       setPullUpsAnalysisError(null);
       setPlankAnalysisResult(null);
       setPlankAnalysisError(null);
+      setSquatAnalysisResult(null);
+      setSquatAnalysisError(null);
+      setPoseFlexibilityAnalysisResult(null);
+      setPoseFlexibilityAnalysisError(null);
       setSession((s) => ({
         ...s,
         status: "processing_video",
@@ -529,6 +621,10 @@ export default function OpenMoveStudio() {
     setPullUpsAnalysisError(null);
     setPlankAnalysisResult(null);
     setPlankAnalysisError(null);
+    setSquatAnalysisResult(null);
+    setSquatAnalysisError(null);
+    setPoseFlexibilityAnalysisResult(null);
+    setPoseFlexibilityAnalysisError(null);
     setSession({ ...initialSession, status: "loading_sample" });
     try {
       const keypointsRes = await fetch(FEATURED_KEYPOINTS_PATH, { cache: "default" });
@@ -628,21 +724,49 @@ export default function OpenMoveStudio() {
       }
       return;
     }
-    setSquatAnalysisResult(null);
-    setSquatAnalysisError(null);
-    const squatRes = analyzeSquat({
+    if (sportAnalysisKind === "squat") {
+      setSquatAnalysisResult(null);
+      setSquatAnalysisError(null);
+      const squatRes = analyzeSquat({
+        poses: session.poses,
+        frameIntervalSec: session.frameIntervalSec,
+        side: squatSide,
+      });
+      if (squatRes.ok) {
+        setSquatAnalysisResult(squatRes.result);
+        setSquatAnalysisError(null);
+      } else {
+        setSquatAnalysisResult(null);
+        setSquatAnalysisError(squatRes.error);
+      }
+      return;
+    }
+    setPoseFlexibilityAnalysisResult(null);
+    setPoseFlexibilityAnalysisError(null);
+    const poseFlexRes = analyzePoseFlexibility({
       poses: session.poses,
       frameIntervalSec: session.frameIntervalSec,
-      side: squatSide,
+      side: poseFlexibilitySide,
+      focusAreas: poseFlexibilityFocusAreas,
     });
-    if (squatRes.ok) {
-      setSquatAnalysisResult(squatRes.result);
-      setSquatAnalysisError(null);
+    if (poseFlexRes.ok) {
+      setPoseFlexibilityAnalysisResult(poseFlexRes.result);
+      setPoseFlexibilityAnalysisError(null);
     } else {
-      setSquatAnalysisResult(null);
-      setSquatAnalysisError(squatRes.error);
+      setPoseFlexibilityAnalysisResult(null);
+      setPoseFlexibilityAnalysisError(poseFlexRes.error);
     }
-  }, [session.angles, session.frameIntervalSec, session.poses, cyclingLeg, plankFacingSide, squatSide, sportAnalysisKind]);
+  }, [
+    session.angles,
+    session.frameIntervalSec,
+    session.poses,
+    cyclingLeg,
+    plankFacingSide,
+    squatSide,
+    poseFlexibilitySide,
+    poseFlexibilityFocusAreas,
+    sportAnalysisKind,
+  ]);
 
   useEffect(() => {
     loadFeaturedSample();
@@ -894,7 +1018,9 @@ export default function OpenMoveStudio() {
                               ? "Pull-ups"
                               : sportAnalysisKind === "plank"
                                 ? "Plank"
-                                : "Squat"}
+                                : sportAnalysisKind === "squat"
+                                  ? "Squat"
+                                  : "Pose Flexibility (Side View)"}
                         </span>
                         <ChevronDown
                           className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${sportMenuOpen ? "rotate-180" : ""}`}
@@ -941,13 +1067,23 @@ export default function OpenMoveStudio() {
                         </div>
                         <div
                           role="menuitem"
-                          className={`${exportPanelDropdownMenuItemClass} border-b-0`}
+                          className={exportPanelDropdownMenuItemClass}
                           onClick={() => {
                             setSportAnalysisKind("squat");
                             setSportMenuOpen(false);
                           }}
                         >
                           Squat
+                        </div>
+                        <div
+                          role="menuitem"
+                          className={`${exportPanelDropdownMenuItemClass} border-b-0`}
+                          onClick={() => {
+                            setSportAnalysisKind("poseFlexibility");
+                            setSportMenuOpen(false);
+                          }}
+                        >
+                          Pose Flexibility (Side View)
                         </div>
                       </Popover.Content>
                     </Popover.Portal>
@@ -1058,7 +1194,7 @@ export default function OpenMoveStudio() {
                       camera. Form analysis uses hip, knee, and shoulder angles.
                     </p>
                   </>
-                ) : (
+                ) : sportAnalysisKind === "squat" ? (
                   <>
                     <div className="min-w-0">
                       <div className={exportPanelFieldLabelClass}>Side toward camera</div>
@@ -1108,6 +1244,84 @@ export default function OpenMoveStudio() {
                       knee-over-ankle and trunk-lean proxies.
                     </p>
                   </>
+                ) : (
+                  <>
+                    <div className="min-w-0">
+                      <div className={exportPanelFieldLabelClass}>Side toward camera</div>
+                      <Popover.Root open={poseFlexibilitySideMenuOpen} onOpenChange={setPoseFlexibilitySideMenuOpen}>
+                        <Popover.Trigger asChild>
+                          <button type="button" className={exportPanelSelectTriggerClass}>
+                            <span className="truncate">
+                              {poseFlexibilitySide === "left" ? "Left side toward camera" : "Right side toward camera"}
+                            </span>
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${poseFlexibilitySideMenuOpen ? "rotate-180" : ""}`}
+                            />
+                          </button>
+                        </Popover.Trigger>
+                        <Popover.Portal>
+                          <Popover.Content
+                            side="bottom"
+                            align="start"
+                            sideOffset={6}
+                            collisionPadding={12}
+                            className={exportPanelPopoverContentClass}
+                          >
+                            <div
+                              role="menuitem"
+                              className={exportPanelDropdownMenuItemClass}
+                              onClick={() => {
+                                setPoseFlexibilitySide("left");
+                                setPoseFlexibilitySideMenuOpen(false);
+                              }}
+                            >
+                              Left side toward camera
+                            </div>
+                            <div
+                              role="menuitem"
+                              className={`${exportPanelDropdownMenuItemClass} border-b-0`}
+                              onClick={() => {
+                                setPoseFlexibilitySide("right");
+                                setPoseFlexibilitySideMenuOpen(false);
+                              }}
+                            >
+                              Right side toward camera
+                            </div>
+                          </Popover.Content>
+                        </Popover.Portal>
+                      </Popover.Root>
+                    </div>
+                    <div className="min-w-0">
+                      <div className={exportPanelFieldLabelClass}>Focus areas (1-3)</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {POSE_FLEXIBILITY_FOCUS_OPTIONS.map((option) => {
+                          const selected = poseFlexibilityFocusAreas.includes(option.key);
+                          const disableRemove = selected && poseFlexibilityFocusAreas.length <= 1;
+                          const disableAdd = !selected && poseFlexibilityFocusAreas.length >= 3;
+                          return (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() => togglePoseFlexibilityFocusArea(option.key)}
+                              disabled={disableRemove || disableAdd}
+                              style={selected ? { border: "1px solid var(--accent, #3b82f6)" } : borderAllTheme}
+                              className={`rounded-full px-3 py-1 text-[11px] leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                selected
+                                  ? "bg-[color:color-mix(in_srgb,var(--foreground)_18%,transparent)] text-[color:var(--foreground)]"
+                                  : "bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] text-[color:var(--muted-foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <p className="text-[10px] leading-snug text-[color:var(--muted)]">
+                      Analyze the full trimmed side-view clip. We calculate flexibility and alignment from the
+                      selected focus areas.
+                    </p>
+                  </>
                 )}
                 <button
                   type="button"
@@ -1139,6 +1353,20 @@ export default function OpenMoveStudio() {
                     View results in the &quot;Sport analysis&quot; tab.
                   </p>
                 ) : null}
+                {sportAnalysisKind === "squat" && squatAnalysisError ? (
+                  <p className="text-[10px] leading-snug text-red-500/90">{squatAnalysisError}</p>
+                ) : sportAnalysisKind === "squat" && squatAnalysisResult ? (
+                  <p className="text-[10px] text-[color:var(--muted)]">
+                    View results in the &quot;Sport analysis&quot; tab.
+                  </p>
+                ) : null}
+                {sportAnalysisKind === "poseFlexibility" && poseFlexibilityAnalysisError ? (
+                  <p className="text-[10px] leading-snug text-red-500/90">{poseFlexibilityAnalysisError}</p>
+                ) : sportAnalysisKind === "poseFlexibility" && poseFlexibilityAnalysisResult ? (
+                  <p className="text-[10px] text-[color:var(--muted)]">
+                    View results in the &quot;Sport analysis&quot; tab.
+                  </p>
+                ) : null}
               </div>
               <p className="mb-0 mt-6 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                 3. Movement Visualization
@@ -1159,6 +1387,7 @@ export default function OpenMoveStudio() {
       sportMetricsSnapshot={overlaySportMetricsSnapshot}
     >
     <div className="flex h-[100dvh] w-full overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
+      <PausePlaybackWhenMobileAnalyticsOpen active={!isDesktop && analyticsOpen} />
       {isDesktop ? (
         <aside
           style={{
@@ -1407,6 +1636,8 @@ export default function OpenMoveStudio() {
                                     plankAnalysisError={plankAnalysisError}
                                     squatAnalysisResult={squatAnalysisResult}
                                     squatAnalysisError={squatAnalysisError}
+                                    poseFlexibilityAnalysisResult={poseFlexibilityAnalysisResult}
+                                    poseFlexibilityAnalysisError={poseFlexibilityAnalysisError}
                                   />
                                 </div>
                               </div>
@@ -1470,6 +1701,41 @@ export default function OpenMoveStudio() {
           </div>
         </div>
       </div>
+
+      <Dialog.Root
+        open={viewportResolved && !isDesktop && mobilePerformanceNoticeOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setMobilePerformanceNoticeOpen(true);
+            return;
+          }
+          dismissMobilePerformanceNotice();
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[225] bg-black/55" />
+          <Dialog.Content
+            style={{
+              ...borderAllTheme,
+              width: "min(calc(100vw - 2rem), 22rem)",
+            }}
+            className="fixed left-1/2 top-1/2 z-[226] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--card-bg)] p-4 text-[color:var(--foreground)] shadow-2xl outline-none"
+          >
+            <Dialog.Title className="text-base font-medium">Desktop recommended</Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+              For the smoothest video analysis and feedback, use Mova Studio on desktop. Mobile works, but playback
+              and charts may feel slower.
+            </Dialog.Description>
+            <button
+              type="button"
+              onClick={dismissMobilePerformanceNotice}
+              className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-[var(--accent,#3b82f6)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Got it
+            </button>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <Dialog.Root open={guideOpen} onOpenChange={setGuideOpen}>
         <Dialog.Portal>
@@ -1537,6 +1803,7 @@ export default function OpenMoveStudio() {
                     angles={session.angles}
                     videoUrl={session.videoUrl}
                     frameIntervalSec={session.frameIntervalSec}
+                    syncPlaybackFrame={false}
                     enableSportAnalysisTab
                     sportAnalysisKind={sportAnalysisKind}
                     cyclingAnalysisResult={cyclingAnalysisResult}
@@ -1547,6 +1814,8 @@ export default function OpenMoveStudio() {
                     plankAnalysisError={plankAnalysisError}
                     squatAnalysisResult={squatAnalysisResult}
                     squatAnalysisError={squatAnalysisError}
+                    poseFlexibilityAnalysisResult={poseFlexibilityAnalysisResult}
+                    poseFlexibilityAnalysisError={poseFlexibilityAnalysisError}
                   />
                 </Suspense>
               ) : (

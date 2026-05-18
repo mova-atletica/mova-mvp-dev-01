@@ -42,24 +42,19 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
 function DefaultErrorFallback({ error, resetError }: { error?: Error; resetError: () => void }) {
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background)' }}>
-      <div className="max-w-md w-full rounded-lg p-8 border" style={{ 
+    <div className="mt-8 mb-8 flex items-center justify-center" style={{ backgroundColor: 'var(--background)' }}>
+      <div className="max-w-md w-[92vw] rounded-lg p-8 border" style={{ 
         backgroundColor: 'var(--surface)', 
         borderColor: 'var(--border)',
         boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
       }}>
-        <div className="flex items-center justify-center w-20 h-20 mx-auto rounded-full mb-6" style={{ backgroundColor: 'var(--surface-hover)' }}>
-          <svg className="w-10 h-10" style={{ color: '#ef4444' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-        </div>
         <h2 className="text-2xl font-thin text-center mb-3" style={{ color: 'var(--foreground)' }}>
-          Something went wrong
+          Whoops!
         </h2>
-        <p className="text-sm text-center mb-8" style={{ color: 'var(--muted)' }}>
+        <p className="text-sm text-center mb-8" style={{ color: 'var(--foreground)' }}>
           We're sorry, but something unexpected happened. Please try refreshing the page.
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex flex-col gap-3 justify-center">
           <button
             onClick={resetError}
             className="px-6 py-3 rounded-md font-medium transition-all duration-200 hover:scale-105"
@@ -90,11 +85,6 @@ function DefaultErrorFallback({ error, resetError }: { error?: Error; resetError
             <pre className="mt-2 whitespace-pre-wrap" style={{ color: 'var(--muted)' }}>{error.stack}</pre>
           </details>
         )}
-        <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>
-            Mova • Motion Analysis Platform
-          </p>
-        </div>
       </div>
     </div>
   );

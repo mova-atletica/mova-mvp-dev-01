@@ -20,7 +20,11 @@ type MetricChipKind =
   | "pullups_elbow_symmetry"
   | "plank_hold_sec"
   | "plank_correction_count"
-  | "plank_avg_hip_dev";
+  | "plank_avg_hip_dev"
+  | "pose_flex_legs"
+  | "pose_flex_hips"
+  | "pose_flex_torso"
+  | "pose_flex_shoulders";
 
 type MetricChipRow = { id: string; kind: MetricChipKind; jointName?: string };
 
@@ -82,6 +86,10 @@ const ALL_METRIC_CHIP_OPTIONS: Array<{ value: MetricChipKind; label: string }> =
   { value: "plank_hold_sec", label: "Plank hold" },
   { value: "plank_correction_count", label: "Plank corrections" },
   { value: "plank_avg_hip_dev", label: "Plank hip line" },
+  { value: "pose_flex_legs", label: "Pose flex legs" },
+  { value: "pose_flex_hips", label: "Pose flex hips" },
+  { value: "pose_flex_torso", label: "Pose flex torso" },
+  { value: "pose_flex_shoulders", label: "Pose flex shoulders" },
 ];
 
 export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigFormProps) {
@@ -105,10 +113,14 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
           plankAvgHipDeviation?: number | null;
           plankAvgHipAngleDeg?: number | null;
           squatRepCount?: number | null;
+          poseFlexibilityLegsDeg?: number | null;
+          poseFlexibilityHipsDeg?: number | null;
+          poseFlexibilityTorsoDeg?: number | null;
+          poseFlexibilityShouldersDeg?: number | null;
         }
       | null) || null;
   const sportAnalysisKind =
-    (config.sportAnalysisKind as "cycling" | "pullups" | "plank" | "squat" | undefined) || "cycling";
+    (config.sportAnalysisKind as "cycling" | "pullups" | "plank" | "squat" | "poseFlexibility" | undefined) || "cycling";
 
   const chipLayoutOptions = [
     { value: "bottom_center_row", label: "Bottom center row" },
@@ -129,6 +141,11 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
       sportMetricsSnapshot.plankCorrectionCount,
       sportMetricsSnapshot.plankAvgHipDeviation,
       sportMetricsSnapshot.plankAvgHipAngleDeg,
+      sportMetricsSnapshot.squatRepCount,
+      sportMetricsSnapshot.poseFlexibilityLegsDeg,
+      sportMetricsSnapshot.poseFlexibilityHipsDeg,
+      sportMetricsSnapshot.poseFlexibilityTorsoDeg,
+      sportMetricsSnapshot.poseFlexibilityShouldersDeg,
     ];
     return vals.some((v) => typeof v === "number" && Number.isFinite(v));
   }, [sportMetricsSnapshot]);
@@ -158,6 +175,16 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
             Number.isFinite(sportMetricsSnapshot?.plankAvgHipAngleDeg ?? NaN) ||
             Number.isFinite(sportMetricsSnapshot?.plankAvgHipDeviation ?? NaN)
           );
+        }
+        return false;
+      }
+
+      if (sportAnalysisKind === "poseFlexibility") {
+        if (opt.value === "pose_flex_legs") return Number.isFinite(sportMetricsSnapshot?.poseFlexibilityLegsDeg ?? NaN);
+        if (opt.value === "pose_flex_hips") return Number.isFinite(sportMetricsSnapshot?.poseFlexibilityHipsDeg ?? NaN);
+        if (opt.value === "pose_flex_torso") return Number.isFinite(sportMetricsSnapshot?.poseFlexibilityTorsoDeg ?? NaN);
+        if (opt.value === "pose_flex_shoulders") {
+          return Number.isFinite(sportMetricsSnapshot?.poseFlexibilityShouldersDeg ?? NaN);
         }
         return false;
       }

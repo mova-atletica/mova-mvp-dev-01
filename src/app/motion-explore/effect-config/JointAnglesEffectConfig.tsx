@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import type { EffectConfigFormProps } from "./types";
 import {
   ConfigColorHexRow,
-  ConfigJointCheckboxGrid,
+  ConfigMultiSelect,
   ConfigRoot,
   ConfigSection,
   ConfigSliderRow,
@@ -94,14 +94,12 @@ export function JointAnglesEffectConfig({ config, updateConfig }: EffectConfigFo
   return (
     <ConfigRoot>
       <ConfigSection title="Joint Selection">
-        <ConfigJointCheckboxGrid
+        <ConfigMultiSelect
+          options={EFFECT_CONFIG_JOINT_OPTIONS}
           selectedKeys={enabledJoints}
-          onToggleKey={(key, checked) => {
-            const next = checked
-              ? [...enabledJoints, key]
-              : enabledJoints.filter((j) => j !== key);
-            updateConfig({ enabledJoints: next });
-          }}
+          onChange={(next) => updateConfig({ enabledJoints: next })}
+          placeholder="No joints selected"
+          showSideQuickSelect
         />
       </ConfigSection>
 

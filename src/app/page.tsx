@@ -173,45 +173,10 @@ export default function Home() {
     }
   };
 
-  if (loading) {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--background)' }}>
-        <div style={{ color: 'var(--foreground)' }} className="text-2xl font-thin">Loading motion library...</div>
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--background)' }}>
-        <div style={{ color: 'var(--error)' }} className="text-xl font-light">{error}</div>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="mt-4 px-4 py-2 rounded hover:transition-all duration-300"
-          style={{ 
-            backgroundColor: 'var(--button-bg)', 
-            color: 'var(--button-text)',
-            border: '1px solid var(--button-border)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--button-hover-bg)';
-            e.currentTarget.style.color = 'var(--button-hover-text)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--button-bg)';
-            e.currentTarget.style.color = 'var(--button-text)';
-          }}
-        >
-          Try Again
-        </button>
-      </main>
-    );
-  }
-
-  // Library password gate
+  // Library password gate; data still loads in the background while this is shown.
   if (!authorized) {
     return (
-      <main className="max-h-screen flex items-top-center justify-center px-4" 
+      <main className="flex items-start justify-center px-4" 
             style={{ backgroundColor: 'var(--background)', minHeight: '70vh' }}>
         <div className="max-w-md w-full">
           <div className="rounded-lg p-8 text-center" 
@@ -220,7 +185,7 @@ export default function Home() {
                  border: '1px solid var(--transparent)'
                }}>
             <h1 className="text-3xl font-light mb-2" style={{ color: 'var(--section-title)' }}>
-              Mova Motion Library
+              Motion Library
             </h1>
             <p className="text-lg mb-8" style={{ color: 'var(--section-subtitle)' }}>
               Enter password to access the full archive
@@ -279,6 +244,41 @@ export default function Home() {
     );
   }
 
+  if (loading) {
+    return (
+      <main className="flex items-center justify-center px-4" style={{ backgroundColor: 'var(--background)', minHeight: '70vh' }}>
+        <div style={{ color: 'var(--foreground)' }} className="text-2xl font-thin">Loading motion library...</div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex flex-col items-center justify-center px-4" style={{ backgroundColor: 'var(--background)', minHeight: '70vh' }}>
+        <div style={{ color: 'var(--error)' }} className="text-xl font-light">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 rounded hover:transition-all duration-300"
+          style={{ 
+            backgroundColor: 'var(--button-bg)', 
+            color: 'var(--button-text)',
+            border: '1px solid var(--button-border)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--button-hover-bg)';
+            e.currentTarget.style.color = 'var(--button-hover-text)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--button-bg)';
+            e.currentTarget.style.color = 'var(--button-text)';
+          }}
+        >
+          Try Again
+        </button>
+      </main>
+    );
+  }
+
   return (
     <main style={{ backgroundColor: 'var(--background)' }}>
       {/* Navigation Loading Overlay */}
@@ -306,7 +306,7 @@ export default function Home() {
         }}
       >
           <h1 className="text-3xl font-light mb-2" style={{ color: 'var(--section-title)' }}>
-            Mova Motion Library
+            Motion Library
           </h1>
           <p className="text-l" style={{ color: 'var(--section-subtitle)' }}>
             Discover curated exercises with biomechanical analysis and real-time feedback.

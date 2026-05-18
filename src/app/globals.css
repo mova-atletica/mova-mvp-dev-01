@@ -287,13 +287,6 @@ html {
   }
 }
 
-/* Open Move studio route: no global header offset, full viewport */
-body.studio-route {
-  padding-top: 0 !important;
-  min-height: 100dvh;
-  background-color: var(--background);
-}
-
 .open-move-studio-panel-scroll {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent) transparent;

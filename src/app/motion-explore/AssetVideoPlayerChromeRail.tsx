@@ -114,7 +114,7 @@ export function AssetVideoPlayerChromeRailScroll({
           <Accordion.Item value="motion" style={borderBottomTheme} className={accordionItemClass}>
             <Accordion.Header>
               <Accordion.Trigger className={triggerClass}>
-                <span className={triggerLabelClass}>Motion effects</span>
+                <span className={triggerLabelClass}>Visual guides</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-[color:var(--muted)] transition-transform duration-300 ease-in-out" />
               </Accordion.Trigger>
             </Accordion.Header>

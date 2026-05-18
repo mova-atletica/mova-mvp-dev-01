@@ -19,6 +19,7 @@ import type {
   CyclingDualAnalysisResult,
   CyclingPerspectiveMetrics,
   PlankAnalysisResult,
+  PoseFlexibilityAnalysisResult,
   PullUpsAnalysisResult,
   SquatAnalysisResult,
   SportAnalysisKind,
@@ -44,6 +45,8 @@ interface MotionAnalysisPanelProps {
   frameIntervalSec?: number | null;
   /** When set (e.g. desktop analysis drawer), shows a control to collapse the panel. */
   onRequestClose?: () => void;
+  /** Disable live video playhead syncing for constrained/mobile panel contexts. */
+  syncPlaybackFrame?: boolean;
   /** Open Move Studio: adds “Sport analysis” tab (cycling MVP). */
   enableSportAnalysisTab?: boolean;
   sportAnalysisKind?: SportAnalysisKind;
@@ -55,6 +58,8 @@ interface MotionAnalysisPanelProps {
   plankAnalysisError?: string | null;
   squatAnalysisResult?: SquatAnalysisResult | null;
   squatAnalysisError?: string | null;
+  poseFlexibilityAnalysisResult?: PoseFlexibilityAnalysisResult | null;
+  poseFlexibilityAnalysisError?: string | null;
 }
 
 type TabType = 'overview' | 'joints' | 'sport';
@@ -110,6 +115,7 @@ export default function MotionAnalysisPanel({
   videoUrl,
   frameIntervalSec = null,
   onRequestClose,
+  syncPlaybackFrame = true,
   enableSportAnalysisTab = false,
   sportAnalysisKind = "cycling",
   cyclingAnalysisResult = null,
@@ -120,6 +126,8 @@ export default function MotionAnalysisPanel({
   plankAnalysisError = null,
   squatAnalysisResult = null,
   squatAnalysisError = null,
+  poseFlexibilityAnalysisResult = null,
+  poseFlexibilityAnalysisError = null,
 }: MotionAnalysisPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [hoveredFrame, setHoveredFrame] = useState<number | null>(null);
@@ -141,6 +149,7 @@ export default function MotionAnalysisPanel({
 
   /** Video → chart: only `setPlaybackFrame` when the integer pose index changes (avoids axis churn). */
   useEffect(() => {
+    if (!syncPlaybackFrame || activeTab !== "joints") return;
     const video = engine?.videoRef?.current;
     if (!video || poses.length === 0) return;
     const n = poses.length;
@@ -164,7 +173,7 @@ export default function MotionAnalysisPanel({
       video.removeEventListener("seeked", sync);
       video.removeEventListener("loadedmetadata", sync);
     };
-  }, [engine, poses.length]);
+  }, [activeTab, engine, poses.length, syncPlaybackFrame]);
 
   const seekVideoToFrame = useCallback(
     (frame: number) => {
@@ -184,13 +193,14 @@ export default function MotionAnalysisPanel({
 
   const handleJointChartClick = useCallback(
     (data: { activeLabel?: string | number } | undefined) => {
+      if (!syncPlaybackFrame) return;
       if (!engine?.videoRef?.current) return;
       if (!data || data.activeLabel === undefined) return;
       const frame = parseInt(String(data.activeLabel), 10);
       if (!Number.isFinite(frame)) return;
       seekVideoToFrame(frame);
     },
-    [engine, seekVideoToFrame]
+    [engine, seekVideoToFrame, syncPlaybackFrame]
   );
 
   // Early return if no data
@@ -786,6 +796,129 @@ export default function MotionAnalysisPanel({
       );
     }
 
+    if (sportAnalysisKind === "poseFlexibility") {
+      if (poseFlexibilityAnalysisError) {
+        return (
+          <div className="space-y-2 text-sm" style={{ color: "var(--foreground)" }}>
+            <p className="text-red-500/90">{poseFlexibilityAnalysisError}</p>
+            <p style={{ color: "var(--muted-foreground)" }}>
+              Use a trimmed side-view clip, pick the side facing camera, select 1-3 focus areas, then run{" "}
+              <strong>Analyze</strong> again.
+            </p>
+          </div>
+        );
+      }
+      if (!poseFlexibilityAnalysisResult) {
+        return (
+          <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            In the side rail, open <strong>2. Sport analysis</strong>, choose{" "}
+            <strong>Pose Flexibility (Side View)</strong>, select side and focus areas, then click{" "}
+            <strong>Analyze</strong>.
+          </p>
+        );
+      }
+
+      const r = poseFlexibilityAnalysisResult;
+      const dt = frameIntervalSec && frameIntervalSec > 0 ? frameIntervalSec : 1 / 30;
+      const chartRows = poses.map((_, i) => {
+        const row: Record<string, number | null> & { t: number } = { t: i * dt };
+        for (const series of r.chartSeries) {
+          const value = series.values[i];
+          row[series.key] = value != null && Number.isFinite(value) ? value : null;
+        }
+        return row;
+      });
+      const tMax = chartRows.length > 0 ? chartRows[chartRows.length - 1].t : 0;
+      const seriesColors = ["var(--accent, #3b82f6)", "#22c55e", "#a855f7", "#f59e0b"];
+
+      const metricTooltip = (description: string) =>
+        `${description}\n\nAngles are measured from the selected side facing camera. Scores are 0-100 summaries from the full clip.`;
+
+      return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-normal" style={{ color: "var(--foreground)" }}>
+            Pose Flexibility (Side View)
+          </h3>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            Side analyzed: <strong className="capitalize">{r.sideUsed}</strong>. Full-clip analytics for the selected focus
+            areas; no pass/fail or realtime coaching.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {r.focusMetrics.map((metric) => (
+              <div key={metric.focusArea} className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+                <div
+                  className="flex items-center gap-0.5 text-[10px] uppercase tracking-wide"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  <span>{metric.label}</span>
+                  <InfoTooltip
+                    content={metricTooltip(metric.description)}
+                    maxWidth="min(320px,85vw)"
+                    side="top"
+                    align="start"
+                  />
+                </div>
+                <div className="text-2xl font-semibold tabular-nums text-blue-600">{metric.valueLabel}</div>
+              </div>
+            ))}
+          </div>
+
+          {r.chartSeries.length > 0 ? (
+            <div>
+              <h4 className="mb-2 text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                Selected angles over time
+              </h4>
+              <p className="mb-2 text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+                Smoothed side-view angle traces for selected focus areas.
+              </p>
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={chartRows} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.45} />
+                  <XAxis
+                    dataKey="t"
+                    type="number"
+                    domain={[0, tMax]}
+                    tick={CHART_AXIS_TICK}
+                    stroke="var(--border)"
+                    tickFormatter={(v: number) => `${v.toFixed(1)}s`}
+                  />
+                  <YAxis tick={CHART_AXIS_TICK} stroke="var(--border)" domain={[0, 180]} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--results-chart-tooltip-bg)",
+                      color: "var(--results-chart-tooltip-text)",
+                      border: "none",
+                      borderRadius: 8,
+                      fontSize: "12px",
+                    }}
+                    labelFormatter={(t) => `t = ${Number(t).toFixed(2)} s`}
+                    formatter={(v: number | string, name: string) =>
+                      typeof v === "number" ? [`${v.toFixed(1)}°`, name] : [String(v), name]
+                    }
+                  />
+                  <Legend wrapperStyle={{ fontSize: "12px" }} />
+                  {r.chartSeries.map((series, idx) => (
+                    <Line
+                      key={series.key}
+                      type="monotone"
+                      dataKey={series.key}
+                      name={series.label}
+                      stroke={seriesColors[idx % seriesColors.length]}
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls={false}
+                      isAnimationActive={false}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
     if (sportAnalysisKind !== "cycling") {
       return (
         <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
@@ -1111,6 +1244,11 @@ export default function MotionAnalysisPanel({
     frameIntervalSec,
     cyclingAnalysisResult,
     cyclingAnalysisError,
+    squatAnalysisResult,
+    squatAnalysisError,
+    poseFlexibilityAnalysisResult,
+    poseFlexibilityAnalysisError,
+    poses,
   ]);
 
   const tabs = useMemo(() => {
@@ -1373,7 +1511,7 @@ export default function MotionAnalysisPanel({
                             />
                           ) : null
                       )}
-                      {engine && chartData.length > 0 ? (
+                      {syncPlaybackFrame && engine && chartData.length > 0 ? (
                         <ReferenceLine
                           x={playbackFrame}
                           stroke="var(--foreground)"
@@ -1405,7 +1543,7 @@ export default function MotionAnalysisPanel({
                   </h5>
                   <div className="text-xs shrink-0 text-right" style={{ color: "var(--muted-foreground)" }}>
                     Hover for values
-                    {engine ? "; click chart to seek video" : ""}
+                    {syncPlaybackFrame && engine ? "; click chart to seek video" : ""}
                   </div>
                 </div>
                 
@@ -1464,6 +1602,7 @@ export default function MotionAnalysisPanel({
     jointLineVisible,
     engine,
     playbackFrame,
+    syncPlaybackFrame,
   ]);
 
   return (

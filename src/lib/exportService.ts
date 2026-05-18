@@ -21,7 +21,7 @@ export interface ExportConfig {
   quality: 'low' | 'medium' | 'high';
   duration?: number; // for video exports
   framerate?: number; // for video exports
-  sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat';
+  sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat' | 'poseFlexibility';
   sportMetricsSnapshot?: {
     cyclingCadenceRpm?: number | null;
     cyclingStrokeRepeatability?: number | null;
@@ -32,6 +32,10 @@ export interface ExportConfig {
     plankAvgHipDeviation?: number | null;
     plankAvgHipAngleDeg?: number | null;
     squatRepCount?: number | null;
+    poseFlexibilityLegsDeg?: number | null;
+    poseFlexibilityHipsDeg?: number | null;
+    poseFlexibilityTorsoDeg?: number | null;
+    poseFlexibilityShouldersDeg?: number | null;
   } | null;
 }
 
@@ -74,7 +78,12 @@ async function renderEffectsToCanvas(
 ): Promise<HTMLCanvasElement> {
   const firstStatsConfig = activeEffects.find((e) =>
     e.enabled &&
-    (e.effect.id === 'joint-angles' || e.effect.id === 'range-of-motion' || e.effect.id === 'metrics-chips')
+    (
+      e.effect.id === 'joint-angles' ||
+      e.effect.id === 'range-of-motion' ||
+      e.effect.id === 'metrics-chips' ||
+      e.effect.id === 'mobility-geometry'
+    )
   )?.config || {};
   const sharedStatsSnapshot = {
     sportAnalysisKind: config.sportAnalysisKind ?? firstStatsConfig.sportAnalysisKind,
@@ -133,7 +142,7 @@ async function renderEffectsToCanvas(
   }
     
     // Render effects in proper order (matching live preview)
-    // Step 1: Render motion effects (background effects)
+    // Step 1: Render visual-guide effects (background layer)
     for (const effect of activeEffects) {
       if (!effect.enabled) continue;
       
@@ -229,6 +238,7 @@ async function renderEffectsToCanvas(
         case 'joint-angles':
         case 'range-of-motion':
         case 'metrics-chips':
+        case 'mobility-geometry':
         case 'exercise-details':
           renderStats(
             ctx,
@@ -415,7 +425,12 @@ async function exportAsVideo(
   try {
     const firstStatsConfig = activeEffects.find((e) =>
       e.enabled &&
-      (e.effect.id === 'joint-angles' || e.effect.id === 'range-of-motion' || e.effect.id === 'metrics-chips')
+      (
+        e.effect.id === 'joint-angles' ||
+        e.effect.id === 'range-of-motion' ||
+        e.effect.id === 'metrics-chips' ||
+        e.effect.id === 'mobility-geometry'
+      )
     )?.config || {};
     const sharedStatsSnapshot = {
       sportAnalysisKind: config.sportAnalysisKind ?? firstStatsConfig.sportAnalysisKind,
@@ -557,7 +572,7 @@ async function exportAsVideo(
           }
           
           // Render effects in proper order (matching live preview)
-          // Step 1: Render motion effects (background effects)
+          // Step 1: Render visual-guide effects (background layer)
           for (const effect of activeEffects) {
             if (!effect.enabled) continue;
             
@@ -653,6 +668,7 @@ async function exportAsVideo(
               case 'joint-angles':
               case 'range-of-motion':
               case 'metrics-chips':
+              case 'mobility-geometry':
               case 'exercise-details':
                 renderStats(
                   ctx,

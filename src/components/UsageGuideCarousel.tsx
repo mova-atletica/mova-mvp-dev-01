@@ -37,7 +37,7 @@ export const USAGE_GUIDE_SLIDES: UsageGuideSlide[] = [
     id: 3,
     title: "Review, Download & Share",
     description:
-      "Review biomechanics, add visual motion effects and share videos or motion data with professionals. Download assets in 9:16 for social sharing.",
+      "Review biomechanics, add visual guides on video, and share clips or motion data with professionals. Download assets in 9:16 for social sharing.",
     image: "/demo/step-03.webp",
   },
 ];

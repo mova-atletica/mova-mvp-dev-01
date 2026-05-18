@@ -111,8 +111,22 @@ export interface StatsConfig {
   metricChipLayout?: 'bottom_center_row' | 'bottom_center_stack' | 'top_center_row' | 'top_center_stack';
   metricChipTextColor?: string;
   metricChips?: MetricChipConfig[];
-  sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat';
+  sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat' | 'poseFlexibility';
   sportMetricsSnapshot?: SportMetricsSnapshot | null;
+
+  /** Configurable body axes / mobility lines for side-view flexibility content. */
+  showMobilityGeometry?: boolean;
+  mobilityGeometryColor?: string;
+  mobilityGeometryLineWidth?: number;
+  mobilityGeometryLineLength?: number;
+  mobilityGeometryLineStyle?: 'solid' | 'dashed' | 'dotted';
+  mobilityGeometryCapStyle?: 'none' | 'tick' | 'dot' | 'bracket';
+  mobilityGeometryOpacity?: number;
+  mobilityGeometryVerticalTargets?: string[];
+  mobilityGeometryHorizontalTargets?: string[];
+  /** Arc radius in video-space px; multiplied by preview/export scale like line length. */
+  mobilityGeometryArcRadius?: number;
+  mobilityGeometryAngleJoints?: string[];
   
   // Export mode flag
   isExport?: boolean;
@@ -126,7 +140,11 @@ export type MetricChipKind =
   | 'pullups_elbow_symmetry'
   | 'plank_hold_sec'
   | 'plank_correction_count'
-  | 'plank_avg_hip_dev';
+  | 'plank_avg_hip_dev'
+  | 'pose_flex_legs'
+  | 'pose_flex_hips'
+  | 'pose_flex_torso'
+  | 'pose_flex_shoulders';
 
 export interface MetricChipConfig {
   id: string;
@@ -149,6 +167,10 @@ export interface SportMetricsSnapshot {
   plankAvgHipAngleDeg?: number | null;
   /** Squat reps counted by side-view knee-angle state machine. */
   squatRepCount?: number | null;
+  poseFlexibilityLegsDeg?: number | null;
+  poseFlexibilityHipsDeg?: number | null;
+  poseFlexibilityTorsoDeg?: number | null;
+  poseFlexibilityShouldersDeg?: number | null;
 }
 
 export interface SafeZone {
@@ -179,6 +201,8 @@ export interface ROMData {
 }
 
 const JOINT_LABELS: Record<string, string> = {
+  left_shoulder: 'L Shoulder',
+  right_shoulder: 'R Shoulder',
   left_knee: 'L Knee',
   right_knee: 'R Knee',
   left_hip: 'L Hip',
@@ -426,7 +450,7 @@ function resolveMetricChip(
   chip: MetricChipConfig,
   romData: ROMData[],
   sport: SportMetricsSnapshot | null | undefined,
-  sportKind: 'cycling' | 'pullups' | 'plank' | 'squat',
+  sportKind: 'cycling' | 'pullups' | 'plank' | 'squat' | 'poseFlexibility',
   poses: any[]
 ): ResolvedMetricChip | null {
   if (chip.kind === 'rom_joint') {
@@ -498,6 +522,34 @@ function resolveMetricChip(
     const legacy = sport?.plankAvgHipDeviation;
     if (legacy == null || !Number.isFinite(legacy)) return null;
     return { id: chip.id, label: `Hip line`, value: `${(legacy * 1000).toFixed(0)}` };
+  }
+
+  if (sportKind === 'poseFlexibility') {
+    const degreeChip = (
+      kind: MetricChipKind,
+      value: number | null | undefined,
+      label: string
+    ): ResolvedMetricChip | null => {
+      if (chip.kind !== kind) return null;
+      if (value == null || !Number.isFinite(value)) return null;
+      return { id: chip.id, label, value: `${value.toFixed(0)}°` };
+    };
+    const scoreChip = (
+      kind: MetricChipKind,
+      value: number | null | undefined,
+      label: string
+    ): ResolvedMetricChip | null => {
+      if (chip.kind !== kind) return null;
+      if (value == null || !Number.isFinite(value)) return null;
+      return { id: chip.id, label, value: `${value.toFixed(0)}%` };
+    };
+
+    return (
+      degreeChip('pose_flex_legs', sport?.poseFlexibilityLegsDeg, 'Legs') ||
+      degreeChip('pose_flex_hips', sport?.poseFlexibilityHipsDeg, 'Hips') ||
+      degreeChip('pose_flex_torso', sport?.poseFlexibilityTorsoDeg, 'Torso') ||
+      degreeChip('pose_flex_shoulders', sport?.poseFlexibilityShouldersDeg, 'Shoulders')
+    );
   }
 
   return null;
@@ -689,6 +741,16 @@ export function extractJointAngles(poses: any[], frameIndex: number): JointAngle
       name: 'right_elbow',
       points: ['right_shoulder', 'right_elbow', 'right_wrist'],
       displayName: 'Right Elbow'
+    },
+    {
+      name: 'left_shoulder',
+      points: ['left_hip', 'left_shoulder', 'left_elbow'],
+      displayName: 'Left Shoulder'
+    },
+    {
+      name: 'right_shoulder',
+      points: ['right_hip', 'right_shoulder', 'right_elbow'],
+      displayName: 'Right Shoulder'
     }
   ];
   
@@ -1088,6 +1150,191 @@ export function renderGlobalOverlays(
   ctx.restore();
 }
 
+type MobilityPoint = { x: number; y: number };
+
+const MOBILITY_ANGLE_JOINTS: Record<string, [string, string, string]> = {
+  left_knee: ['left_hip', 'left_knee', 'left_ankle'],
+  right_knee: ['right_hip', 'right_knee', 'right_ankle'],
+  left_hip: ['left_shoulder', 'left_hip', 'left_knee'],
+  right_hip: ['right_shoulder', 'right_hip', 'right_knee'],
+  left_shoulder: ['left_hip', 'left_shoulder', 'left_elbow'],
+  right_shoulder: ['right_hip', 'right_shoulder', 'right_elbow'],
+};
+
+function validMobilityKeypoint(kp: any): kp is MobilityPoint & { score?: number } {
+  return Boolean(kp) && Number.isFinite(kp.x) && Number.isFinite(kp.y) && (kp.score ?? 0) >= 0.25;
+}
+
+function midpoint(a: MobilityPoint, b: MobilityPoint): MobilityPoint {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+function resolveMobilityPoint(keypoints: any[], key: string): MobilityPoint | null {
+  const kp = (name: string) => {
+    const point = getKeypointByName(keypoints, name);
+    return validMobilityKeypoint(point) ? point : null;
+  };
+
+  if (key === 'shoulder_mid') {
+    const left = kp('left_shoulder');
+    const right = kp('right_shoulder');
+    return left && right ? midpoint(left, right) : null;
+  }
+  if (key === 'hip_mid') {
+    const left = kp('left_hip');
+    const right = kp('right_hip');
+    return left && right ? midpoint(left, right) : null;
+  }
+  if (key === 'body_center') {
+    const shoulders = resolveMobilityPoint(keypoints, 'shoulder_mid');
+    const hips = resolveMobilityPoint(keypoints, 'hip_mid');
+    return shoulders && hips ? midpoint(shoulders, hips) : hips ?? shoulders;
+  }
+  return kp(key);
+}
+
+function applyMobilityLineStyle(ctx: CanvasRenderingContext2D, style: StatsConfig['mobilityGeometryLineStyle']) {
+  if (style === 'dashed') ctx.setLineDash([14, 10]);
+  else if (style === 'dotted') ctx.setLineDash([2, 10]);
+  else ctx.setLineDash([]);
+}
+
+function drawMobilityCap(
+  ctx: CanvasRenderingContext2D,
+  point: MobilityPoint,
+  orientation: 'vertical' | 'horizontal',
+  style: StatsConfig['mobilityGeometryCapStyle'],
+  size: number
+) {
+  if (!style || style === 'none') return;
+  if (style === 'dot') {
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, size * 0.38, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+
+  const tick = size * 0.55;
+  const bracket = size * 0.42;
+  if (orientation === 'vertical') {
+    ctx.beginPath();
+    ctx.moveTo(point.x - tick, point.y);
+    ctx.lineTo(point.x + tick, point.y);
+    if (style === 'bracket') {
+      ctx.moveTo(point.x - tick, point.y);
+      ctx.lineTo(point.x - tick, point.y + bracket);
+      ctx.moveTo(point.x + tick, point.y);
+      ctx.lineTo(point.x + tick, point.y + bracket);
+    }
+    ctx.stroke();
+    return;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(point.x, point.y - tick);
+  ctx.lineTo(point.x, point.y + tick);
+  if (style === 'bracket') {
+    ctx.moveTo(point.x, point.y - tick);
+    ctx.lineTo(point.x + bracket, point.y - tick);
+    ctx.moveTo(point.x, point.y + tick);
+    ctx.lineTo(point.x + bracket, point.y + tick);
+  }
+  ctx.stroke();
+}
+
+function drawMobilityAxis(
+  ctx: CanvasRenderingContext2D,
+  center: MobilityPoint,
+  orientation: 'vertical' | 'horizontal',
+  config: Partial<StatsConfig>,
+  scale: number
+) {
+  const length = (config.mobilityGeometryLineLength || 220) * scale;
+  const half = length / 2;
+  const start =
+    orientation === 'vertical'
+      ? { x: center.x, y: center.y - half }
+      : { x: center.x - half, y: center.y };
+  const end =
+    orientation === 'vertical'
+      ? { x: center.x, y: center.y + half }
+      : { x: center.x + half, y: center.y };
+
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+  const capSize = Math.max(8, (config.mobilityGeometryLineWidth ?? 1) * 5 * scale);
+  drawMobilityCap(ctx, start, orientation, config.mobilityGeometryCapStyle, capSize);
+  drawMobilityCap(ctx, end, orientation, config.mobilityGeometryCapStyle, capSize);
+}
+
+function drawMobilityAngleArc(
+  ctx: CanvasRenderingContext2D,
+  a: MobilityPoint,
+  b: MobilityPoint,
+  c: MobilityPoint,
+  radiusPx: number
+) {
+  const r = Math.max(8, radiusPx);
+  const start = Math.atan2(a.y - b.y, a.x - b.x);
+  let end = Math.atan2(c.y - b.y, c.x - b.x);
+  while (end < start) end += Math.PI * 2;
+  if (end - start > Math.PI) {
+    const tmp = end;
+    end = start + Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, r, tmp, end);
+  } else {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, r, start, end);
+  }
+  ctx.stroke();
+}
+
+function renderMobilityGeometry(
+  ctx: CanvasRenderingContext2D,
+  poses: any[],
+  config: Partial<StatsConfig>,
+  frameIndex: number
+): void {
+  if (!config.showMobilityGeometry) return;
+  const pose = poses[frameIndex];
+  if (!pose?.keypoints?.length) return;
+  const keypoints = pose.keypoints;
+  const scale = statsCanvasScaleFactor(ctx);
+  const arcRadius = Math.max(8, (config.mobilityGeometryArcRadius ?? 40) * scale);
+
+  ctx.save();
+  ctx.globalAlpha = config.mobilityGeometryOpacity ?? 0.9;
+  ctx.strokeStyle = config.mobilityGeometryColor || '#ffffff';
+  ctx.fillStyle = config.mobilityGeometryColor || '#ffffff';
+  ctx.lineWidth = Math.max(1, (config.mobilityGeometryLineWidth ?? 1) * scale);
+  ctx.lineCap = config.mobilityGeometryLineStyle === 'dotted' ? 'round' : 'butt';
+  applyMobilityLineStyle(ctx, config.mobilityGeometryLineStyle || 'solid');
+
+  for (const target of config.mobilityGeometryVerticalTargets || []) {
+    const point = resolveMobilityPoint(keypoints, target);
+    if (point) drawMobilityAxis(ctx, point, 'vertical', config, scale);
+  }
+  for (const target of config.mobilityGeometryHorizontalTargets || []) {
+    const point = resolveMobilityPoint(keypoints, target);
+    if (point) drawMobilityAxis(ctx, point, 'horizontal', config, scale);
+  }
+
+  for (const joint of config.mobilityGeometryAngleJoints || []) {
+    const triple = MOBILITY_ANGLE_JOINTS[joint];
+    if (!triple) continue;
+    const a = resolveMobilityPoint(keypoints, triple[0]);
+    const b = resolveMobilityPoint(keypoints, triple[1]);
+    const c = resolveMobilityPoint(keypoints, triple[2]);
+    if (!a || !b || !c) continue;
+    drawMobilityAngleArc(ctx, a, b, c, arcRadius);
+  }
+
+  ctx.restore();
+}
+
 /**
  * Main stats effect renderer
  */
@@ -1123,6 +1370,7 @@ export function renderStats(
 
   renderJointAngleChart(ctx, poses, config, currentFrameIndex);
   renderMetricChips(ctx, poses, romData, config);
+  renderMobilityGeometry(ctx, poses, config, currentFrameIndex);
   
   // Render global overlays
   renderGlobalOverlays(ctx, config);

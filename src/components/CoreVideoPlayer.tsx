@@ -15,8 +15,10 @@ interface CoreVideoPlayerProps {
   onCloseAdvancedPanel?: () => void;
   style?: React.CSSProperties;
   height?: string;
-  openMenu?: null | 'export' | 'style' | 'focus' | 'analysis';
-  setOpenMenu?: (menu: null | 'export' | 'style' | 'focus' | 'analysis') => void;
+  openMenu?: CoreVideoPlayerOpenMenu;
+  setOpenMenu?: (menu: CoreVideoPlayerOpenMenu) => void;
+  /** Export + Motion viz menus only (live studio fullscreen). */
+  compactToolbar?: boolean;
   panelContent?: React.ReactNode;
   // New props for the custom play bar
   currentTime?: number;
@@ -29,6 +31,8 @@ interface CoreVideoPlayerProps {
   fillContainer?: boolean;
   /** Renders first in the vertical toolbar (e.g. dismiss fullscreen live modal). */
   onToolbarClose?: () => void;
+  /** Extra toolbar buttons (e.g. mobile live camera / orientation), rendered below close. */
+  toolbarActions?: CoreVideoToolbarAction[];
   /** Centered strip over the video (e.g. live record / change method). */
   bottomOverlay?: React.ReactNode;
 
@@ -52,6 +56,37 @@ interface CoreVideoPlayerProps {
     plankVariant?: 'good' | 'adjust' | 'setup';
   };
 }
+
+export type CoreVideoPlayerMenu = 'export' | 'style' | 'focus' | 'analysis' | 'motionViz';
+export type CoreVideoPlayerOpenMenu = CoreVideoPlayerMenu | null;
+
+export type CoreVideoToolbarAction = {
+  id: string;
+  ariaLabel: string;
+  onClick: () => void;
+  icon: ReactNode;
+  disabled?: boolean;
+};
+
+const toolbarButtonStyle = (
+  active: boolean,
+  disabled?: boolean
+): React.CSSProperties => ({
+  width: 30,
+  height: 30,
+  borderRadius: 6,
+  background: active ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)',
+  border: 'none',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  transition: 'all 0.2s',
+  color: active ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)',
+  borderBottom: '1px solid var(--vp-panel-border)',
+  opacity: disabled ? 0.45 : 1,
+});
 
 // Custom SVG Icons
 const DownloadIcon = () => (
@@ -95,6 +130,14 @@ const CloseToolbarIcon = () => (
   </svg>
 );
 
+const MotionVizIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+    <path d="M2 17l10 5 10-5" />
+    <path d="M2 12l10 5 10-5" />
+  </svg>
+);
+
 // Helper function to format time
 const formatTime = (time: number): string => {
   const minutes = Math.floor(time / 60);
@@ -126,11 +169,13 @@ export default function CoreVideoPlayer({
   hidePlayBar = false, // New prop to hide the play bar
   fillContainer = false,
   onToolbarClose,
+  toolbarActions,
   bottomOverlay,
+  compactToolbar = false,
   feedbackOverlay, // New prop for unified feedback overlay
 }: CoreVideoPlayerProps) {
   // If controlled props are provided, use them; otherwise, use local state (for backward compatibility)
-  const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<null | 'export' | 'style' | 'focus' | 'analysis'>(null);
+  const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<CoreVideoPlayerOpenMenu>(null);
   const openMenu = controlledOpenMenu !== undefined ? controlledOpenMenu : uncontrolledOpenMenu;
   const setOpenMenu = controlledSetOpenMenu !== undefined ? controlledSetOpenMenu : setUncontrolledOpenMenu;
 
@@ -227,53 +272,65 @@ export default function CoreVideoPlayer({
                       <CloseToolbarIcon />
                     </button>
                   ) : null}
-                  {/* Download Button */}
+                  {toolbarActions?.map((action) => (
+                    <button
+                      key={action.id}
+                      type="button"
+                      style={toolbarButtonStyle(false, action.disabled)}
+                      onClick={action.disabled ? undefined : action.onClick}
+                      disabled={action.disabled}
+                      aria-label={action.ariaLabel}
+                    >
+                      {action.icon}
+                    </button>
+                  ))}
+                  {/* Export */}
                   <button
-                    style={{
-                      width: 30, height: 30, borderRadius: 6, background: openMenu === 'export' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'export' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
-                    }}
+                    type="button"
+                    style={toolbarButtonStyle(openMenu === 'export')}
                     onClick={() => setOpenMenu(openMenu === 'export' ? null : 'export')}
                     aria-label="Export"
                   >
                     <DownloadIcon />
                   </button>
-                  
-                  {/* Analysis Button */}
-                  <button
-                    style={{
-                      width: 30, height: 30, borderRadius: 6, background: openMenu === 'analysis' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'analysis' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
-                    }}
-                    onClick={() => setOpenMenu(openMenu === 'analysis' ? null : 'analysis')}
-                    aria-label="Real-time Analysis"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                      <path d="M2 17l10 5 10-5"/>
-                      <path d="M2 12l10 5 10-5"/>
-                    </svg>
-                  </button>
-                  
-                  {/* Style Button */}
-                  <button
-                    style={{
-                      width: 30, height: 30, borderRadius: 6, background: openMenu === 'style' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'style' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)', borderBottom: '1px solid var(--vp-panel-border)',
-                    }}
-                    onClick={() => setOpenMenu(openMenu === 'style' ? null : 'style')}
-                    aria-label="Style"
-                  >
-                    <StyleIcon />
-                  </button>
-                  
-                  {/* Focus Selection Button (formerly Selection) */}
-                  <button
-                    style={{
-                      width: 30, height: 30, borderRadius: 6, background: openMenu === 'focus' ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', color: openMenu === 'focus' ? 'var(--vp-panel-icon-active)' : 'var(--vp-panel-icon)',
-                    }}
-                    onClick={() => setOpenMenu(openMenu === 'focus' ? null : 'focus')}
-                    aria-label="Focus Selection"
-                  >
-                    <FocusIcon />
-                  </button>
+
+                  {compactToolbar ? (
+                    <button
+                      type="button"
+                      style={toolbarButtonStyle(openMenu === 'motionViz')}
+                      onClick={() => setOpenMenu(openMenu === 'motionViz' ? null : 'motionViz')}
+                      aria-label="Motion viz"
+                    >
+                      <MotionVizIcon />
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        style={toolbarButtonStyle(openMenu === 'analysis')}
+                        onClick={() => setOpenMenu(openMenu === 'analysis' ? null : 'analysis')}
+                        aria-label="Real-time Analysis"
+                      >
+                        <MotionVizIcon />
+                      </button>
+                      <button
+                        type="button"
+                        style={toolbarButtonStyle(openMenu === 'style')}
+                        onClick={() => setOpenMenu(openMenu === 'style' ? null : 'style')}
+                        aria-label="Style"
+                      >
+                        <StyleIcon />
+                      </button>
+                      <button
+                        type="button"
+                        style={toolbarButtonStyle(openMenu === 'focus')}
+                        onClick={() => setOpenMenu(openMenu === 'focus' ? null : 'focus')}
+                        aria-label="Focus Selection"
+                      >
+                        <FocusIcon />
+                      </button>
+                    </>
+                  )}
                 </div>
                 {/* --- Floating Panel for Open Menu (moved here) --- */}
                 {openMenu && (

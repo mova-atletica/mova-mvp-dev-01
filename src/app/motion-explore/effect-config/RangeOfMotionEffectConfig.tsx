@@ -3,11 +3,12 @@
 import type { EffectConfigFormProps } from "./types";
 import {
   ConfigColorHexRow,
-  ConfigJointCheckboxGrid,
+  ConfigMultiSelect,
   ConfigRoot,
   ConfigSection,
   ConfigSliderRow,
 } from "./fields";
+import { EFFECT_CONFIG_JOINT_OPTIONS } from "./jointOptions";
 
 export function RangeOfMotionEffectConfig({ config, updateConfig }: EffectConfigFormProps) {
   const romJoints = (config.romJoints as string[]) || [];
@@ -16,14 +17,12 @@ export function RangeOfMotionEffectConfig({ config, updateConfig }: EffectConfig
   return (
     <ConfigRoot>
       <ConfigSection title="Joint Selection">
-        <ConfigJointCheckboxGrid
+        <ConfigMultiSelect
+          options={EFFECT_CONFIG_JOINT_OPTIONS}
           selectedKeys={romJoints}
-          onToggleKey={(key, checked) => {
-            const next = checked
-              ? [...romJoints, key]
-              : romJoints.filter((j) => j !== key);
-            updateConfig({ romJoints: next });
-          }}
+          onChange={(next) => updateConfig({ romJoints: next })}
+          placeholder="No joints selected"
+          showSideQuickSelect
         />
       </ConfigSection>
 

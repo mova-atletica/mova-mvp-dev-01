@@ -52,7 +52,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${roboto.variable} ${robotoMono.variable} antialiased`}>
-      <body className="font-roboto pt-32">
+      <body className="font-roboto">
         <ErrorBoundary>
           <ThemeProvider>
             <AppShell>{children}</AppShell>

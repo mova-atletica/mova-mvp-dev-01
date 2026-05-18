@@ -175,6 +175,20 @@ export function useAssetVideoEngine({
           metricChipTextColor: "#ffffff",
           metricChips: [],
         };
+      case 'mobility-geometry':
+        return {
+          showMobilityGeometry: true,
+          mobilityGeometryColor: '#ffffff',
+          mobilityGeometryLineWidth: 1,
+          mobilityGeometryLineLength: 220,
+          mobilityGeometryLineStyle: 'solid',
+          mobilityGeometryCapStyle: 'tick',
+          mobilityGeometryOpacity: 0.9,
+          mobilityGeometryVerticalTargets: ['body_center'],
+          mobilityGeometryHorizontalTargets: ['hip_mid'],
+          mobilityGeometryArcRadius: 40,
+          mobilityGeometryAngleJoints: ['left_hip'],
+        };
       case 'skeleton-overlay':
         return {
           showSkeleton: true,
@@ -341,7 +355,7 @@ export function useAssetVideoEngine({
               // Create a synchronous effect renderer function that applies all non-muybridge effects
               const effectRenderer = (frameCtx: CanvasRenderingContext2D, frameVideo: HTMLVideoElement, framePoses: any[], frameTime: number) => {
                 
-                // First apply motion effects (background effects)
+                // First apply visual-guide effects (background layer)
                 for (const effect of activeEffects) {
                   if (!effect.enabled || effect.effect.id === 'muybridge') continue;
                   
@@ -455,6 +469,7 @@ export function useAssetVideoEngine({
                     case 'joint-angles':
                     case 'range-of-motion':
                     case 'metrics-chips':
+                    case 'mobility-geometry':
                       // Only render joint angles and ROM in individual tiles
                       if (effectModulesRef.current.renderStats && framePoses && framePoses.length > 0) {
                         effectModulesRef.current.renderStats(
@@ -501,7 +516,7 @@ export function useAssetVideoEngine({
             }
           } else {
             // If no Muybridge effect, render effects in proper order
-            // First render motion effects (background effects)
+            // First render visual-guide effects (background layer)
             for (const effect of activeEffects) {
               if (!effect.enabled) continue;
               
@@ -616,6 +631,7 @@ export function useAssetVideoEngine({
                 case 'joint-angles':
                 case 'range-of-motion':
                 case 'metrics-chips':
+                case 'mobility-geometry':
                   if (effectModulesRef.current.renderStats && poses && poses.length > 0) {
                     // No transformation needed - canvas is now at video natural size
                     try {

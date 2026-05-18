@@ -7,7 +7,7 @@ export interface AssetVideoPlayerProps {
   poses: any[];
   exerciseTitle?: string;
   exercise?: any;
-  sportAnalysisKind?: "cycling" | "pullups" | "plank" | "squat";
+  sportAnalysisKind?: "cycling" | "pullups" | "plank" | "squat" | "poseFlexibility";
   sportMetricsSnapshot?: {
     cyclingCadenceRpm?: number | null;
     cyclingStrokeRepeatability?: number | null;
@@ -18,6 +18,10 @@ export interface AssetVideoPlayerProps {
     plankAvgHipDeviation?: number | null;
     plankAvgHipAngleDeg?: number | null;
     squatRepCount?: number | null;
+    poseFlexibilityLegsDeg?: number | null;
+    poseFlexibilityHipsDeg?: number | null;
+    poseFlexibilityTorsoDeg?: number | null;
+    poseFlexibilityShouldersDeg?: number | null;
   } | null;
 }
 
@@ -72,6 +76,32 @@ export const availableEffects: Effect[] = [
     },
   },
   {
+    id: "mobility-geometry",
+    name: "Mobility Geometry",
+    description: "Body axes, torso line, and angle arcs for flexibility analysis",
+    preview: "Axes and arcs",
+    category: "Motion",
+    videoConfig: {
+      shouldRenderVideo: true,
+      videoOpacity: 0.9,
+      blendMode: "normal",
+      renderOrder: "after",
+    },
+  },
+  {
+    id: "skeleton-overlay",
+    name: "Skeleton Overlay",
+    description: "Display skeletal structure with customizable colors and sizes",
+    preview: "Skeleton display",
+    category: "Motion",
+    videoConfig: {
+      shouldRenderVideo: true,
+      videoOpacity: 0.9,
+      blendMode: "normal",
+      renderOrder: "after",
+    },
+  },
+  {
     id: "joint-angles",
     name: "Joint Angles",
     description: "Display joint angle measurements",
@@ -103,19 +133,6 @@ export const availableEffects: Effect[] = [
     description: "Overlay up to 3 metric chips",
     preview: "Metric chips",
     category: "Stats",
-    videoConfig: {
-      shouldRenderVideo: true,
-      videoOpacity: 0.9,
-      blendMode: "normal",
-      renderOrder: "after",
-    },
-  },
-  {
-    id: "skeleton-overlay",
-    name: "Skeleton Overlay",
-    description: "Display skeletal structure with customizable colors and sizes",
-    preview: "Skeleton display",
-    category: "Motion",
     videoConfig: {
       shouldRenderVideo: true,
       videoOpacity: 0.9,
