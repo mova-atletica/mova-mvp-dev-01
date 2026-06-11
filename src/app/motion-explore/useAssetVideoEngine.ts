@@ -9,7 +9,7 @@ import {
 } from "../../lib/effects/muybridge";
 import { renderMotionTrails } from "../../lib/effects/motion-trails";
 import { renderMuybridgeTileEffects } from "../../lib/effects/muybridgeTileRenderer";
-import { renderStats } from "../../lib/effects/stats";
+import { renderJointAngleTraceOverlay, renderStats } from "../../lib/effects/stats";
 import type { AssetVideoPlayerProps, Effect, ActiveEffect, EffectType } from "./assetVideoTypes";
 import { availableEffects } from "./assetVideoTypes";
 
@@ -144,7 +144,10 @@ export function useAssetVideoEngine({
           romJoints: [],
           showGlobalStats: false,
           safeZoneEnabled: true,
-          showJointAngleChart: false,
+        };
+      case 'joint-angle-trace':
+        return {
+          safeZoneEnabled: true,
           jointAngleChartJointA: 'left_knee',
           jointAngleChartJointB: 'right_knee',
           jointAngleChartColorA: '#000000',
@@ -538,6 +541,17 @@ export function useAssetVideoEngine({
               if (!effect.enabled) continue;
               
               switch (effect.effect.id) {
+                case 'joint-angle-trace':
+                  if (poses && poses.length > 0) {
+                    try {
+                      ctx.save();
+                      renderJointAngleTraceOverlay(ctx, video, poses, effect.config, currentTime);
+                      ctx.restore();
+                    } catch (error) {
+                      console.error(`Error rendering ${effect.effect.name}:`, error);
+                    }
+                  }
+                  break;
                 case 'joint-angles':
                 case 'range-of-motion':
                 case 'metrics-chips':

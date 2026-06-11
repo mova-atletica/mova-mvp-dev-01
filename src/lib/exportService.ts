@@ -4,7 +4,7 @@
 import { renderMotionTrails } from './effects/motion-trails';
 import { renderMuybridgeFromCanvas, preExtractKeyFrames } from './effects/muybridge';
 import { renderMuybridgeTileEffects } from './effects/muybridgeTileRenderer';
-import { renderStats } from './effects/stats';
+import { renderJointAngleTraceOverlay, renderStats } from './effects/stats';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -236,6 +236,16 @@ async function renderEffectsToCanvas(
       if (effect.effect.id === 'muybridge') continue;
       
       switch (effect.effect.id) {
+        case 'joint-angle-trace':
+          renderJointAngleTraceOverlay(
+            ctx,
+            video,
+            poses,
+            effect.config,
+            video.currentTime,
+            true
+          );
+          break;
         case 'joint-angles':
         case 'range-of-motion':
         case 'metrics-chips':
@@ -645,6 +655,16 @@ async function exportAsVideo(
             if (effect.effect.id === 'muybridge') continue;
             
             switch (effect.effect.id) {
+              case 'joint-angle-trace':
+                renderJointAngleTraceOverlay(
+                  ctx,
+                  video,
+                  poses,
+                  effect.config,
+                  frameTime,
+                  true
+                );
+                break;
               case 'joint-angles':
               case 'range-of-motion':
               case 'metrics-chips':

@@ -102,6 +102,19 @@ export const availableEffects: Effect[] = [
     },
   },
   {
+    id: "joint-angle-trace",
+    name: "Joint Angle Trace",
+    description: "Time-series chart of joint angles across the clip",
+    preview: "Angle trace chart",
+    category: "Motion",
+    videoConfig: {
+      shouldRenderVideo: true,
+      videoOpacity: 0.9,
+      blendMode: "normal",
+      renderOrder: "after",
+    },
+  },
+  {
     id: "joint-angles",
     name: "Joint Angles",
     description: "Display joint angle measurements",

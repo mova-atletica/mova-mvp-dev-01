@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, type ReactNode } from "react";
 import { JointAnglesEffectConfig } from "./JointAnglesEffectConfig";
+import { JointAngleTraceEffectConfig } from "./JointAngleTraceEffectConfig";
 import { MotionTrailsEffectConfig } from "./MotionTrailsEffectConfig";
 import { MetricsChipsEffectConfig } from "./MetricsChipsEffectConfig";
 import { MobilityGeometryEffectConfig } from "./MobilityGeometryEffectConfig";
@@ -69,6 +70,9 @@ export function EffectConfigPanel({
       break;
     case "skeleton-overlay":
       body = <SkeletonOverlayEffectConfig {...formProps} />;
+      break;
+    case "joint-angle-trace":
+      body = <JointAngleTraceEffectConfig {...formProps} />;
       break;
     default:
       break;

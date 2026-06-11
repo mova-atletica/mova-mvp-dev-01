@@ -20,6 +20,8 @@ export const MOBILITY_ARC_JOINT_OPTIONS = [
   { key: "right_hip", label: "Right Hip" },
   { key: "left_shoulder", label: "Left Shoulder" },
   { key: "right_shoulder", label: "Right Shoulder" },
+  { key: "left_elbow", label: "Left Elbow" },
+  { key: "right_elbow", label: "Right Elbow" },
 ] as const;
 
 /** Anchor points for mobility vertical / horizontal axes. */
@@ -31,6 +33,10 @@ export const MOBILITY_AXIS_POINT_OPTIONS = [
   { key: "right_shoulder", label: "R shoulder" },
   { key: "left_hip", label: "L hip" },
   { key: "right_hip", label: "R hip" },
+  { key: "left_elbow", label: "L elbow" },
+  { key: "right_elbow", label: "R elbow" },
+  { key: "left_wrist", label: "L wrist" },
+  { key: "right_wrist", label: "R wrist" },
   { key: "left_knee", label: "L knee" },
   { key: "right_knee", label: "R knee" },
   { key: "left_ankle", label: "L ankle" },

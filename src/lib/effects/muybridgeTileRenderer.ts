@@ -1,5 +1,5 @@
 import { renderMotionTrails } from './motion-trails';
-import { renderStats, type StatsConfig } from './stats';
+import { renderJointAngleTraceOverlay, renderStats, type StatsConfig } from './stats';
 
 export interface MuybridgeTileRendererOptions {
   activeEffects: Array<{
@@ -125,6 +125,18 @@ export function renderMuybridgeTileEffects(
     if (!effect.enabled || effect.effect.id === 'muybridge') continue;
 
     switch (effect.effect.id) {
+      case 'joint-angle-trace':
+        if (framePoses?.length) {
+          renderJointAngleTraceOverlay(
+            frameCtx,
+            frameVideo,
+            framePoses,
+            effect.config,
+            frameTime,
+            isExport
+          );
+        }
+        break;
       case 'joint-angles':
       case 'range-of-motion':
       case 'metrics-chips':

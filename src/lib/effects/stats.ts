@@ -347,6 +347,29 @@ function statsCanvasScaleFactor(ctx: CanvasRenderingContext2D): number {
 /**
  * Joint angle time-series overlay (preview + export): one or two series, 0–180°, decimated polyline + endpoint markers.
  */
+/** Time-series joint angle chart overlay (joint-angle-trace effect; preview + export). */
+export function renderJointAngleTraceOverlay(
+  ctx: CanvasRenderingContext2D,
+  video: HTMLVideoElement,
+  poses: any[],
+  config: Partial<StatsConfig>,
+  frameTime: number,
+  isExport = false
+): void {
+  if (!poses?.length) return;
+  const totalDuration = video.duration || 1;
+  const totalFrames = poses.length;
+  const framesPerSecond = totalFrames / totalDuration;
+  const currentFrameIndex = Math.floor(frameTime * framesPerSecond);
+  if (currentFrameIndex >= poses.length) return;
+  renderJointAngleChart(
+    ctx,
+    poses,
+    { ...config, showJointAngleChart: true, isExport },
+    currentFrameIndex
+  );
+}
+
 export function renderJointAngleChart(
   ctx: CanvasRenderingContext2D,
   poses: any[],
@@ -1159,6 +1182,8 @@ const MOBILITY_ANGLE_JOINTS: Record<string, [string, string, string]> = {
   right_hip: ['right_shoulder', 'right_hip', 'right_knee'],
   left_shoulder: ['left_hip', 'left_shoulder', 'left_elbow'],
   right_shoulder: ['right_hip', 'right_shoulder', 'right_elbow'],
+  left_elbow: ['left_shoulder', 'left_elbow', 'left_wrist'],
+  right_elbow: ['right_shoulder', 'right_elbow', 'right_wrist'],
 };
 
 function validMobilityKeypoint(kp: any): kp is MobilityPoint & { score?: number } {
@@ -1368,7 +1393,6 @@ export function renderStats(
   // Render ROM stats
   renderROMStats(ctx, romData, config);
 
-  renderJointAngleChart(ctx, poses, config, currentFrameIndex);
   renderMetricChips(ctx, poses, romData, config);
   renderMobilityGeometry(ctx, poses, config, currentFrameIndex);
   
