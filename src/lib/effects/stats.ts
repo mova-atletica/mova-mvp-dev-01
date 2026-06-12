@@ -1,6 +1,11 @@
 // Stats effects for displaying joint angles, ROM, and global overlays
 // Includes safe zone calculations for Instagram Stories/Reels compliance
 
+import {
+  DISPLAY_ANGLE_SMOOTH_PRESET,
+  smoothAngleSeries,
+} from "../angleSeriesSmoothing";
+
 // Logo loading utility
 let logoImage: HTMLImageElement | null = null;
 let logoLoaded = false;
@@ -230,6 +235,7 @@ const romStorage = new Map<string, { min: number; max: number; history: number[]
 
 /** Per-poses-array cache of precomputed angle series per joint (avoids O(n) work each frame). */
 const angleSeriesCache = new WeakMap<any[], Map<string, number[]>>();
+const smoothedDisplayAngleSeriesCache = new WeakMap<any[], Map<string, number[]>>();
 
 function getAngleSeriesForJoint(poses: any[], jointName: string): number[] {
   let byJoint = angleSeriesCache.get(poses);
@@ -247,6 +253,24 @@ function getAngleSeriesForJoint(poses: any[], jointName: string): number[] {
   }
   byJoint.set(jointName, arr);
   return arr;
+}
+
+/** Display-smoothed per-joint series for overlay labels and ROM (cached per poses array). */
+function getSmoothedDisplayAngleSeriesForJoint(poses: any[], jointName: string): number[] {
+  let byJoint = smoothedDisplayAngleSeriesCache.get(poses);
+  if (!byJoint) {
+    byJoint = new Map();
+    smoothedDisplayAngleSeriesCache.set(poses, byJoint);
+  }
+  const hit = byJoint.get(jointName);
+  if (hit) return hit;
+
+  const raw = getAngleSeriesForJoint(poses, jointName).map((v) =>
+    Number.isFinite(v) ? v : null
+  );
+  const smoothed = smoothAngleSeries(raw, DISPLAY_ANGLE_SMOOTH_PRESET);
+  byJoint.set(jointName, smoothed);
+  return smoothed;
 }
 
 /** User-space width/height (undo ctx.scale so layout matches video drawImage coords). */
@@ -1381,12 +1405,19 @@ export function renderStats(
   
   if (currentFrameIndex >= poses.length) return;
   
-  // Extract joint angles
-  const jointAngles = extractJointAngles(poses, currentFrameIndex);
-  
+  // Extract joint angles (positions from current frame; values display-smoothed)
+  const jointAngles = extractJointAngles(poses, currentFrameIndex).map((joint) => {
+    const smoothedSeries = getSmoothedDisplayAngleSeriesForJoint(poses, joint.jointName);
+    const smoothed = smoothedSeries[currentFrameIndex];
+    return {
+      ...joint,
+      angle: Number.isFinite(smoothed) ? Math.round(smoothed) : joint.angle,
+    };
+  });
+
   // Update ROM tracking
   const romData = updateROMTracking(jointAngles);
-  
+
   // Render joint angles
   renderJointAngles(ctx, jointAngles, config);
   

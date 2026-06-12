@@ -25,6 +25,10 @@ import type {
   SportAnalysisKind,
 } from "../../lib/sportAnalysis";
 import InfoTooltip from "../../components/InfoTooltip";
+import {
+  DISPLAY_ANGLE_SMOOTH_PRESET,
+  smoothOpenMoveAngleSeries,
+} from "../../lib/angleSeriesSmoothing";
 import { useOptionalAssetVideoEngine } from "./assetVideoEngineContext";
 
 interface MotionAnalysisPanelProps {
@@ -215,14 +219,19 @@ export default function MotionAnalysisPanel({
     );
   }
 
-  // Calculate basic statistics
+  const displayAngles = useMemo(
+    () => smoothOpenMoveAngleSeries(angles, DISPLAY_ANGLE_SMOOTH_PRESET),
+    [angles]
+  );
+
+  // Calculate basic statistics (from display-smoothed angles)
   const stats = useMemo(() => {
     const totalFrames = poses.length;
     const validFrames = poses.filter(pose => pose && pose.keypoints && pose.keypoints.length > 0).length;
     
     // Calculate range of motion for each joint
-    const calculateROM = (angleArray: (number | null)[]) => {
-      const validAngles = angleArray.filter(angle => angle !== null) as number[];
+    const calculateROM = (angleArray: number[]) => {
+      const validAngles = angleArray.filter((angle) => Number.isFinite(angle));
       if (validAngles.length === 0) return { min: 0, max: 0, range: 0, avg: 0 };
       
       const min = Math.min(...validAngles);
@@ -234,15 +243,15 @@ export default function MotionAnalysisPanel({
     };
 
     const jointStats = {
-      leftKnee: calculateROM(angles.leftKneeAngles),
-      rightKnee: calculateROM(angles.rightKneeAngles),
-      leftHip: calculateROM(angles.leftHipAngles),
-      rightHip: calculateROM(angles.rightHipAngles),
-      leftElbow: calculateROM(angles.leftElbowAngles),
-      rightElbow: calculateROM(angles.rightElbowAngles),
-      leftShoulder: calculateROM(angles.leftShoulderAbdAngles),
-      rightShoulder: calculateROM(angles.rightShoulderAbdAngles),
-      trunk: calculateROM(angles.trunkAngles)
+      leftKnee: calculateROM(displayAngles.leftKneeAngles),
+      rightKnee: calculateROM(displayAngles.rightKneeAngles),
+      leftHip: calculateROM(displayAngles.leftHipAngles),
+      rightHip: calculateROM(displayAngles.rightHipAngles),
+      leftElbow: calculateROM(displayAngles.leftElbowAngles),
+      rightElbow: calculateROM(displayAngles.rightElbowAngles),
+      leftShoulder: calculateROM(displayAngles.leftShoulderAbdAngles),
+      rightShoulder: calculateROM(displayAngles.rightShoulderAbdAngles),
+      trunk: calculateROM(displayAngles.trunkAngles),
     };
 
     // Calculate symmetry (left vs right)
@@ -266,22 +275,22 @@ export default function MotionAnalysisPanel({
       jointStats,
       symmetry
     };
-  }, [poses, angles]);
+  }, [poses, displayAngles]);
 
-  // Prepare chart data for joint angles over time
+  // Prepare chart data for joint angles over time (display-smoothed, continuous lines)
   const chartData = useMemo(() => {
     return poses.map((_, index) => ({
       frame: index,
-      leftKnee: angles.leftKneeAngles[index] || 0,
-      rightKnee: angles.rightKneeAngles[index] || 0,
-      leftHip: angles.leftHipAngles[index] || 0,
-      rightHip: angles.rightHipAngles[index] || 0,
-      leftElbow: angles.leftElbowAngles[index] || 0,
-      rightElbow: angles.rightElbowAngles[index] || 0,
-      leftShoulder: angles.leftShoulderAbdAngles[index] || 0,
-      rightShoulder: angles.rightShoulderAbdAngles[index] || 0,
+      leftKnee: displayAngles.leftKneeAngles[index],
+      rightKnee: displayAngles.rightKneeAngles[index],
+      leftHip: displayAngles.leftHipAngles[index],
+      rightHip: displayAngles.rightHipAngles[index],
+      leftElbow: displayAngles.leftElbowAngles[index],
+      rightElbow: displayAngles.rightElbowAngles[index],
+      leftShoulder: displayAngles.leftShoulderAbdAngles[index],
+      rightShoulder: displayAngles.rightShoulderAbdAngles[index],
     }));
-  }, [poses, angles]);
+  }, [poses, displayAngles]);
 
   /** Stable X tick values — depends only on series length so ticks are not recomputed every playhead step. */
   const jointChartXAxisTicks = useMemo(() => {
@@ -1351,7 +1360,7 @@ export default function MotionAnalysisPanel({
 
       {/* Export Data Section */}
       <div>
-        <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>Export Motion Data</h4>
+        <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>Export Motion Data (raw)</h4>
         <div className="space-y-2">
           <button
             className="w-full p-2 rounded-lg font-medium text-xs text-left transition-colors cursor-pointer"
@@ -1460,7 +1469,14 @@ export default function MotionAnalysisPanel({
         
         {/* Joint Angles Over Time */}
         <div>
-          <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>Joint Angles Over Time</h4>
+          <div className="mb-2">
+            <h4 className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+              Joint Angles Over Time
+            </h4>
+            <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+              {DISPLAY_ANGLE_SMOOTH_PRESET.windowFrames}-frame smoothed chart of joint angles
+            </p>
+          </div>
           {chartData.length > 0 ? (
             <>
               <div className="relative min-h-[300px] w-full">
@@ -1508,6 +1524,8 @@ export default function MotionAnalysisPanel({
                               stroke={j.stroke}
                               strokeWidth={2}
                               isAnimationActive={false}
+                              dot={false}
+                              activeDot={{ r: 4, strokeWidth: 2, stroke: j.stroke, fill: j.stroke }}
                             />
                           ) : null
                       )}
