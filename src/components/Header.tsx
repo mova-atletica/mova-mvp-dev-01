@@ -32,7 +32,17 @@ export default function Header() {
         />
       </Link>
       <div className="flex items-center gap-3 flex-wrap justify-end">
-        <Link 
+        <Link
+          href="/library-mvp"
+          className="hidden px-2 py-2 rounded-md font-medium text-xs transition sm:inline-block"
+          style={{
+            color: "var(--header-text)",
+            border: "1px solid var(--header-border)",
+          }}
+        >
+          Archive
+        </Link>
+        <Link
           href="/open-move-v2" 
           className="px-2 py-2 rounded-md font-medium text-xs transition cursor-pointer"
           style={{

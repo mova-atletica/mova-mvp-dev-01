@@ -5,12 +5,33 @@ import Header from "./Header";
 import ConditionalFooter from "./ConditionalFooter";
 
 const STUDIO_PATH = "/open-move-v2";
+const LIBRARY_PATH = "/";
+
+function isAuthShellPath(pathname: string): boolean {
+  if (pathname === "/login") return true;
+  if (pathname === "/account" || pathname.startsWith("/account/")) return true;
+  if (pathname === "/partner/apply" || pathname.startsWith("/partner/")) return true;
+  return false;
+}
+
+function isArchiveShellPath(pathname: string): boolean {
+  if (pathname === STUDIO_PATH || pathname.startsWith(`${STUDIO_PATH}/`)) return true;
+  if (pathname === LIBRARY_PATH) return true;
+  if (pathname === "/library-mvp" || pathname.startsWith("/library-mvp/")) return true;
+  if (pathname === "/account" || pathname.startsWith("/account/")) return true;
+  if (pathname.startsWith("/programs/")) return true;
+  if (pathname.startsWith("/creators/")) return true;
+  if (pathname.startsWith("/sequences/")) return true;
+  if (pathname.startsWith("/archive/exercises/")) return true;
+  return false;
+}
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isStudio = pathname === STUDIO_PATH;
+  const isStudio = pathname === STUDIO_PATH || pathname.startsWith(`${STUDIO_PATH}/`);
+  const isLibrary = isArchiveShellPath(pathname);
 
-  if (isStudio) {
+  if (isStudio || isLibrary || isAuthShellPath(pathname)) {
     return <>{children}</>;
   }
 

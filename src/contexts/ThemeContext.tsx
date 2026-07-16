@@ -51,6 +51,48 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--header-text', '#eef0f1'); // onyx-40
       root.style.setProperty('--header-border', 'rgba(24, 26, 26, 0)'); // onyx-70
       root.style.setProperty('--logo-color', 'invert(1) brightness(1)'); // onyx-40
+
+      // Mega menu popover (Dark) — frosted glass
+      root.style.setProperty('--mega-menu-bg', 'rgba(35, 37, 38, 0.45)');
+      root.style.setProperty('--mega-menu-border', 'rgba(119, 125, 127, 0.55)');
+      root.style.setProperty('--mega-menu-text', '#eef0f1');
+      root.style.setProperty('--mega-menu-text-muted', '#c0c9cc');
+      root.style.setProperty('--mega-menu-hover-bg', 'rgba(238, 240, 241, 0.1)');
+      root.style.setProperty('--mega-menu-active-bg', 'rgba(238, 240, 241, 0.08)');
+      root.style.setProperty('--mega-menu-trigger-bg', 'rgba(53, 56, 57, 0.55)');
+      root.style.setProperty('--mega-menu-trigger-text', '#c0c9cc');
+      root.style.setProperty('--mega-menu-trigger-hover-text', '#eef0f1');
+
+      // Mini-app glass tiles (Dark) — smoked shiny glass
+      root.style.setProperty('--mini-app-glass-bg', 'rgba(18, 20, 21, 0.14)');
+      root.style.setProperty('--mini-app-glass-border', 'rgba(255, 255, 255, 0.22)');
+      root.style.setProperty('--mini-app-glass-border-highlight', 'rgba(255, 255, 255, 0.32)');
+      root.style.setProperty('--mini-app-glass-edge-shade', 'rgba(0, 0, 0, 0.12)');
+      root.style.setProperty('--mini-app-glass-shadow', '0 12px 40px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)');
+      root.style.setProperty('--mini-app-glass-blur', '32px');
+      root.style.setProperty('--mini-app-glass-saturate', '1.45');
+      root.style.setProperty('--mini-app-glass-frost-opacity', '0.05');
+      root.style.setProperty('--mini-app-glass-noise-blend', 'soft-light');
+      root.style.setProperty('--mini-app-glass-sheen', 'rgba(255, 255, 255, 0.18)');
+      root.style.setProperty('--mini-app-glass-sheen-mid', 'rgba(255, 255, 255, 0.05)');
+      root.style.setProperty('--mini-app-glass-rim-glow', 'rgba(255, 255, 255, 0.1)');
+      root.style.setProperty('--mini-app-glass-text', 'rgba(255, 255, 255, 0.95)');
+      root.style.setProperty('--mini-app-glass-text-muted', 'rgba(255, 255, 255, 0.65)');
+      root.style.setProperty('--mini-app-glass-tag-bg', 'rgba(255, 255, 255, 0.1)');
+      root.style.setProperty('--mini-app-glass-icon', 'rgba(255, 255, 255, 0.92)');
+      root.style.setProperty('--mini-app-glass-cta-bg', 'rgba(255, 255, 255, 0.95)');
+      root.style.setProperty('--mini-app-glass-cta-text', '#17150f');
+      root.style.setProperty('--mini-app-glass-scrim', 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 100%)');
+
+      // Homepage canvas (Dark) — noisy gradient + dot grid behind glass tiles
+      root.style.setProperty('--homepage-canvas-base', '#181a1a');
+      root.style.setProperty('--homepage-gradient-a', '#2c2f30');
+      root.style.setProperty('--homepage-gradient-b', '#1f2223');
+      root.style.setProperty('--homepage-gradient-c', '#111314');
+      root.style.setProperty('--homepage-noise-opacity', '0.2');
+      root.style.setProperty('--homepage-dot-color', 'rgba(255, 255, 255, 0.11)');
+      root.style.setProperty('--homepage-dot-spacing', '22px');
+      root.style.setProperty('--homepage-radial-glow', 'rgba(255, 255, 255, 0.1)');
       
       // Buttons & Interactive
       root.style.setProperty('--button-bg', '#353839'); // onyx-90
@@ -115,6 +157,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Exercise Detail Tags (Dark Mode)
       root.style.setProperty('--tag-bg', '#c0c9cc'); // light gray background
       root.style.setProperty('--tag-text', '#181a1a'); // dark text
+      root.style.setProperty('--complete-badge-bg', '#14532d'); // dark green
+      root.style.setProperty('--complete-badge-text', '#ecfdf5'); // light green-white
 
       // Video Player Controls (Dark)
       root.style.setProperty('--vp-bg', '#23272e'); // main control bg
@@ -235,6 +279,48 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--header-text', '#17150f'); // ap-100
       root.style.setProperty('--header-border', 'rgba(238, 240, 241, 0.17)'); // ap-50
       root.style.setProperty('--logo-color', 'invert(0) brightness(1)'); // ap-100
+
+      // Mega menu popover (Light) — frosted glass, white tint keeps text readable
+      root.style.setProperty('--mega-menu-bg', 'rgba(255, 255, 255, 0.57)');
+      root.style.setProperty('--mega-menu-border', 'rgba(214, 223, 226, 0.85)');
+      root.style.setProperty('--mega-menu-text', '#353839');
+      root.style.setProperty('--mega-menu-text-muted', '#55595b');
+      root.style.setProperty('--mega-menu-hover-bg', 'rgba(53, 56, 57, 0.08)');
+      root.style.setProperty('--mega-menu-active-bg', 'rgba(53, 56, 57, 0.06)');
+      root.style.setProperty('--mega-menu-trigger-bg', 'rgba(255, 255, 255, 0.45)');
+      root.style.setProperty('--mega-menu-trigger-text', '#55595b');
+      root.style.setProperty('--mega-menu-trigger-hover-text', '#353839');
+
+      // Mini-app glass tiles (Light) — frosted shiny glass
+      root.style.setProperty('--mini-app-glass-bg', 'rgba(255, 255, 255, 0.1)');
+      root.style.setProperty('--mini-app-glass-border', 'rgba(255, 255, 255, 0.5)');
+      root.style.setProperty('--mini-app-glass-border-highlight', 'rgba(255, 255, 255, 0.65)');
+      root.style.setProperty('--mini-app-glass-edge-shade', 'rgba(23, 21, 15, 0.04)');
+      root.style.setProperty('--mini-app-glass-shadow', '0 10px 36px rgba(23, 21, 15, 0.08), 0 2px 8px rgba(23, 21, 15, 0.04)');
+      root.style.setProperty('--mini-app-glass-blur', '36px');
+      root.style.setProperty('--mini-app-glass-saturate', '1.5');
+      root.style.setProperty('--mini-app-glass-frost-opacity', '0.05');
+      root.style.setProperty('--mini-app-glass-noise-blend', 'soft-light');
+      root.style.setProperty('--mini-app-glass-sheen', 'rgba(255, 255, 255, 0.42)');
+      root.style.setProperty('--mini-app-glass-sheen-mid', 'rgba(255, 255, 255, 0.1)');
+      root.style.setProperty('--mini-app-glass-rim-glow', 'rgba(255, 255, 255, 0.2)');
+      root.style.setProperty('--mini-app-glass-text', '#17150f');
+      root.style.setProperty('--mini-app-glass-text-muted', 'rgba(23, 21, 15, 0.62)');
+      root.style.setProperty('--mini-app-glass-tag-bg', 'rgba(23, 21, 15, 0.06)');
+      root.style.setProperty('--mini-app-glass-icon', '#353839');
+      root.style.setProperty('--mini-app-glass-cta-bg', '#181a1a');
+      root.style.setProperty('--mini-app-glass-cta-text', '#c0c9cc');
+      root.style.setProperty('--mini-app-glass-scrim', 'linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.55) 100%)');
+
+      // Homepage canvas (Light) — noisy gradient + dot grid behind glass tiles
+      root.style.setProperty('--homepage-canvas-base', '#c0c9cc');
+      root.style.setProperty('--homepage-gradient-a', '#eef2f4');
+      root.style.setProperty('--homepage-gradient-b', '#d2dce1');
+      root.style.setProperty('--homepage-gradient-c', '#b4c2c8');
+      root.style.setProperty('--homepage-noise-opacity', '0.16');
+      root.style.setProperty('--homepage-dot-color', 'rgba(23, 21, 15, 0.16)');
+      root.style.setProperty('--homepage-dot-spacing', '22px');
+      root.style.setProperty('--homepage-radial-glow', 'rgba(255, 255, 255, 0.55)');
       
       // Buttons & Interactive
       root.style.setProperty('--button-bg', '#eef0f1'); // ap-10
@@ -299,6 +385,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Exercise Detail Tags (Light Mode)
       root.style.setProperty('--tag-bg', '#f3f3f4'); // onxy-20
       root.style.setProperty('--tag-text', '#353839'); // dark text
+      root.style.setProperty('--complete-badge-bg', '#166534'); // dark green
+      root.style.setProperty('--complete-badge-text', '#ffffff');
 
       // Video Player Controls (Light)
       root.style.setProperty('--vp-bg', '#011500');

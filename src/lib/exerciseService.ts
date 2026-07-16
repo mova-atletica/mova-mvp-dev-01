@@ -24,6 +24,46 @@ export interface FeaturedContent {
   updatedAt: string;
 }
 
+function parseExercisePayload(exerciseData: any): Exercise {
+  return {
+    ...exerciseData,
+    tags: Array.isArray(exerciseData.tags)
+      ? exerciseData.tags
+      : exerciseData.tags
+        ? exerciseData.tags.split(',').filter(Boolean)
+        : [],
+    equipment: Array.isArray(exerciseData.equipment)
+      ? exerciseData.equipment
+      : exerciseData.equipment
+        ? exerciseData.equipment.split(',').filter(Boolean)
+        : [],
+    muscleGroups: Array.isArray(exerciseData.muscleGroups)
+      ? exerciseData.muscleGroups
+      : exerciseData.muscleGroups
+        ? exerciseData.muscleGroups.split(',').filter(Boolean)
+        : [],
+    jointsOfInterest: Array.isArray(exerciseData.jointsOfInterest)
+      ? exerciseData.jointsOfInterest
+      : exerciseData.jointsOfInterest
+        ? exerciseData.jointsOfInterest.split(',').filter(Boolean)
+        : [],
+    instructions: Array.isArray(exerciseData.instructions)
+      ? exerciseData.instructions
+      : exerciseData.instructions
+        ? JSON.parse(exerciseData.instructions)
+        : [],
+    relatedExercises: Array.isArray(exerciseData.relatedExercises)
+      ? exerciseData.relatedExercises
+      : exerciseData.relatedExercises
+        ? exerciseData.relatedExercises.split(',').filter(Boolean)
+        : [],
+    author: {
+      name: exerciseData.authorName || exerciseData.author?.name || 'Unknown',
+      profileUrl: exerciseData.authorProfileUrl || exerciseData.author?.profileUrl,
+    },
+  };
+}
+
 export async function fetchCuratedSections(): Promise<CuratedSection[]> {
   try {
     const response = await fetch('/api/curated-sections');
@@ -31,8 +71,7 @@ export async function fetchCuratedSections(): Promise<CuratedSection[]> {
       throw new Error('Failed to fetch curated sections');
     }
     const sections = await response.json();
-    
-    // Parse exercises for each section
+
     const sectionsWithExercises = await Promise.all(
       sections.map(async (section: any) => {
         try {
@@ -43,20 +82,8 @@ export async function fetchCuratedSections(): Promise<CuratedSection[]> {
                 const exerciseResponse = await fetch(`/api/exercises/${item.id}`);
                 if (exerciseResponse.ok) {
                   const responseData = await exerciseResponse.json();
-                  
-                  // Extract exercise data from the response
                   const exerciseData = responseData.exercise || responseData;
-                  
-                  return {
-                    ...exerciseData,
-                    tags: Array.isArray(exerciseData.tags) ? exerciseData.tags : (exerciseData.tags ? exerciseData.tags.split(',').filter(Boolean) : []),
-                    equipment: Array.isArray(exerciseData.equipment) ? exerciseData.equipment : (exerciseData.equipment ? exerciseData.equipment.split(',').filter(Boolean) : []),
-                    muscleGroups: Array.isArray(exerciseData.muscleGroups) ? exerciseData.muscleGroups : (exerciseData.muscleGroups ? exerciseData.muscleGroups.split(',').filter(Boolean) : []),
-                    jointsOfInterest: Array.isArray(exerciseData.jointsOfInterest) ? exerciseData.jointsOfInterest : (exerciseData.jointsOfInterest ? exerciseData.jointsOfInterest.split(',').filter(Boolean) : []),
-                    instructions: Array.isArray(exerciseData.instructions) ? exerciseData.instructions : (exerciseData.instructions ? JSON.parse(exerciseData.instructions) : []),
-                    relatedExercises: Array.isArray(exerciseData.relatedExercises) ? exerciseData.relatedExercises : (exerciseData.relatedExercises ? exerciseData.relatedExercises.split(',').filter(Boolean) : []),
-                    author: { name: exerciseData.authorName || 'Unknown', profileUrl: exerciseData.authorProfileUrl }
-                  };
+                  return parseExercisePayload(exerciseData);
                 }
                 return null;
               } catch (error) {
@@ -65,22 +92,22 @@ export async function fetchCuratedSections(): Promise<CuratedSection[]> {
               }
             })
           );
-          
+
           return {
             ...section,
-            exercises: exercises.filter(Boolean)
+            exercises: exercises.filter(Boolean) as Exercise[],
           };
         } catch (error) {
           console.error(`Error parsing exercises for section ${section.id}:`, error);
           return {
             ...section,
-            exercises: []
+            exercises: [],
           };
         }
       })
     );
-    
-    return sectionsWithExercises.filter(section => section.exercises.length > 0);
+
+    return sectionsWithExercises.filter((section) => section.exercises.length > 0);
   } catch (error) {
     console.error('Error fetching curated sections:', error);
     return [];
@@ -94,8 +121,6 @@ export async function fetchFeaturedContent(): Promise<FeaturedContent | null> {
       throw new Error('Failed to fetch featured content');
     }
     const featuredContent = await response.json();
-
-    // Return the first active featured content item
     return featuredContent.length > 0 ? featuredContent[0] : null;
   } catch (error) {
     console.error('Error fetching featured content:', error);
@@ -110,22 +135,10 @@ export async function fetchExerciseById(id: string): Promise<Exercise | null> {
       throw new Error('Failed to fetch exercise');
     }
     const responseData = await response.json();
-
-    // Extract exercise data from the response
     const exerciseData = responseData.exercise || responseData;
-
-    return {
-      ...exerciseData,
-      tags: Array.isArray(exerciseData.tags) ? exerciseData.tags : (exerciseData.tags ? exerciseData.tags.split(',').filter(Boolean) : []),
-      equipment: Array.isArray(exerciseData.equipment) ? exerciseData.equipment : (exerciseData.equipment ? exerciseData.equipment.split(',').filter(Boolean) : []),
-      muscleGroups: Array.isArray(exerciseData.muscleGroups) ? exerciseData.muscleGroups : (exerciseData.muscleGroups ? exerciseData.muscleGroups.split(',').filter(Boolean) : []),
-      jointsOfInterest: Array.isArray(exerciseData.jointsOfInterest) ? exerciseData.jointsOfInterest : (exerciseData.jointsOfInterest ? exerciseData.jointsOfInterest.split(',').filter(Boolean) : []),
-      instructions: Array.isArray(exerciseData.instructions) ? exerciseData.instructions : (exerciseData.instructions ? JSON.parse(exerciseData.instructions) : []),
-      relatedExercises: Array.isArray(exerciseData.relatedExercises) ? exerciseData.relatedExercises : (exerciseData.relatedExercises ? exerciseData.relatedExercises.split(',').filter(Boolean) : []),
-      author: { name: exerciseData.authorName || 'Unknown', profileUrl: exerciseData.authorProfileUrl }
-    };
+    return parseExercisePayload(exerciseData);
   } catch (error) {
     console.error('Error fetching exercise:', error);
     return null;
   }
-} 
+}

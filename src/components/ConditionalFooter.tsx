@@ -7,6 +7,7 @@ export default function ConditionalFooter() {
   
   // Define pages that should NOT have a footer
   const excludeFooterPaths = [
+    '/',
     '/test-foundation',
     '/test-phase2',
     '/try',

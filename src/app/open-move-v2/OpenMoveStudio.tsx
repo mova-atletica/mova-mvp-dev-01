@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import Image from "next/image";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 import {
@@ -17,7 +18,6 @@ import {
   LayoutDashboard,
   X,
   Play,
-  ChevronDown,
 } from "lucide-react";
 import LiveVideoPlayer from "../../components/LiveVideoPlayer";
 import { UsageGuideCarousel } from "../../components/UsageGuideCarousel";
@@ -30,7 +30,6 @@ import {
   processVideoUrlForPoses,
 } from "../../lib/tfjsProcessVideo";
 import {
-  POSE_FLEXIBILITY_FOCUS_OPTIONS,
   analyzeCyclingDual,
   analyzePlank,
   analyzePoseFlexibility,
@@ -58,12 +57,6 @@ import {
   AssetVideoPlayerChromeExportFooter,
   AssetVideoPlayerChromeRailScroll,
 } from "../motion-explore/AssetVideoPlayerChromeRail";
-import {
-  exportPanelDropdownMenuItemClass,
-  exportPanelFieldLabelClass,
-  exportPanelPopoverContentClass,
-  exportPanelSelectTriggerClass,
-} from "../motion-explore/AssetVideoPlayerExportPanel";
 import { useAssetVideoEngine } from "../motion-explore/useAssetVideoEngine";
 import {
   AssetVideoEngineProvider,
@@ -72,6 +65,21 @@ import {
 } from "../motion-explore/assetVideoEngineContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { EffectSelectedCheckIcon } from "../motion-explore/EffectSelectedCheckIcon";
+import AppMegaMenu from "../../components/AppMegaMenu";
+import { buildLeaderboardScorePayload } from "../../lib/leaderboardScore";
+import { ProgramModalCloseButton } from "../../components/exercise-studio/ExerciseStudioProgramControls";
+import { openMoveSessionHasActiveWork } from "../../lib/openMoveSession";
+import {
+  ARCHIVE_RAIL_WIDTH_COLLAPSED,
+  archiveCollapsedRailControlClass,
+} from "../../components/archive/archiveRailTheme";
+import OpenMoveSportSetupFields from "./OpenMoveSportSetupFields";
+import OpenMoveEmbeddedModalTopBar from "../../components/open-move/OpenMoveEmbeddedModalTopBar";
+import { EmbeddedModalPopoverProvider } from "../../contexts/EmbeddedModalPopoverContext";
+import {
+  getSportAnalysisLabel,
+  type OpenMoveStudioProps,
+} from "../../types/openMoveStudio";
 
 /** Inline theme borders — `var(--border)` from ThemeContext; avoids Tailwind v4 not emitting `.border-border-theme`. */
 const borderRightTheme = { borderRight: "1px solid var(--border)" } as const;
@@ -88,6 +96,35 @@ const FEATURED_VIDEO_MP4_PATH = "/featured/featured.mp4";
 const FEATURED_KEYPOINTS_PATH = "/featured/featured-keypoints.json";
 const FEATURED_FRAME_INTERVAL_SEC = 0.1;
 const MOBILE_PERFORMANCE_NOTICE_STORAGE_KEY = "openMoveMobilePerformanceNoticeDismissed";
+
+function openMovePortalLayers(embedded: boolean) {
+  if (!embedded) {
+    return {
+      mobileRailBackdrop: 200,
+      mobileRail: 210,
+      guideOverlay: 215,
+      guideContent: 220,
+      analyticsOverlay: 215,
+      analyticsContent: 220,
+      performanceOverlay: 225,
+      performanceContent: 226,
+      liveOverlay: 230,
+      liveContent: 231,
+    } as const;
+  }
+  return {
+    mobileRailBackdrop: 300,
+    mobileRail: 310,
+    guideOverlay: 315,
+    guideContent: 320,
+    analyticsOverlay: 315,
+    analyticsContent: 320,
+    performanceOverlay: 325,
+    performanceContent: 326,
+    liveOverlay: 330,
+    liveContent: 331,
+  } as const;
+}
 
 /** Stage overlay play/pause — tap center play to start, tap video area to pause. */
 function StudioStagePlaybackOverlay() {
@@ -181,14 +218,17 @@ function ConditionalEngineBridge({
   session,
   sportAnalysisKind,
   sportMetricsSnapshot,
+  showVideoEngine,
   children,
 }: {
   session: SessionState;
   sportAnalysisKind: SportAnalysisKind;
   sportMetricsSnapshot: SportMetricsSnapshot | null;
+  showVideoEngine: boolean;
   children: React.ReactNode;
 }) {
   if (
+    showVideoEngine &&
     session.status === "ready" &&
     session.videoUrl &&
     (session.poses?.length ?? 0) > 0
@@ -207,10 +247,45 @@ function ConditionalEngineBridge({
 }
 
 type SessionStatus =
+  | "idle"
   | "loading_sample"
+  | "clip_ready"
   | "processing_video"
   | "ready"
   | "error";
+
+type AnalyzedSetupSnapshot = {
+  cyclingLeg: CyclingLeg;
+  plankFacingSide: PlankFacingSide;
+  squatSide: SquatSide;
+  poseFlexibilitySide: PoseFlexibilitySide;
+  poseFlexibilityFocusAreas: PoseFlexibilityFocusArea[];
+};
+
+function analyzedSetupSnapshot(
+  cyclingLeg: CyclingLeg,
+  plankFacingSide: PlankFacingSide,
+  squatSide: SquatSide,
+  poseFlexibilitySide: PoseFlexibilitySide,
+  poseFlexibilityFocusAreas: PoseFlexibilityFocusArea[]
+): AnalyzedSetupSnapshot {
+  return {
+    cyclingLeg,
+    plankFacingSide,
+    squatSide,
+    poseFlexibilitySide,
+    poseFlexibilityFocusAreas: [...poseFlexibilityFocusAreas],
+  };
+}
+
+function analyzedSetupsMatch(a: AnalyzedSetupSnapshot, b: AnalyzedSetupSnapshot): boolean {
+  if (a.cyclingLeg !== b.cyclingLeg) return false;
+  if (a.plankFacingSide !== b.plankFacingSide) return false;
+  if (a.squatSide !== b.squatSide) return false;
+  if (a.poseFlexibilitySide !== b.poseFlexibilitySide) return false;
+  if (a.poseFlexibilityFocusAreas.length !== b.poseFlexibilityFocusAreas.length) return false;
+  return a.poseFlexibilityFocusAreas.every((area) => b.poseFlexibilityFocusAreas.includes(area));
+}
 
 type SessionState = {
   status: SessionStatus;
@@ -239,8 +314,43 @@ const initialSession: SessionState = {
   source: "featured",
 };
 
-export default function OpenMoveStudio() {
-  const [session, setSession] = useState<SessionState>(initialSession);
+const idleSession: SessionState = {
+  status: "idle",
+  videoUrl: null,
+  videoSources: null,
+  poses: [],
+  angles: null,
+  frameIntervalSec: null,
+  sessionLabel: "",
+  source: "upload",
+};
+
+/** Archive modal — default Mova Studio starts empty (no featured sample). */
+const embeddedStudioIdleSession: SessionState = { ...idleSession };
+
+export default function OpenMoveStudio({
+  mode = "default",
+  initialSport = "pullups",
+  analysisTitle,
+  setupHint,
+  embedded = false,
+  embeddedCloseConfirmOpen = false,
+  onClose,
+  onActiveSessionChange,
+  analysisSlug,
+  onQuickAnalysisComplete,
+}: OpenMoveStudioProps = {}) {
+  const isQuickAnalysis = mode === "quickAnalysis";
+  const embeddedQuickAnalysis = embedded && isQuickAnalysis;
+  const portalLayers = openMovePortalLayers(embedded);
+  const skipFeaturedSample = embedded && !isQuickAnalysis;
+  const deferRailUntilVideo = skipFeaturedSample || embeddedQuickAnalysis;
+  const [session, setSession] = useState<SessionState>(() => {
+    if (isQuickAnalysis) return idleSession;
+    if (skipFeaturedSample) return embeddedStudioIdleSession;
+    return initialSession;
+  });
+  const railVisible = !deferRailUntilVideo || session.status !== "idle";
   /** MVP sport analysis (cleared when a new clip is processed). */
   const [cyclingAnalysisResult, setCyclingAnalysisResult] = useState<CyclingDualAnalysisResult | null>(null);
   const [cyclingAnalysisError, setCyclingAnalysisError] = useState<string | null>(null);
@@ -253,8 +363,7 @@ export default function OpenMoveStudio() {
   const [poseFlexibilityAnalysisResult, setPoseFlexibilityAnalysisResult] =
     useState<PoseFlexibilityAnalysisResult | null>(null);
   const [poseFlexibilityAnalysisError, setPoseFlexibilityAnalysisError] = useState<string | null>(null);
-  const [sportAnalysisKind, setSportAnalysisKind] = useState<SportAnalysisKind>("pullups");
-  const [sportMenuOpen, setSportMenuOpen] = useState(false);
+  const sportAnalysisKind: SportAnalysisKind = isQuickAnalysis ? initialSport : "cycling";
   const [cyclingLeg, setCyclingLeg] = useState<CyclingLeg>("left");
   const [cyclingKneeMenuOpen, setCyclingKneeMenuOpen] = useState(false);
   const [plankFacingSide, setPlankFacingSide] = useState<PlankFacingSide>("left");
@@ -267,7 +376,9 @@ export default function OpenMoveStudio() {
     "hips",
     "torso",
   ]);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [lastAnalyzedSetup, setLastAnalyzedSetup] = useState<AnalyzedSetupSnapshot | null>(null);
+  const [panelOpen, setPanelOpen] = useState(() => !deferRailUntilVideo);
   const [isDesktop, setIsDesktop] = useState(false);
   const [viewportResolved, setViewportResolved] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -296,10 +407,8 @@ export default function OpenMoveStudio() {
    * does not immediately hit the full-screen close target (ghost close).
    */
   const [mobileRailBackdropReady, setMobileRailBackdropReady] = useState(false);
-  /** Featured sample UX: auto-run once when clip is ready on pull-ups default. */
-  const didAutoAnalyzeFeaturedRef = useRef(false);
-
   const overlaySportMetricsSnapshot = useMemo(() => {
+    if (!isQuickAnalysis) return null;
     const cadence = cyclingAnalysisResult?.trough?.cadence_rpm ?? cyclingAnalysisResult?.peak?.cadence_rpm ?? null;
     const repeatabilityRmse =
       cyclingAnalysisResult?.trough?.smoothness?.rmseOverallDeg ??
@@ -346,6 +455,7 @@ export default function OpenMoveStudio() {
       poseFlexibilityShouldersDeg: poseMetric("shoulders"),
     };
   }, [
+    isQuickAnalysis,
     cyclingAnalysisResult,
     pullUpsAnalysisResult,
     plankAnalysisResult,
@@ -414,6 +524,22 @@ export default function OpenMoveStudio() {
     setMobilePerformanceNoticeOpen(false);
   }, []);
 
+  useEffect(() => {
+    onActiveSessionChange?.(openMoveSessionHasActiveWork(session, isQuickAnalysis));
+  }, [session, isQuickAnalysis, onActiveSessionChange]);
+
+  useEffect(() => {
+    if (deferRailUntilVideo && session.status !== "idle") {
+      setPanelOpen(true);
+    }
+  }, [deferRailUntilVideo, session.status]);
+
+  useEffect(() => {
+    if (embeddedCloseConfirmOpen) {
+      setPanelOpen(false);
+    }
+  }, [embeddedCloseConfirmOpen]);
+
   const togglePoseFlexibilityFocusArea = useCallback((area: PoseFlexibilityFocusArea) => {
     setPoseFlexibilityFocusAreas((prev) => {
       if (prev.includes(area)) {
@@ -431,7 +557,8 @@ export default function OpenMoveStudio() {
     if (
       session.status !== "ready" &&
       session.status !== "loading_sample" &&
-      session.status !== "processing_video"
+      session.status !== "processing_video" &&
+      session.status !== "clip_ready"
     ) {
       setVideoIntrinsicAspect(null);
       return;
@@ -524,6 +651,314 @@ export default function OpenMoveStudio() {
     }, 400);
     return () => window.clearTimeout(id);
   }, [analyticsDrawerOpen, analyticsDrawerContentMounted]);
+
+  const currentSetup = useMemo(
+    () =>
+      analyzedSetupSnapshot(
+        cyclingLeg,
+        plankFacingSide,
+        squatSide,
+        poseFlexibilitySide,
+        poseFlexibilityFocusAreas
+      ),
+    [cyclingLeg, plankFacingSide, squatSide, poseFlexibilitySide, poseFlexibilityFocusAreas]
+  );
+
+  const setupChangedFromLastAnalyze = useMemo(() => {
+    if (!lastAnalyzedSetup) return false;
+    return !analyzedSetupsMatch(currentSetup, lastAnalyzedSetup);
+  }, [currentSetup, lastAnalyzedSetup]);
+
+  const sessionHasVideo = session.status !== "idle" && Boolean(session.videoUrl);
+  const showVideoEngine = !embeddedQuickAnalysis || hasAnalyzed;
+  const showAnalyzeButton =
+    embeddedQuickAnalysis &&
+    sessionHasVideo &&
+    (!hasAnalyzed || setupChangedFromLastAnalyze);
+
+  const hasAnalysisSession =
+    session.status === "ready" &&
+    !!session.angles &&
+    !!session.videoUrl &&
+    (!embeddedQuickAnalysis || hasAnalyzed);
+
+  const showEmbeddedSportTopBar = embeddedQuickAnalysis && !!onClose && railVisible;
+
+  const embeddedAnalyticsOpen = isDesktop
+    ? analyticsDrawerContentMounted && analyticsDrawerOpen
+    : analyticsOpen;
+
+  const toggleEmbeddedAnalytics = useCallback(() => {
+    if (isDesktop) {
+      if (analyticsDrawerContentMounted && analyticsDrawerOpen) {
+        setAnalyticsDrawerOpen(false);
+        return;
+      }
+      setAnalyticsDrawerContentMounted(true);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setAnalyticsDrawerOpen(true));
+      });
+      return;
+    }
+    setAnalyticsOpen((open) => !open);
+  }, [isDesktop, analyticsDrawerContentMounted, analyticsDrawerOpen]);
+
+  const toggleEmbeddedPanel = useCallback(() => {
+    setPanelOpen((open) => !open);
+  }, []);
+
+  const clearSportAnalysisResults = useCallback(() => {
+    setCyclingAnalysisResult(null);
+    setCyclingAnalysisError(null);
+    setPullUpsAnalysisResult(null);
+    setPullUpsAnalysisError(null);
+    setPlankAnalysisResult(null);
+    setPlankAnalysisError(null);
+    setSquatAnalysisResult(null);
+    setSquatAnalysisError(null);
+    setPoseFlexibilityAnalysisResult(null);
+    setPoseFlexibilityAnalysisError(null);
+  }, []);
+
+  const applySportAnalysisFromData = useCallback(
+    (
+      angles: NonNullable<SessionState["angles"]>,
+      poses: any[],
+      frameIntervalSec: number,
+      setup: AnalyzedSetupSnapshot
+    ) => {
+      if (sportAnalysisKind === "cycling") {
+        setCyclingAnalysisResult(null);
+        setCyclingAnalysisError(null);
+        const res = analyzeCyclingDual({
+          leftKneeAngles: angles.leftKneeAngles,
+          rightKneeAngles: angles.rightKneeAngles,
+          frameIntervalSec,
+          leg: setup.cyclingLeg,
+        });
+        if (res.ok) {
+          setCyclingAnalysisResult(res.result);
+          setCyclingAnalysisError(null);
+          if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
+            const payload = buildLeaderboardScorePayload(analysisSlug, "cycling", {
+              cycling: res.result,
+            });
+            if (payload) onQuickAnalysisComplete(payload);
+          }
+        } else {
+          setCyclingAnalysisResult(null);
+          setCyclingAnalysisError(res.error);
+        }
+        return;
+      }
+      if (sportAnalysisKind === "pullups") {
+        setPullUpsAnalysisResult(null);
+        setPullUpsAnalysisError(null);
+        const res = analyzePullUps({
+          leftElbowAngles: angles.leftElbowAngles,
+          rightElbowAngles: angles.rightElbowAngles,
+          frameIntervalSec,
+        });
+        if (res.ok) {
+          setPullUpsAnalysisResult(res.result);
+          setPullUpsAnalysisError(null);
+          if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
+            const payload = buildLeaderboardScorePayload(analysisSlug, "pullups", {
+              pullUps: res.result,
+            });
+            if (payload) onQuickAnalysisComplete(payload);
+          }
+        } else {
+          setPullUpsAnalysisResult(null);
+          setPullUpsAnalysisError(res.error);
+        }
+        return;
+      }
+      if (sportAnalysisKind === "plank") {
+        setPlankAnalysisResult(null);
+        setPlankAnalysisError(null);
+        const res = analyzePlank({
+          poses,
+          frameIntervalSec,
+          facingSide: setup.plankFacingSide,
+        });
+        if (res.ok) {
+          setPlankAnalysisResult(res.result);
+          setPlankAnalysisError(null);
+          if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
+            const payload = buildLeaderboardScorePayload(analysisSlug, "plank", {
+              plank: res.result,
+            });
+            if (payload) onQuickAnalysisComplete(payload);
+          }
+        } else {
+          setPlankAnalysisResult(null);
+          setPlankAnalysisError(res.error);
+        }
+        return;
+      }
+      if (sportAnalysisKind === "squat") {
+        setSquatAnalysisResult(null);
+        setSquatAnalysisError(null);
+        const squatRes = analyzeSquat({
+          poses,
+          frameIntervalSec,
+          side: setup.squatSide,
+        });
+        if (squatRes.ok) {
+          setSquatAnalysisResult(squatRes.result);
+          setSquatAnalysisError(null);
+          if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
+            const payload = buildLeaderboardScorePayload(analysisSlug, "squat", {
+              squat: squatRes.result,
+            });
+            if (payload) onQuickAnalysisComplete(payload);
+          }
+        } else {
+          setSquatAnalysisResult(null);
+          setSquatAnalysisError(squatRes.error);
+        }
+        return;
+      }
+      setPoseFlexibilityAnalysisResult(null);
+      setPoseFlexibilityAnalysisError(null);
+      const poseFlexRes = analyzePoseFlexibility({
+        poses,
+        frameIntervalSec,
+        side: setup.poseFlexibilitySide,
+        focusAreas: setup.poseFlexibilityFocusAreas,
+      });
+      if (poseFlexRes.ok) {
+        setPoseFlexibilityAnalysisResult(poseFlexRes.result);
+        setPoseFlexibilityAnalysisError(null);
+        if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
+          const payload = buildLeaderboardScorePayload(analysisSlug, "poseFlexibility", {
+            poseFlexibility: poseFlexRes.result,
+          });
+          if (payload) onQuickAnalysisComplete(payload);
+        }
+      } else {
+        setPoseFlexibilityAnalysisResult(null);
+        setPoseFlexibilityAnalysisError(poseFlexRes.error);
+      }
+    },
+    [sportAnalysisKind, isQuickAnalysis, analysisSlug, onQuickAnalysisComplete]
+  );
+
+  const attachVideoClip = useCallback(
+    (videoUrl: string, label: string, source: SessionState["source"]) => {
+      clearSportAnalysisResults();
+      setHasAnalyzed(false);
+      setLastAnalyzedSetup(null);
+      setSession({
+        status: "clip_ready",
+        videoUrl,
+        videoSources: null,
+        poses: [],
+        angles: null,
+        frameIntervalSec: null,
+        sessionLabel: label,
+        source,
+        errorMessage: undefined,
+      });
+    },
+    [clearSportAnalysisResults]
+  );
+
+  const runEmbeddedAnalyze = useCallback(async () => {
+    const videoUrl = session.videoUrl;
+    if (!videoUrl) return;
+
+    if (
+      hasAnalyzed &&
+      session.status === "ready" &&
+      session.angles &&
+      session.frameIntervalSec != null
+    ) {
+      if (!setupChangedFromLastAnalyze) return;
+      applySportAnalysisFromData(
+        session.angles,
+        session.poses,
+        session.frameIntervalSec,
+        currentSetup
+      );
+      setLastAnalyzedSetup(currentSetup);
+      return;
+    }
+
+    if (session.status !== "clip_ready" && session.status !== "error") return;
+
+    const detector = detectorRef.current;
+    if (!detector) {
+      setSession((s) => ({
+        ...s,
+        status: "error",
+        errorMessage: "Pose model is still loading. Wait a moment and try again.",
+      }));
+      return;
+    }
+
+    clearSportAnalysisResults();
+    setHasAnalyzed(false);
+    setLastAnalyzedSetup(null);
+    setSession((s) => ({
+      ...s,
+      status: "processing_video",
+      videoUrl,
+      videoSources: null,
+      errorMessage: undefined,
+      angles: null,
+      frameIntervalSec: null,
+      poses: [],
+    }));
+    setTfProgress(0);
+
+    try {
+      const { poses, frameIntervalSec } = await processVideoUrlForPoses(
+        detector,
+        videoUrl,
+        (p) => setTfProgress(p)
+      );
+      const optimized = optimizeOpenMovePosesForClient(poses);
+      const angles = computeAngleSeriesFromOpenMovePoses(optimized);
+      setSession({
+        status: "ready",
+        videoUrl,
+        videoSources: null,
+        poses: optimized,
+        angles,
+        frameIntervalSec,
+        sessionLabel: session.sessionLabel,
+        source: session.source,
+      });
+      applySportAnalysisFromData(angles, optimized, frameIntervalSec, currentSetup);
+      setHasAnalyzed(true);
+      setLastAnalyzedSetup(currentSetup);
+    } catch (e) {
+      console.error(e);
+      setSession((s) => ({
+        ...s,
+        status: "clip_ready",
+        errorMessage: e instanceof Error ? e.message : "Could not analyze this video.",
+        poses: [],
+        angles: null,
+        frameIntervalSec: null,
+      }));
+    }
+  }, [
+    session.videoUrl,
+    session.status,
+    session.angles,
+    session.frameIntervalSec,
+    session.poses,
+    session.sessionLabel,
+    session.source,
+    hasAnalyzed,
+    setupChangedFromLastAnalyze,
+    currentSetup,
+    clearSportAnalysisResults,
+    applySportAnalysisFromData,
+  ]);
 
   const applyProcessedVideo = useCallback(
     (
@@ -672,91 +1107,35 @@ export default function OpenMoveStudio() {
 
   const runSportAnalysis = useCallback(() => {
     if (!session.angles || session.frameIntervalSec == null) return;
-    if (sportAnalysisKind === "cycling") {
-      setCyclingAnalysisResult(null);
-      setCyclingAnalysisError(null);
-      const res = analyzeCyclingDual({
-        leftKneeAngles: session.angles.leftKneeAngles,
-        rightKneeAngles: session.angles.rightKneeAngles,
-        frameIntervalSec: session.frameIntervalSec,
-        leg: cyclingLeg,
-      });
-      if (res.ok) {
-        setCyclingAnalysisResult(res.result);
-        setCyclingAnalysisError(null);
-      } else {
-        setCyclingAnalysisResult(null);
-        setCyclingAnalysisError(res.error);
-      }
-      return;
-    }
-    if (sportAnalysisKind === "pullups") {
-      setPullUpsAnalysisResult(null);
-      setPullUpsAnalysisError(null);
-      const res = analyzePullUps({
-        leftElbowAngles: session.angles.leftElbowAngles,
-        rightElbowAngles: session.angles.rightElbowAngles,
-        frameIntervalSec: session.frameIntervalSec,
-      });
-      if (res.ok) {
-        setPullUpsAnalysisResult(res.result);
-        setPullUpsAnalysisError(null);
-      } else {
-        setPullUpsAnalysisResult(null);
-        setPullUpsAnalysisError(res.error);
-      }
-      return;
-    }
-    if (sportAnalysisKind === "plank") {
-      setPlankAnalysisResult(null);
-      setPlankAnalysisError(null);
-      const res = analyzePlank({
-        poses: session.poses,
-        frameIntervalSec: session.frameIntervalSec,
-        facingSide: plankFacingSide,
-      });
-      if (res.ok) {
-        setPlankAnalysisResult(res.result);
-        setPlankAnalysisError(null);
-      } else {
-        setPlankAnalysisResult(null);
-        setPlankAnalysisError(res.error);
-      }
-      return;
-    }
-    if (sportAnalysisKind === "squat") {
-      setSquatAnalysisResult(null);
-      setSquatAnalysisError(null);
-      const squatRes = analyzeSquat({
-        poses: session.poses,
-        frameIntervalSec: session.frameIntervalSec,
-        side: squatSide,
-      });
-      if (squatRes.ok) {
-        setSquatAnalysisResult(squatRes.result);
-        setSquatAnalysisError(null);
-      } else {
-        setSquatAnalysisResult(null);
-        setSquatAnalysisError(squatRes.error);
-      }
-      return;
-    }
-    setPoseFlexibilityAnalysisResult(null);
-    setPoseFlexibilityAnalysisError(null);
-    const poseFlexRes = analyzePoseFlexibility({
-      poses: session.poses,
-      frameIntervalSec: session.frameIntervalSec,
-      side: poseFlexibilitySide,
-      focusAreas: poseFlexibilityFocusAreas,
-    });
-    if (poseFlexRes.ok) {
-      setPoseFlexibilityAnalysisResult(poseFlexRes.result);
-      setPoseFlexibilityAnalysisError(null);
-    } else {
-      setPoseFlexibilityAnalysisResult(null);
-      setPoseFlexibilityAnalysisError(poseFlexRes.error);
-    }
+    applySportAnalysisFromData(
+      session.angles,
+      session.poses,
+      session.frameIntervalSec,
+      currentSetup
+    );
   }, [
+    session.angles,
+    session.frameIntervalSec,
+    session.poses,
+    currentSetup,
+    applySportAnalysisFromData,
+  ]);
+
+  useEffect(() => {
+    if (!isQuickAnalysis && !embedded) {
+      loadFeaturedSample();
+    }
+  }, [isQuickAnalysis, embedded, loadFeaturedSample]);
+
+  useEffect(() => {
+    if (!isQuickAnalysis || embeddedQuickAnalysis) return;
+    if (session.status !== "ready") return;
+    if (!session.angles || session.frameIntervalSec == null) return;
+    runSportAnalysis();
+  }, [
+    isQuickAnalysis,
+    embeddedQuickAnalysis,
+    session.status,
     session.angles,
     session.frameIntervalSec,
     session.poses,
@@ -766,32 +1145,6 @@ export default function OpenMoveStudio() {
     poseFlexibilitySide,
     poseFlexibilityFocusAreas,
     sportAnalysisKind,
-  ]);
-
-  useEffect(() => {
-    loadFeaturedSample();
-  }, [loadFeaturedSample]);
-
-  useEffect(() => {
-    // Reset one-shot guard whenever source/ready state changes away from featured-ready.
-    if (session.source !== "featured" || session.status !== "ready") {
-      didAutoAnalyzeFeaturedRef.current = false;
-    }
-  }, [session.source, session.status]);
-
-  useEffect(() => {
-    if (didAutoAnalyzeFeaturedRef.current) return;
-    if (session.source !== "featured" || session.status !== "ready") return;
-    if (!session.angles || session.frameIntervalSec == null) return;
-    if (sportAnalysisKind !== "pullups") return;
-    didAutoAnalyzeFeaturedRef.current = true;
-    runSportAnalysis();
-  }, [
-    session.source,
-    session.status,
-    session.angles,
-    session.frameIntervalSec,
-    sportAnalysisKind,
     runSportAnalysis,
   ]);
 
@@ -799,14 +1152,124 @@ export default function OpenMoveStudio() {
     const file = e.target.files?.[0];
     if (!file) return;
     const url = URL.createObjectURL(file);
+    if (embeddedQuickAnalysis) {
+      attachVideoClip(url, file.name || "Uploaded video", "upload");
+      e.target.value = "";
+      return;
+    }
     await runTfjsOnUrl(url, file.name || "Uploaded video", "upload");
     e.target.value = "";
   };
 
   const onRecordingComplete = async (url: string) => {
     setShowLiveModal(false);
+    if (embeddedQuickAnalysis) {
+      attachVideoClip(url, "Live recording", "live");
+      return;
+    }
     await runTfjsOnUrl(url, "Live recording", "live");
   };
+
+  const sportSetupFields = (
+    <OpenMoveSportSetupFields
+      embedded={embedded}
+      sportAnalysisKind={sportAnalysisKind}
+      cyclingLeg={cyclingLeg}
+      cyclingKneeMenuOpen={cyclingKneeMenuOpen}
+      onCyclingKneeMenuOpenChange={setCyclingKneeMenuOpen}
+      onCyclingLegChange={setCyclingLeg}
+      plankFacingSide={plankFacingSide}
+      plankSideMenuOpen={plankSideMenuOpen}
+      onPlankSideMenuOpenChange={setPlankSideMenuOpen}
+      onPlankFacingSideChange={setPlankFacingSide}
+      squatSide={squatSide}
+      squatSideMenuOpen={squatSideMenuOpen}
+      onSquatSideMenuOpenChange={setSquatSideMenuOpen}
+      onSquatSideChange={setSquatSide}
+      poseFlexibilitySide={poseFlexibilitySide}
+      poseFlexibilitySideMenuOpen={poseFlexibilitySideMenuOpen}
+      onPoseFlexibilitySideMenuOpenChange={setPoseFlexibilitySideMenuOpen}
+      onPoseFlexibilitySideChange={setPoseFlexibilitySide}
+      poseFlexibilityFocusAreas={poseFlexibilityFocusAreas}
+      onTogglePoseFlexibilityFocusArea={togglePoseFlexibilityFocusArea}
+    />
+  );
+
+  const uploadRecordDisabled =
+    session.status === "processing_video" || (!embeddedQuickAnalysis && !detectorReady);
+
+  const uploadRecordButtons = (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploadRecordDisabled}
+        style={borderAllTheme}
+        className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:opacity-50"
+      >
+        <Upload size={12} /> Upload
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={onFileChange}
+      />
+      <span
+        className="shrink-0 text-[11px] uppercase tracking-wider text-[color:var(--muted)]"
+        aria-hidden
+      >
+        /
+      </span>
+      <button
+        type="button"
+        onClick={() => setShowLiveModal(true)}
+        disabled={uploadRecordDisabled}
+        style={borderAllTheme}
+        className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:opacity-50"
+      >
+        <Video size={12} /> Record
+      </button>
+    </div>
+  );
+
+  const desktopCollapsedRail = (
+    <div className="flex h-full flex-col items-center gap-3 py-3">
+      {!embedded ? (
+        <Link
+          href="/"
+          className={archiveCollapsedRailControlClass}
+          aria-label="Mova Archive home"
+          title="Mova Archive"
+        >
+          <Image
+            src="/images/brand/logo/Logo_Contained.svg"
+            alt=""
+            width={24}
+            height={24}
+            className="h-8 w-8"
+            style={{ filter: "var(--logo-color)" }}
+          />
+        </Link>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setPanelOpen(true)}
+        style={borderAllTheme}
+        className={`${archiveCollapsedRailControlClass} text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:text-[color:var(--foreground)]`}
+        aria-label="Expand panel"
+        title="Expand panel"
+      >
+        <PanelLeftOpen size={18} />
+      </button>
+      {embedded && onClose && !showEmbeddedSportTopBar ? (
+        <ProgramModalCloseButton onClose={onClose} />
+      ) : (
+        <AppMegaMenu activeApp="studio" iconOnly embeddedInModal={embedded} />
+      )}
+    </div>
+  );
 
   const panelContent = (
     <div className="flex h-full min-h-0 flex-col">
@@ -819,32 +1282,49 @@ export default function OpenMoveStudio() {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <h1 className="font-light uppercase tracking-wider text-[color:var(--muted-foreground)]" style={{ fontSize: "18px" }}>
-                Mova Studio
+                {isQuickAnalysis ? analysisTitle ?? getSportAnalysisLabel(sportAnalysisKind) : "Mova Studio"}
               </h1>
               <p className="mt-0 text-xs font-normal leading-relaxed text-[color:var(--muted)]">
-                Analyze and visualize the body&apos;s movement. For best results, please{" "}
-                <button
-                  type="button"
-                  onClick={() => setGuideOpen(true)}
-                  className="text-[12px] font-normal text-[color:var(--muted-foreground)] underline decoration-border-theme underline-offset-2 transition-all hover:text-[color:var(--foreground)] hover:decoration-[color:var(--muted-foreground)]"
-                >
-                  read our usage guide.
-                </button>
+                {embeddedQuickAnalysis ? (
+                  <>
+                    {setupHint ? `${setupHint}. ` : null}
+                    Upload or record a clip, then choose your setup and analyze.
+                  </>
+                ) : isQuickAnalysis ? (
+                  <>
+                    {setupHint ? `${setupHint}. ` : null}
+                    Upload or record a clip — analysis runs automatically when ready.
+                  </>
+                ) : (
+                  <>
+                    Visualize body movement with effects and joint charts. For best results, please{" "}
+                    <button
+                      type="button"
+                      onClick={() => setGuideOpen(true)}
+                      className="text-[12px] font-normal text-[color:var(--muted-foreground)] underline decoration-border-theme underline-offset-2 transition-all hover:text-[color:var(--foreground)] hover:decoration-[color:var(--muted-foreground)]"
+                    >
+                      read our usage guide.
+                    </button>
+                  </>
+                )}
               </p>
             </div>
             <div className="relative z-30 flex items-center gap-2">
-              <Popover.Root>
-                <Popover.Trigger asChild>
-                  <button
-                    type="button"
-                    style={borderAllTheme}
-                    className="flex-shrink-0 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] p-2 text-[color:var(--muted-foreground)] backdrop-blur-md transition-all hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:text-[color:var(--foreground)]"
-                    title="Apps & Settings"
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-                </Popover.Trigger>
-                
+              {embedded && onClose && !showEmbeddedSportTopBar ? (
+                <ProgramModalCloseButton onClose={onClose} />
+              ) : (
+                <Popover.Root>
+                  <Popover.Trigger asChild>
+                    <button
+                      type="button"
+                      style={borderAllTheme}
+                      className="flex-shrink-0 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] p-2 text-[color:var(--muted-foreground)] backdrop-blur-md transition-all hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:text-[color:var(--foreground)]"
+                      title="Apps & Settings"
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                  </Popover.Trigger>
+
                   <Popover.Content
                     side="bottom"
                     align="end"
@@ -918,8 +1398,8 @@ export default function OpenMoveStudio() {
                       )}
                     </button>
                   </Popover.Content>
-               
-              </Popover.Root>
+                </Popover.Root>
+              )}
               <button
                 type="button"
                 onClick={() => setPanelOpen(false)}
@@ -933,50 +1413,78 @@ export default function OpenMoveStudio() {
             </div>
           </div>
 
-          <div style={borderTopTheme} className="space-y-2 pt-2">
-            <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-              1. Upload or record video
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={session.status === "processing_video" || !detectorReady}
-                style={borderAllTheme}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:opacity-50"
-              >
-                <Upload size={12} /> Upload
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="video/*"
-                className="hidden"
-                onChange={onFileChange}
-              />
-              <span
-                className="shrink-0 text-[11px] uppercase tracking-wider text-[color:var(--muted)]"
-                aria-hidden
-              >
-                or
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowLiveModal(true)}
-                disabled={session.status === "processing_video" || !detectorReady}
-                style={borderAllTheme}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:opacity-50"
-              >
-                <Video size={12} /> Record
-              </button>
-            </div>
-            {session.sessionLabel ? (
-              <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
-                <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
-                {session.sessionLabel}
-              </p>
-            ) : null}
-          </div>
+          {embeddedQuickAnalysis ? (
+            <>
+              <div style={borderTopTheme} className="space-y-2 pt-2">
+                <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                  1. Upload or record video
+                </p>
+                {uploadRecordButtons}
+                {session.sessionLabel ? (
+                  <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
+                    <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
+                    {session.sessionLabel}
+                  </p>
+                ) : null}
+              </div>
+              {sessionHasVideo ? (
+                <div style={borderTopTheme} className="space-y-2 pt-2">
+                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                    2. Setup
+                  </p>
+                  {sportSetupFields}
+                  {session.status === "clip_ready" ? (
+                    <p className="text-[10px] leading-snug text-[color:var(--muted)]">
+                      Choose your setup, then analyze.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {showAnalyzeButton ? (
+                <div style={borderTopTheme} className="space-y-2 pt-2">
+                  {session.errorMessage && session.status === "clip_ready" ? (
+                    <p className="text-[10px] leading-snug text-red-500/90">{session.errorMessage}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void runEmbeddedAnalyze()}
+                    disabled={
+                      session.status === "processing_video" ||
+                      !detectorReady ||
+                      poseFlexibilityFocusAreas.length < 1
+                    }
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent,#3b82f6)] px-3 py-2.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {hasAnalyzed && setupChangedFromLastAnalyze ? "Re-analyze" : "Analyze"}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              {isQuickAnalysis ? (
+                <div style={borderTopTheme} className="space-y-2 pt-2">
+                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                    1. Setup
+                  </p>
+                  {sportSetupFields}
+                </div>
+              ) : null}
+
+              <div style={borderTopTheme} className="space-y-2 pt-2">
+                <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                  {isQuickAnalysis ? "2. Upload or record video" : "1. Upload or record video"}
+                </p>
+                {uploadRecordButtons}
+                {session.sessionLabel ? (
+                  <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
+                    <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
+                    {session.sessionLabel}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -999,377 +1507,65 @@ export default function OpenMoveStudio() {
           </div>
         ) : null}
 
-        {session.status === "ready" ? (
+        {session.status === "ready" && (!embeddedQuickAnalysis || hasAnalyzed) ? (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="open-move-studio-panel-scroll min-h-0 flex-1 overflow-y-auto p-8 pt-2">
-              <div className="mb-0 space-y-2 text-[color:var(--foreground)]">
-                <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                  2. Sport Analysis
-                </p>
-                <div className="min-w-0">
-                  <div className={exportPanelFieldLabelClass}>Select a movement</div>
-                  <Popover.Root open={sportMenuOpen} onOpenChange={setSportMenuOpen}>
-                    <Popover.Trigger asChild>
-                      <button type="button" className={exportPanelSelectTriggerClass}>
-                        <span className="truncate">
-                          {sportAnalysisKind === "cycling"
-                            ? "Cycling"
-                            : sportAnalysisKind === "pullups"
-                              ? "Pull-ups"
-                              : sportAnalysisKind === "plank"
-                                ? "Plank"
-                                : sportAnalysisKind === "squat"
-                                  ? "Squat"
-                                  : "Pose Flexibility (Side View)"}
-                        </span>
-                        <ChevronDown
-                          className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${sportMenuOpen ? "rotate-180" : ""}`}
-                        />
-                      </button>
-                    </Popover.Trigger>
-                    <Popover.Portal>
-                      <Popover.Content
-                        side="bottom"
-                        align="start"
-                        sideOffset={6}
-                        collisionPadding={12}
-                        className={exportPanelPopoverContentClass}
-                      >
-                        <div
-                          role="menuitem"
-                          className={exportPanelDropdownMenuItemClass}
-                          onClick={() => {
-                            setSportAnalysisKind("cycling");
-                            setSportMenuOpen(false);
-                          }}
-                        >
-                          Cycling
-                        </div>
-                        <div
-                          role="menuitem"
-                          className={exportPanelDropdownMenuItemClass}
-                          onClick={() => {
-                            setSportAnalysisKind("pullups");
-                            setSportMenuOpen(false);
-                          }}
-                        >
-                          Pull-ups
-                        </div>
-                        <div
-                          role="menuitem"
-                          className={exportPanelDropdownMenuItemClass}
-                          onClick={() => {
-                            setSportAnalysisKind("plank");
-                            setSportMenuOpen(false);
-                          }}
-                        >
-                          Plank
-                        </div>
-                        <div
-                          role="menuitem"
-                          className={exportPanelDropdownMenuItemClass}
-                          onClick={() => {
-                            setSportAnalysisKind("squat");
-                            setSportMenuOpen(false);
-                          }}
-                        >
-                          Squat
-                        </div>
-                        <div
-                          role="menuitem"
-                          className={`${exportPanelDropdownMenuItemClass} border-b-0`}
-                          onClick={() => {
-                            setSportAnalysisKind("poseFlexibility");
-                            setSportMenuOpen(false);
-                          }}
-                        >
-                          Pose Flexibility (Side View)
-                        </div>
-                      </Popover.Content>
-                    </Popover.Portal>
-                  </Popover.Root>
-                </div>
-                {sportAnalysisKind === "cycling" ? (
-                  <>
-                    <div className="min-w-0">
-                      <div className={exportPanelFieldLabelClass}>Knee</div>
-                      <Popover.Root open={cyclingKneeMenuOpen} onOpenChange={setCyclingKneeMenuOpen}>
-                        <Popover.Trigger asChild>
-                          <button type="button" className={exportPanelSelectTriggerClass}>
-                            <span className="truncate">{cyclingLeg === "left" ? "Left" : "Right"}</span>
-                            <ChevronDown
-                              className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${cyclingKneeMenuOpen ? "rotate-180" : ""}`}
-                            />
-                          </button>
-                        </Popover.Trigger>
-                        <Popover.Portal>
-                          <Popover.Content
-                            side="bottom"
-                            align="start"
-                            sideOffset={6}
-                            collisionPadding={12}
-                            className={exportPanelPopoverContentClass}
-                          >
-                            <div
-                              role="menuitem"
-                              className={exportPanelDropdownMenuItemClass}
-                              onClick={() => {
-                                setCyclingLeg("left");
-                                setCyclingKneeMenuOpen(false);
-                              }}
-                            >
-                              Left
-                            </div>
-                            <div
-                              role="menuitem"
-                              className={`${exportPanelDropdownMenuItemClass} border-b-0`}
-                              onClick={() => {
-                                setCyclingLeg("right");
-                                setCyclingKneeMenuOpen(false);
-                              }}
-                            >
-                              Right
-                            </div>
-                          </Popover.Content>
-                        </Popover.Portal>
-                      </Popover.Root>
-                    </div>
-                    <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-                      We analyze <strong className="text-[color:var(--foreground)]">both</strong> bottom-of-stroke
-                      (trough) and top-of-stroke (peak) timing from the same knee trace.
-                    </p>
-                  </>
-                ) : sportAnalysisKind === "pullups" ? (
+              {isQuickAnalysis && !embeddedQuickAnalysis ? (
+                <div className="mb-0 space-y-2 text-[color:var(--foreground)]">
+                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                    3. Analysis
+                  </p>
+                  <p className="text-sm font-medium text-[color:var(--foreground)]">
+                    {getSportAnalysisLabel(sportAnalysisKind)}
+                  </p>
                   <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-                    We combine <strong className="text-[color:var(--foreground)]">left and right</strong> elbow angles,
-                    then count reps from flexion peaks (smoothed + spacing + minimum range of motion).
+                    Analysis runs automatically when your clip is ready.
                   </p>
-                ) : sportAnalysisKind === "plank" ? (
-                  <>
-                    <div className="min-w-0">
-                      <div className={exportPanelFieldLabelClass}>Side toward camera</div>
-                      <Popover.Root open={plankSideMenuOpen} onOpenChange={setPlankSideMenuOpen}>
-                        <Popover.Trigger asChild>
-                          <button type="button" className={exportPanelSelectTriggerClass}>
-                            <span className="truncate">{plankFacingSide === "left" ? "Left" : "Right"}</span>
-                            <ChevronDown
-                              className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${plankSideMenuOpen ? "rotate-180" : ""}`}
-                            />
-                          </button>
-                        </Popover.Trigger>
-                        <Popover.Portal>
-                          <Popover.Content
-                            side="bottom"
-                            align="start"
-                            sideOffset={6}
-                            collisionPadding={12}
-                            className={exportPanelPopoverContentClass}
-                          >
-                            <div
-                              role="menuitem"
-                              className={exportPanelDropdownMenuItemClass}
-                              onClick={() => {
-                                setPlankFacingSide("left");
-                                setPlankSideMenuOpen(false);
-                              }}
-                            >
-                              Left
-                            </div>
-                            <div
-                              role="menuitem"
-                              className={`${exportPanelDropdownMenuItemClass} border-b-0`}
-                              onClick={() => {
-                                setPlankFacingSide("right");
-                                setPlankSideMenuOpen(false);
-                              }}
-                            >
-                              Right
-                            </div>
-                          </Popover.Content>
-                        </Popover.Portal>
-                      </Popover.Root>
-                    </div>
-                    <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-                      Turn so the <strong className="text-[color:var(--foreground)]">selected side</strong> faces the
-                      camera. Form analysis uses hip, knee, and shoulder angles.
+                  {sportAnalysisKind === "cycling" && cyclingAnalysisError ? (
+                    <p className="text-[10px] leading-snug text-red-500/90">{cyclingAnalysisError}</p>
+                  ) : sportAnalysisKind === "cycling" && cyclingAnalysisResult ? (
+                    <p className="text-[10px] text-[color:var(--muted)]">
+                      View results in the &quot;Sport analysis&quot; tab.
                     </p>
-                  </>
-                ) : sportAnalysisKind === "squat" ? (
-                  <>
-                    <div className="min-w-0">
-                      <div className={exportPanelFieldLabelClass}>Side toward camera</div>
-                      <Popover.Root open={squatSideMenuOpen} onOpenChange={setSquatSideMenuOpen}>
-                        <Popover.Trigger asChild>
-                          <button type="button" className={exportPanelSelectTriggerClass}>
-                            <span className="truncate">{squatSide === "left" ? "Left" : "Right"}</span>
-                            <ChevronDown
-                              className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${squatSideMenuOpen ? "rotate-180" : ""}`}
-                            />
-                          </button>
-                        </Popover.Trigger>
-                        <Popover.Portal>
-                          <Popover.Content
-                            side="bottom"
-                            align="start"
-                            sideOffset={6}
-                            collisionPadding={12}
-                            className={exportPanelPopoverContentClass}
-                          >
-                            <div
-                              role="menuitem"
-                              className={exportPanelDropdownMenuItemClass}
-                              onClick={() => {
-                                setSquatSide("left");
-                                setSquatSideMenuOpen(false);
-                              }}
-                            >
-                              Left
-                            </div>
-                            <div
-                              role="menuitem"
-                              className={`${exportPanelDropdownMenuItemClass} border-b-0`}
-                              onClick={() => {
-                                setSquatSide("right");
-                                setSquatSideMenuOpen(false);
-                              }}
-                            >
-                              Right
-                            </div>
-                          </Popover.Content>
-                        </Popover.Portal>
-                      </Popover.Root>
-                    </div>
-                    <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-                      Side-view squat MVP: selected knee drives rep count and depth. Advisory cues use lightweight
-                      knee-over-ankle and trunk-lean proxies.
+                  ) : null}
+                  {sportAnalysisKind === "pullups" && pullUpsAnalysisError ? (
+                    <p className="text-[10px] leading-snug text-red-500/90">{pullUpsAnalysisError}</p>
+                  ) : sportAnalysisKind === "pullups" && pullUpsAnalysisResult ? (
+                    <p className="text-[10px] text-[color:var(--muted)]">
+                      View results in the &quot;Sport analysis&quot; tab.
                     </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="min-w-0">
-                      <div className={exportPanelFieldLabelClass}>Side toward camera</div>
-                      <Popover.Root open={poseFlexibilitySideMenuOpen} onOpenChange={setPoseFlexibilitySideMenuOpen}>
-                        <Popover.Trigger asChild>
-                          <button type="button" className={exportPanelSelectTriggerClass}>
-                            <span className="truncate">
-                              {poseFlexibilitySide === "left" ? "Left side toward camera" : "Right side toward camera"}
-                            </span>
-                            <ChevronDown
-                              className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${poseFlexibilitySideMenuOpen ? "rotate-180" : ""}`}
-                            />
-                          </button>
-                        </Popover.Trigger>
-                        <Popover.Portal>
-                          <Popover.Content
-                            side="bottom"
-                            align="start"
-                            sideOffset={6}
-                            collisionPadding={12}
-                            className={exportPanelPopoverContentClass}
-                          >
-                            <div
-                              role="menuitem"
-                              className={exportPanelDropdownMenuItemClass}
-                              onClick={() => {
-                                setPoseFlexibilitySide("left");
-                                setPoseFlexibilitySideMenuOpen(false);
-                              }}
-                            >
-                              Left side toward camera
-                            </div>
-                            <div
-                              role="menuitem"
-                              className={`${exportPanelDropdownMenuItemClass} border-b-0`}
-                              onClick={() => {
-                                setPoseFlexibilitySide("right");
-                                setPoseFlexibilitySideMenuOpen(false);
-                              }}
-                            >
-                              Right side toward camera
-                            </div>
-                          </Popover.Content>
-                        </Popover.Portal>
-                      </Popover.Root>
-                    </div>
-                    <div className="min-w-0">
-                      <div className={exportPanelFieldLabelClass}>Focus areas (1-3)</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {POSE_FLEXIBILITY_FOCUS_OPTIONS.map((option) => {
-                          const selected = poseFlexibilityFocusAreas.includes(option.key);
-                          const disableRemove = selected && poseFlexibilityFocusAreas.length <= 1;
-                          const disableAdd = !selected && poseFlexibilityFocusAreas.length >= 3;
-                          return (
-                            <button
-                              key={option.key}
-                              type="button"
-                              onClick={() => togglePoseFlexibilityFocusArea(option.key)}
-                              disabled={disableRemove || disableAdd}
-                              style={selected ? { border: "1px solid var(--accent, #3b82f6)" } : borderAllTheme}
-                              className={`rounded-full px-3 py-1 text-[11px] leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                                selected
-                                  ? "bg-[color:color-mix(in_srgb,var(--foreground)_18%,transparent)] text-[color:var(--foreground)]"
-                                  : "bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] text-[color:var(--muted-foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
-                              }`}
-                            >
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-                      Analyze the full trimmed side-view clip. We calculate flexibility and alignment from the
-                      selected focus areas.
+                  ) : null}
+                  {sportAnalysisKind === "plank" && plankAnalysisError ? (
+                    <p className="text-[10px] leading-snug text-red-500/90">{plankAnalysisError}</p>
+                  ) : sportAnalysisKind === "plank" && plankAnalysisResult ? (
+                    <p className="text-[10px] text-[color:var(--muted)]">
+                      View results in the &quot;Sport analysis&quot; tab.
                     </p>
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={runSportAnalysis}
-                  disabled={!session.angles || session.frameIntervalSec == null}
-                  style={borderAllTheme}
-                  className="w-full rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:opacity-50"
-                >
-                  Analyze
-                </button>
-                {sportAnalysisKind === "cycling" && cyclingAnalysisError ? (
-                  <p className="text-[10px] leading-snug text-red-500/90">{cyclingAnalysisError}</p>
-                ) : sportAnalysisKind === "cycling" && cyclingAnalysisResult ? (
-                  <p className="text-[10px] text-[color:var(--muted)]">
-                    View results in the &quot;Sport analysis&quot; tab.
-                  </p>
-                ) : null}
-                {sportAnalysisKind === "pullups" && pullUpsAnalysisError ? (
-                  <p className="text-[10px] leading-snug text-red-500/90">{pullUpsAnalysisError}</p>
-                ) : sportAnalysisKind === "pullups" && pullUpsAnalysisResult ? (
-                  <p className="text-[10px] text-[color:var(--muted)]">
-                    View results in the &quot;Sport analysis&quot; tab.
-                  </p>
-                ) : null}
-                {sportAnalysisKind === "plank" && plankAnalysisError ? (
-                  <p className="text-[10px] leading-snug text-red-500/90">{plankAnalysisError}</p>
-                ) : sportAnalysisKind === "plank" && plankAnalysisResult ? (
-                  <p className="text-[10px] text-[color:var(--muted)]">
-                    View results in the &quot;Sport analysis&quot; tab.
-                  </p>
-                ) : null}
-                {sportAnalysisKind === "squat" && squatAnalysisError ? (
-                  <p className="text-[10px] leading-snug text-red-500/90">{squatAnalysisError}</p>
-                ) : sportAnalysisKind === "squat" && squatAnalysisResult ? (
-                  <p className="text-[10px] text-[color:var(--muted)]">
-                    View results in the &quot;Sport analysis&quot; tab.
-                  </p>
-                ) : null}
-                {sportAnalysisKind === "poseFlexibility" && poseFlexibilityAnalysisError ? (
-                  <p className="text-[10px] leading-snug text-red-500/90">{poseFlexibilityAnalysisError}</p>
-                ) : sportAnalysisKind === "poseFlexibility" && poseFlexibilityAnalysisResult ? (
-                  <p className="text-[10px] text-[color:var(--muted)]">
-                    View results in the &quot;Sport analysis&quot; tab.
-                  </p>
-                ) : null}
-              </div>
-              <p className="mb-0 mt-6 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                3. Movement Visualization
+                  ) : null}
+                  {sportAnalysisKind === "squat" && squatAnalysisError ? (
+                    <p className="text-[10px] leading-snug text-red-500/90">{squatAnalysisError}</p>
+                  ) : sportAnalysisKind === "squat" && squatAnalysisResult ? (
+                    <p className="text-[10px] text-[color:var(--muted)]">
+                      View results in the &quot;Sport analysis&quot; tab.
+                    </p>
+                  ) : null}
+                  {sportAnalysisKind === "poseFlexibility" && poseFlexibilityAnalysisError ? (
+                    <p className="text-[10px] leading-snug text-red-500/90">{poseFlexibilityAnalysisError}</p>
+                  ) : sportAnalysisKind === "poseFlexibility" && poseFlexibilityAnalysisResult ? (
+                    <p className="text-[10px] text-[color:var(--muted)]">
+                      View results in the &quot;Sport analysis&quot; tab.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <p
+                className={`mb-0 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)] ${isQuickAnalysis && !embeddedQuickAnalysis ? "mt-6" : ""}`}
+              >
+                {isQuickAnalysis
+                  ? embeddedQuickAnalysis
+                    ? "3. Movement Visualization"
+                    : "4. Movement Visualization"
+                  : "2. Movement Visualization"}
               </p>
               <StudioPanelChrome scrollContainer="passthrough" />
             </div>
@@ -1380,41 +1576,85 @@ export default function OpenMoveStudio() {
     </div>
   );
 
+  const sportAnalysisPanelProps = isQuickAnalysis
+    ? {
+        enableSportAnalysisTab: true as const,
+        sportAnalysisKind,
+        cyclingAnalysisResult,
+        cyclingAnalysisError,
+        pullUpsAnalysisResult,
+        pullUpsAnalysisError,
+        plankAnalysisResult,
+        plankAnalysisError,
+        squatAnalysisResult,
+        squatAnalysisError,
+        poseFlexibilityAnalysisResult,
+        poseFlexibilityAnalysisError,
+      }
+    : { enableSportAnalysisTab: false as const };
+
   return (
+    <EmbeddedModalPopoverProvider embeddedInModal={embedded}>
     <ConditionalEngineBridge
       session={session}
       sportAnalysisKind={sportAnalysisKind}
       sportMetricsSnapshot={overlaySportMetricsSnapshot}
+      showVideoEngine={showVideoEngine}
     >
-    <div className="flex h-[100dvh] w-full overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
+    <div
+      className={`flex w-full overflow-hidden bg-[var(--background)] text-[var(--foreground)] ${
+        embedded ? "h-full min-h-0 flex-col" : "h-[100dvh]"
+      }`}
+    >
+      {showEmbeddedSportTopBar && onClose ? (
+        <OpenMoveEmbeddedModalTopBar
+          onClose={onClose}
+          hasAnalysis={hasAnalysisSession}
+          analyticsOpen={embeddedAnalyticsOpen}
+          onToggleAnalysis={toggleEmbeddedAnalytics}
+          panelOpen={panelOpen}
+          onTogglePanel={toggleEmbeddedPanel}
+          isMobile={!isDesktop}
+        />
+      ) : null}
+      <div className={`flex min-h-0 min-w-0 flex-1 overflow-hidden ${embedded ? "w-full" : "w-full"}`}>
       <PausePlaybackWhenMobileAnalyticsOpen active={!isDesktop && analyticsOpen} />
-      {isDesktop ? (
+      {isDesktop && railVisible ? (
         <aside
           style={{
-            width: panelOpen ? "30vw" : 0,
+            width: panelOpen ? "30vw" : ARCHIVE_RAIL_WIDTH_COLLAPSED,
             transition: openMoveRailWidthTransition,
-            ...(panelOpen ? borderRightTheme : { borderRight: "none" }),
+            ...borderRightTheme,
           }}
-          className={`z-20 flex h-full min-h-0 min-w-0 max-w-[min(28vw)] flex-shrink-0 flex-col overflow-hidden bg-[var(--header-bg)] backdrop-blur-xl ${!panelOpen ? "pointer-events-none" : ""}`}
+          className="z-20 flex h-full min-h-0 min-w-0 max-w-[min(28vw)] flex-shrink-0 flex-col overflow-hidden bg-[var(--header-bg)] backdrop-blur-xl"
         >
-          {panelContent}
+          {panelOpen ? panelContent : desktopCollapsedRail}
         </aside>
       ) : null}
 
       {/* &lt;lg: overlay rail — portaled to body (avoids overflow/transform clipping); z above stage FABs */}
-      {portalTarget && !isDesktop && panelOpen
+      {portalTarget && !isDesktop && railVisible && panelOpen
         ? createPortal(
             <>
               <button
                 type="button"
-                className="fixed inset-0 z-[200] bg-black/50"
-                style={{ pointerEvents: mobileRailBackdropReady ? "auto" : "none" }}
+                className="fixed inset-0 bg-black/50"
+                style={{
+                  zIndex: portalLayers.mobileRailBackdrop,
+                  pointerEvents: mobileRailBackdropReady ? "auto" : "none",
+                }}
                 aria-label="Close controls panel"
                 onClick={() => setPanelOpen(false)}
               />
               <div
-                className="fixed left-0 top-0 z-[210] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[var(--header-bg)] backdrop-blur-xl"
-                style={{ ...borderRightTheme, width: "min(79vw, 30rem)" }}
+                className={`fixed left-0 top-0 flex flex-col overflow-hidden bg-[var(--header-bg)] backdrop-blur-xl ${
+                  embedded ? "h-full max-h-full" : "h-[100dvh] max-h-[100dvh]"
+                }`}
+                style={{
+                  ...borderRightTheme,
+                  width: "min(79vw, 30rem)",
+                  zIndex: portalLayers.mobileRail,
+                }}
               >
                 {panelContent}
               </div>
@@ -1425,23 +1665,20 @@ export default function OpenMoveStudio() {
 
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div className={`flex min-h-0 min-w-0 flex-1 ${isDesktop ? "flex-row" : "flex-col"}`}>
-          {isDesktop && !panelOpen ? (
-            <div className="shrink-0 py-4 pl-4 pr-0 flex flex-col items-start justify-start">
-              <button
-                type="button"
-                onClick={() => setPanelOpen(true)}
-                style={borderAllTheme}
-                className="inline-flex rounded-lg p-2 text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
-                aria-label="Expand panel"
-                title="Expand panel"
-              >
-                <PanelLeftOpen size={18} />
-              </button>
-            </div>
-          ) : null}
           {/* Video area */}
           <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center bg-[var(--background)]">
-          {!isDesktop ? (
+          {embedded && onClose && !railVisible ? (
+            <div
+              className="absolute z-[100]"
+              style={{
+                top: "max(1rem, env(safe-area-inset-top))",
+                right: "max(1rem, env(safe-area-inset-right))",
+              }}
+            >
+              <ProgramModalCloseButton onClose={onClose} />
+            </div>
+          ) : null}
+          {!isDesktop && !showEmbeddedSportTopBar ? (
             <div
               className="absolute z-[100] flex flex-col gap-2"
               style={{
@@ -1449,7 +1686,7 @@ export default function OpenMoveStudio() {
                 left: "max(1rem, env(safe-area-inset-left))",
               }}
             >
-              {!panelOpen ? (
+              {railVisible && !panelOpen ? (
                 <button
                   type="button"
                   onClick={() => setPanelOpen(true)}
@@ -1461,7 +1698,10 @@ export default function OpenMoveStudio() {
                   <PanelLeftOpen size={18} />
                 </button>
               ) : null}
-              {session.status === "ready" && session.angles && !analyticsOpen ? (
+              {embedded && onClose && railVisible && !panelOpen && !showEmbeddedSportTopBar ? (
+                <ProgramModalCloseButton onClose={onClose} />
+              ) : null}
+              {session.status === "ready" && session.angles && (!embeddedQuickAnalysis || hasAnalyzed) && !analyticsOpen && !showEmbeddedSportTopBar ? (
                 <button
                   type="button"
                   onClick={() => setAnalyticsOpen(true)}
@@ -1475,41 +1715,84 @@ export default function OpenMoveStudio() {
               ) : null}
             </div>
           ) : null}
-          {session.status === "loading_sample" && !session.videoUrl && (
+          {isQuickAnalysis && session.status === "idle" && !embeddedQuickAnalysis ? (
+            <div className="flex max-w-md flex-col items-center gap-4 px-6 text-center">
+              <p className="text-base text-[color:var(--foreground)]">Upload or record to get started</p>
+              {uploadRecordButtons}
+              {setupHint ? (
+                <p className="text-xs text-[color:var(--muted)]">{setupHint}</p>
+              ) : null}
+            </div>
+          ) : null}
+          {embeddedQuickAnalysis && session.status === "idle" ? (
+            <div className="flex max-w-md flex-col items-center gap-5 px-6 text-center">
+              <p className="text-base font-light text-[color:var(--foreground)]">
+                Upload or record a video to get started.
+              </p>
+              {setupHint ? (
+                <p className="text-xs text-[color:var(--muted)]">{setupHint}</p>
+              ) : null}
+              {uploadRecordButtons}
+            </div>
+          ) : null}
+          {skipFeaturedSample && session.status === "idle" ? (
+            <div className="flex max-w-md flex-col items-center gap-5 px-6 text-center">
+              <p className="text-base mb-4 font-light text-[color:var(--foreground)]">
+                Upload or record a video to get started.
+              </p>
+              <div className="w-full mb-6 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+                <p className="mb-2 text-xs font-medium text-[color:var(--foreground)]">for best results, remember:</p>
+                <ul className="space-y-1.5 mb-2 text-left">
+                  <li>Film only one person in the frame at a time</li>
+                  <li>Maintain good lighting and contrast from the background</li>
+                  <li>Body fully inside the camera frame</li>
+                </ul>
+              </div>
+              {uploadRecordButtons}
+            </div>
+          ) : null}
+          {session.status === "loading_sample" && !session.videoUrl && !skipFeaturedSample ? (
             <div className="flex flex-col items-center gap-3 text-[color:var(--muted-foreground)]">
               <Loader2 className="h-9 w-9 animate-spin text-[var(--accent,#3b82f6)]" />
               <p className="text-md">Loading featured sample…</p>
             </div>
-          )}
+          ) : null}
 
           {session.status === "error" && (
             <div className="max-w-md px-4 text-center">
               <p className="text-[color:var(--foreground)] opacity-90 text-sm mb-4">{session.errorMessage}</p>
               <div className="flex flex-wrap gap-2 justify-center">
-                <button
-                  type="button"
-                  onClick={() => loadFeaturedSample()}
-                  className="px-4 py-2 rounded-lg text-sm bg-[var(--accent,#3b82f6)] text-white"
-                >
-                  Retry
-                </button>
-                <Link
-                  href="/"
-                  style={borderAllTheme}
-                  className="px-4 py-2 rounded-lg text-sm text-[color:var(--foreground)] opacity-90"
-                >
-                  Home
-                </Link>
+                {isQuickAnalysis || embedded ? (
+                  uploadRecordButtons
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => loadFeaturedSample()}
+                    className="px-4 py-2 rounded-lg text-sm bg-[var(--accent,#3b82f6)] text-white"
+                  >
+                    Retry
+                  </button>
+                )}
+                {!embedded ? (
+                  <Link
+                    href="/"
+                    style={borderAllTheme}
+                    className="px-4 py-2 rounded-lg text-sm text-[color:var(--foreground)] opacity-90"
+                  >
+                    Home
+                  </Link>
+                ) : null}
               </div>
             </div>
           )}
 
           {(session.status === "ready" ||
+            session.status === "clip_ready" ||
             session.status === "processing_video" ||
             session.status === "loading_sample") &&
             session.videoUrl && (
               <div className="absolute inset-0 flex items-center justify-center md:p-4">
-                {session.status === "ready" && (session.poses?.length ?? 0) > 0 ? (
+                {session.status === "ready" && (session.poses?.length ?? 0) > 0 && showVideoEngine ? (
                   <div
                     className={
                       isDesktop
@@ -1608,7 +1891,7 @@ export default function OpenMoveStudio() {
                                   <BarChart3 size={18} />
                                 </button>
                               </div>
-                            ) : (
+                            ) : analyticsDrawerContentMounted ? (
                               <div
                                 onTransitionEnd={onAnalyticsDrawerWidthTransitionEnd}
                                 style={{
@@ -1626,22 +1909,11 @@ export default function OpenMoveStudio() {
                                     videoUrl={session.videoUrl}
                                     frameIntervalSec={session.frameIntervalSec}
                                     onRequestClose={() => setAnalyticsDrawerOpen(false)}
-                                    enableSportAnalysisTab
-                                    sportAnalysisKind={sportAnalysisKind}
-                                    cyclingAnalysisResult={cyclingAnalysisResult}
-                                    cyclingAnalysisError={cyclingAnalysisError}
-                                    pullUpsAnalysisResult={pullUpsAnalysisResult}
-                                    pullUpsAnalysisError={pullUpsAnalysisError}
-                                    plankAnalysisResult={plankAnalysisResult}
-                                    plankAnalysisError={plankAnalysisError}
-                                    squatAnalysisResult={squatAnalysisResult}
-                                    squatAnalysisError={squatAnalysisError}
-                                    poseFlexibilityAnalysisResult={poseFlexibilityAnalysisResult}
-                                    poseFlexibilityAnalysisError={poseFlexibilityAnalysisError}
+                                    {...sportAnalysisPanelProps}
                                   />
                                 </div>
                               </div>
-                            )}
+                            ) : null}
                           </div>
                         ) : null}
                       </div>
@@ -1657,6 +1929,21 @@ export default function OpenMoveStudio() {
                           pointerEvents: "none",
                         }}
                         aria-hidden
+                      />
+                    </div>
+                  </div>
+                ) : session.status === "clip_ready" ? (
+                  <div className="flex max-w-lg flex-col items-center gap-3 px-4">
+                    <div
+                      style={borderAllTheme}
+                      className="relative aspect-[9/16] max-h-[70dvh] w-full overflow-hidden rounded-lg bg-[var(--surface)]"
+                    >
+                      <video
+                        src={session.videoUrl}
+                        className="h-full w-full object-contain"
+                        muted
+                        playsInline
+                        controls
                       />
                     </div>
                   </div>
@@ -1700,6 +1987,29 @@ export default function OpenMoveStudio() {
             )}
           </div>
         </div>
+
+        {showEmbeddedSportTopBar && analyticsOpen && hasAnalysisSession && !isDesktop ? (
+          <div className="absolute inset-0 z-30 flex flex-col overflow-hidden bg-[var(--background)]">
+            <div className="open-move-studio-panel-scroll min-h-0 flex-1 overflow-y-auto p-2">
+              <Suspense
+                fallback={
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="animate-spin text-[color:var(--muted)]" />
+                  </div>
+                }
+              >
+                <MotionAnalysisPanel
+                  poses={session.poses}
+                  angles={session.angles!}
+                  videoUrl={session.videoUrl!}
+                  frameIntervalSec={session.frameIntervalSec}
+                  syncPlaybackFrame={false}
+                  {...sportAnalysisPanelProps}
+                />
+              </Suspense>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <Dialog.Root
@@ -1713,13 +2023,17 @@ export default function OpenMoveStudio() {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[225] bg-black/55" />
+          <Dialog.Overlay
+            className="fixed inset-0 bg-black/55"
+            style={{ zIndex: portalLayers.performanceOverlay }}
+          />
           <Dialog.Content
             style={{
               ...borderAllTheme,
               width: "min(calc(100vw - 2rem), 22rem)",
+              zIndex: portalLayers.performanceContent,
             }}
-            className="fixed left-1/2 top-1/2 z-[226] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--card-bg)] p-4 text-[color:var(--foreground)] shadow-2xl outline-none"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--card-bg)] p-4 text-[color:var(--foreground)] shadow-2xl outline-none"
           >
             <Dialog.Title className="text-base font-medium">Desktop recommended</Dialog.Title>
             <Dialog.Description className="mt-2 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
@@ -1739,12 +2053,18 @@ export default function OpenMoveStudio() {
 
       <Dialog.Root open={guideOpen} onOpenChange={setGuideOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[215] bg-black/60" />
+          <Dialog.Overlay
+            className="fixed inset-0 bg-black/60"
+            style={{ zIndex: portalLayers.guideOverlay }}
+          />
           {/*
             Full-viewport flex shell: centers card (no left:50% + translate). Transparent + pointer-events-none
             so overlay receives outside clicks; py-8 keeps space when vertically centered.
           */}
-          <Dialog.Content className="fixed inset-0 z-[220] flex items-center justify-center overflow-y-auto border-0 bg-transparent px-4 py-8 shadow-none outline-none pointer-events-none">
+          <Dialog.Content
+            className="fixed inset-0 flex items-center justify-center overflow-y-auto border-0 bg-transparent px-4 py-8 shadow-none outline-none pointer-events-none"
+            style={{ zIndex: portalLayers.guideContent }}
+          >
             <div
               className="pointer-events-auto flex min-w-0 flex-col overflow-hidden rounded-xl bg-[var(--card-bg)] p-3 shadow-2xl backdrop-blur-xl sm:p-4"
               style={{
@@ -1775,13 +2095,17 @@ export default function OpenMoveStudio() {
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* Mobile: analytics dialog */}
-      <Dialog.Root open={!isDesktop && analyticsOpen} onOpenChange={setAnalyticsOpen}>
+      {/* Mobile: analytics dialog (full-page / non-embedded sport modal uses portaled dialog) */}
+      {!embeddedQuickAnalysis && !isDesktop ? (
+      <Dialog.Root open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/70 z-[215]" />
+          <Dialog.Overlay
+            className="fixed inset-0 bg-black/70"
+            style={{ zIndex: portalLayers.analyticsOverlay }}
+          />
           <Dialog.Content
-            style={borderAllTheme}
-            className="fixed inset-x-2 bottom-2 top-2 z-[220] flex flex-col overflow-hidden rounded-xl bg-[var(--background)] shadow-2xl backdrop-blur-xl"
+            style={{ ...borderAllTheme, zIndex: portalLayers.analyticsContent }}
+            className="fixed inset-x-2 bottom-2 top-2 flex flex-col overflow-hidden rounded-xl bg-[var(--background)] shadow-2xl backdrop-blur-xl"
           >
             <div className="flex justify-between items-center px-2 py-2 flex-shrink-0">
               <Dialog.Title className="text-sm font-medium text-[color:var(--foreground)]">Motion analysis</Dialog.Title>
@@ -1790,7 +2114,7 @@ export default function OpenMoveStudio() {
               </Dialog.Close>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto open-move-studio-panel-scroll p-2">
-              {session.status === "ready" && session.angles && session.videoUrl ? (
+              {session.status === "ready" && session.angles && session.videoUrl && (!embeddedQuickAnalysis || hasAnalyzed) ? (
                 <Suspense
                   fallback={
                     <div className="flex justify-center py-12">
@@ -1804,18 +2128,7 @@ export default function OpenMoveStudio() {
                     videoUrl={session.videoUrl}
                     frameIntervalSec={session.frameIntervalSec}
                     syncPlaybackFrame={false}
-                    enableSportAnalysisTab
-                    sportAnalysisKind={sportAnalysisKind}
-                    cyclingAnalysisResult={cyclingAnalysisResult}
-                    cyclingAnalysisError={cyclingAnalysisError}
-                    pullUpsAnalysisResult={pullUpsAnalysisResult}
-                    pullUpsAnalysisError={pullUpsAnalysisError}
-                    plankAnalysisResult={plankAnalysisResult}
-                    plankAnalysisError={plankAnalysisError}
-                    squatAnalysisResult={squatAnalysisResult}
-                    squatAnalysisError={squatAnalysisError}
-                    poseFlexibilityAnalysisResult={poseFlexibilityAnalysisResult}
-                    poseFlexibilityAnalysisError={poseFlexibilityAnalysisError}
+                    {...sportAnalysisPanelProps}
                   />
                 </Suspense>
               ) : (
@@ -1825,12 +2138,19 @@ export default function OpenMoveStudio() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+      ) : null}
 
       {/* Live record modal — fullscreen video; close via toolbar, Escape, or Change Method */}
       <Dialog.Root open={showLiveModal} onOpenChange={setShowLiveModal}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[230] bg-black" />
-          <Dialog.Content className="fixed inset-0 z-[231] flex flex-col overflow-hidden border-0 bg-black p-0 shadow-none outline-none">
+          <Dialog.Overlay
+            className="fixed inset-0 bg-black"
+            style={{ zIndex: portalLayers.liveOverlay }}
+          />
+          <Dialog.Content
+            className="fixed inset-0 flex flex-col overflow-hidden border-0 bg-black p-0 shadow-none outline-none"
+            style={{ zIndex: portalLayers.liveContent }}
+          >
             <Dialog.Title
               style={{
                 position: "absolute",
@@ -1855,9 +2175,9 @@ export default function OpenMoveStudio() {
                 onEmbeddedClose={() => setShowLiveModal(false)}
                 referenceAngles={undefined}
                 exercise={null}
-                plankLiveCoach={sportAnalysisKind === "plank"}
+                plankLiveCoach={isQuickAnalysis && sportAnalysisKind === "plank"}
                 plankFacingSide={plankFacingSide}
-                squatLiveCoach={sportAnalysisKind === "squat"}
+                squatLiveCoach={isQuickAnalysis && sportAnalysisKind === "squat"}
                 squatSide={squatSide}
                 layoutVariant="embeddedFullscreen"
               />
@@ -1865,7 +2185,9 @@ export default function OpenMoveStudio() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+      </div>
     </div>
     </ConditionalEngineBridge>
+    </EmbeddedModalPopoverProvider>
   );
 }

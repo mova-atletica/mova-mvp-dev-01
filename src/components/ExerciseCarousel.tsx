@@ -57,7 +57,7 @@ export default function ExerciseCarousel({ title, exercises, className = "" }: E
   return (
     <div className={`relative ${className}`}>
       {/* Section Header */}
-      <div className="px-4 mb-6">
+      <div className="px-2">
         <h2 className="text-2xl font-regular mb-2" style={{ color: 'var(--section-title)' }}>{title}</h2>
         <div className="w-16 h-1 rounded-full" style={{ backgroundColor: 'var(--section-accent)' }}></div>
       </div>
@@ -113,7 +113,7 @@ export default function ExerciseCarousel({ title, exercises, className = "" }: E
         <div
           ref={carouselRef}
           onScroll={handleScroll}
-          className="flex gap-4 overflow-x-auto scrollbar-hide px-4 pb-6 relative"
+          className="flex gap-4 overflow-x-auto scrollbar-hide px-2 pb-6 relative"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', paddingTop: '9px', paddingBottom: '18px' }}
         >
           {exercises.filter(exercise => exercise && exercise.id).map((exercise, index) => (

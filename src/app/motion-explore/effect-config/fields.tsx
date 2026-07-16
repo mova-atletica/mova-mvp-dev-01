@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown } from "lucide-react";
+import { useExportPanelPopoverLayers } from "../../../contexts/EmbeddedModalPopoverContext";
 import {
   EFFECT_CONFIG_JOINT_OPTIONS,
   hasSideSpecificOptions,
@@ -10,7 +11,6 @@ import {
   optionKeysForSide,
 } from "./jointOptions";
 import {
-  exportPanelPopoverContentClass,
   exportPanelSelectTriggerClass,
 } from "../AssetVideoPlayerExportPanel";
 
@@ -346,6 +346,7 @@ export function ConfigMultiSelect({
   showSideQuickSelect?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const popoverLayers = useExportPanelPopoverLayers("max-h-[min(260px,55vh)] overflow-y-auto p-0");
   const selectedSet = new Set(selectedKeys);
   const sideQuickSelect = showSideQuickSelect && hasSideSpecificOptions(options);
   const leftKeys = sideQuickSelect ? optionKeysForSide(options, "left") : [];
@@ -360,7 +361,7 @@ export function ConfigMultiSelect({
         : `${selectedKeys.length} selected`;
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
+    <Popover.Root modal={popoverLayers.modal} open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
         <button type="button" className={exportPanelSelectTriggerClass}>
           <span className="min-w-0 flex-1 truncate text-left">{summary}</span>
@@ -369,13 +370,14 @@ export function ConfigMultiSelect({
           />
         </button>
       </Popover.Trigger>
-      <Popover.Portal>
+      <Popover.Portal container={popoverLayers.portalContainer}>
         <Popover.Content
           side="bottom"
           align="start"
           sideOffset={6}
           collisionPadding={12}
-          className={`${exportPanelPopoverContentClass} max-h-[min(260px,55vh)] overflow-y-auto p-0`}
+          style={popoverLayers.contentStyle}
+          className={popoverLayers.contentClassName}
         >
           {showSelectAllNone || sideQuickSelect ? (
             <QuickSelectBar>

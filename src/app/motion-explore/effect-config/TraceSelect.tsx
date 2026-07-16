@@ -3,9 +3,9 @@
 import { useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown } from "lucide-react";
+import { useExportPanelPopoverLayers } from "../../../contexts/EmbeddedModalPopoverContext";
 import {
   exportPanelDropdownMenuItemClass,
-  exportPanelPopoverContentClass,
   exportPanelSelectTriggerClass,
 } from "../AssetVideoPlayerExportPanel";
 
@@ -20,9 +20,10 @@ export function TraceSelect({
 }) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value) ?? options[0];
+  const popoverLayers = useExportPanelPopoverLayers();
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
+    <Popover.Root modal={popoverLayers.modal} open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
         <button type="button" className={exportPanelSelectTriggerClass}>
           <span className="truncate">{selected?.label ?? value}</span>
@@ -31,13 +32,14 @@ export function TraceSelect({
           />
         </button>
       </Popover.Trigger>
-      <Popover.Portal>
+      <Popover.Portal container={popoverLayers.portalContainer}>
         <Popover.Content
           side="bottom"
           align="start"
           sideOffset={6}
           collisionPadding={12}
-          className={exportPanelPopoverContentClass}
+          style={popoverLayers.contentStyle}
+          className={popoverLayers.contentClassName}
         >
           {options.map((opt, index) => (
             <div

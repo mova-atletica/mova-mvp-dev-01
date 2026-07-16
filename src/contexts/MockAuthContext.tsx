@@ -1,0 +1,586 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { User } from "@supabase/supabase-js";
+import { MOCK_LEADERBOARD_ENTRIES } from "../data/mockLeaderboards";
+import { QUICK_ANALYSIS_MOVEMENTS } from "../data/quickAnalysisMovements";
+import { createClient } from "../lib/supabase/client";
+import { mapProfileRow, type ProfileRow } from "../lib/supabase/profile";
+import { hasProAccess } from "../lib/proAccess";
+import type {
+  AccountProfile,
+  AccountTier,
+  LeaderboardEntry,
+  LeaderboardScorePayload,
+  LeaderboardScope,
+  OnboardingInput,
+} from "../types/account";
+
+export interface MyLeaderboardRank {
+  sportSlug: string;
+  sportTitle: string;
+  metricLabel: string;
+  formattedScore: string;
+  globalRank: number | null;
+  countryRank: number | null;
+}
+
+interface MockAuthContextValue {
+  tier: AccountTier;
+  profile: AccountProfile | null;
+  isAuthenticated: boolean;
+  authLoading: boolean;
+  canPostToLeaderboard: boolean;
+  hasProAccess: boolean;
+  leaderboardEntries: LeaderboardEntry[];
+  pendingLeaderboardScore: LeaderboardScorePayload | null;
+  onboardingOpen: boolean;
+  signInOpen: boolean;
+  leaderboardSaveOpen: boolean;
+  proPaywallOpen: boolean;
+  authError: string | null;
+  getLeaderboard: (sportSlug: string, scope: LeaderboardScope, countryCode?: string) => LeaderboardEntry[];
+  getMyLeaderboardRanks: () => MyLeaderboardRank[];
+  /** @deprecated Use openSignIn / signInWithMagicLink */
+  signIn: (tier?: Exclude<AccountTier, "guest">, email?: string) => void;
+  signInWithMagicLink: (email: string) => Promise<{ error: string | null }>;
+  verifyEmailOtp: (email: string, token: string) => Promise<{ error: string | null }>;
+  signOut: () => Promise<void>;
+  completeOnboarding: (input: OnboardingInput) => Promise<void>;
+  setMockTier: (tier: Exclude<AccountTier, "guest">) => void;
+  submitLeaderboardScore: (score: LeaderboardScorePayload) => void;
+  queueLeaderboardSave: (score: LeaderboardScorePayload) => void;
+  dismissLeaderboardSave: () => void;
+  openSignIn: () => void;
+  closeSignIn: () => void;
+  openOnboarding: () => void;
+  closeOnboarding: () => void;
+  requestStudioAccess: (onGranted: () => void) => void;
+  openProPaywall: () => void;
+  closeProPaywall: () => void;
+  mockUpgradeToPro: () => void;
+}
+
+const MockAuthContext = createContext<MockAuthContextValue | null>(null);
+
+const LB_STORAGE_KEY = "mova-mock-leaderboard-v1";
+
+function mergeLeaderboardSeed(stored: LeaderboardEntry[] | undefined): LeaderboardEntry[] {
+  const userPosts = (stored ?? []).filter(
+    (e) => Boolean(e.userId) || e.id.startsWith("lb-user-")
+  );
+  const seedIds = new Set(MOCK_LEADERBOARD_ENTRIES.map((e) => e.id));
+  const merged = [...MOCK_LEADERBOARD_ENTRIES];
+  for (const post of userPosts) {
+    if (!seedIds.has(post.id)) merged.push(post);
+  }
+  return merged;
+}
+
+function loadLeaderboardEntries(): LeaderboardEntry[] {
+  if (typeof window === "undefined") return MOCK_LEADERBOARD_ENTRIES;
+  try {
+    const raw = localStorage.getItem(LB_STORAGE_KEY);
+    if (!raw) return MOCK_LEADERBOARD_ENTRIES;
+    return mergeLeaderboardSeed(JSON.parse(raw) as LeaderboardEntry[]);
+  } catch {
+    return MOCK_LEADERBOARD_ENTRIES;
+  }
+}
+
+function siteOrigin(): string {
+  if (typeof window !== "undefined") return window.location.origin;
+  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+}
+
+export function MockAuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>(
+    MOCK_LEADERBOARD_ENTRIES
+  );
+  const [pendingLeaderboardScore, setPendingLeaderboardScore] =
+    useState<LeaderboardScorePayload | null>(null);
+  const [leaderboardSaveOpen, setLeaderboardSaveOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [proPaywallOpen, setProPaywallOpen] = useState(false);
+  const [lbHydrated, setLbHydrated] = useState(false);
+  const pendingStudioAccessRef = useRef<(() => void) | null>(null);
+  const wasAuthenticatedRef = useRef(false);
+  const supabase = useMemo(() => createClient(), []);
+
+  const loadProfile = useCallback(
+    async (nextUser: User | null) => {
+      if (!nextUser) {
+        setProfile(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(
+          "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
+        )
+        .eq("id", nextUser.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Failed to load profile", error.message);
+        setAuthError(error.message);
+        // Soft fallback so UI still works if migration hasn't been run yet.
+        setProfile({
+          id: nextUser.id,
+          email: nextUser.email?.trim() || "",
+          displayName: "",
+          countryCode: "US",
+          locale: "en",
+          onboardingComplete: false,
+          tier: "free",
+        });
+        return;
+      }
+
+      if (!data) {
+        const { data: inserted, error: insertError } = await supabase
+          .from("profiles")
+          .upsert({ id: nextUser.id }, { onConflict: "id" })
+          .select(
+            "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
+          )
+          .single();
+
+        if (insertError || !inserted) {
+          console.error("Failed to create profile", insertError?.message);
+          setProfile({
+            id: nextUser.id,
+            email: nextUser.email?.trim() || "",
+            displayName: "",
+            countryCode: "US",
+            locale: "en",
+            onboardingComplete: false,
+            tier: "free",
+          });
+          return;
+        }
+        setProfile(mapProfileRow(inserted as ProfileRow, nextUser));
+        return;
+      }
+
+      setProfile(mapProfileRow(data as ProfileRow, nextUser));
+      setAuthError(null);
+    },
+    [supabase]
+  );
+
+  useEffect(() => {
+    setLeaderboardEntries(loadLeaderboardEntries());
+    setLbHydrated(true);
+
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      setUser(session?.user ?? null);
+      void loadProfile(session?.user ?? null).finally(() => {
+        if (mounted) setAuthLoading(false);
+      });
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      void loadProfile(session?.user ?? null);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase, loadProfile]);
+
+  useEffect(() => {
+    if (!lbHydrated) return;
+    localStorage.setItem(LB_STORAGE_KEY, JSON.stringify(leaderboardEntries));
+  }, [leaderboardEntries, lbHydrated]);
+
+  // After first auth (OTP or magic link), open onboarding if profile incomplete.
+  useEffect(() => {
+    if (authLoading) return;
+    const nowAuth = Boolean(user && profile);
+    if (nowAuth && !wasAuthenticatedRef.current && profile && !profile.onboardingComplete) {
+      setSignInOpen(false);
+      setOnboardingOpen(true);
+    }
+    wasAuthenticatedRef.current = nowAuth;
+  }, [authLoading, user, profile]);
+
+  const tier: AccountTier = profile?.tier ?? "guest";
+  const isAuthenticated = Boolean(user && profile);
+  const canPostToLeaderboard = Boolean(profile?.onboardingComplete && profile.displayName);
+  const userHasProAccess = hasProAccess(tier);
+
+  const getLeaderboard = useCallback(
+    (sportSlug: string, scope: LeaderboardScope, countryCode?: string) => {
+      let rows = leaderboardEntries.filter((e) => e.sportSlug === sportSlug);
+      if (scope === "country" && countryCode) {
+        rows = rows.filter((e) => e.countryCode === countryCode);
+      }
+      return [...rows].sort((a, b) => b.metricValue - a.metricValue).slice(0, 10);
+    },
+    [leaderboardEntries]
+  );
+
+  const getMyLeaderboardRanks = useCallback((): MyLeaderboardRank[] => {
+    if (!profile?.id) return [];
+    return QUICK_ANALYSIS_MOVEMENTS.map((movement) => {
+      const mine = leaderboardEntries
+        .filter((e) => e.userId === profile.id && e.sportSlug === movement.slug)
+        .sort((a, b) => b.metricValue - a.metricValue)[0];
+      if (!mine) {
+        return {
+          sportSlug: movement.slug,
+          sportTitle: movement.title,
+          metricLabel: movement.primaryMetric,
+          formattedScore: "—",
+          globalRank: null,
+          countryRank: null,
+        };
+      }
+      const global = getLeaderboard(movement.slug, "global");
+      const country = profile.countryCode
+        ? getLeaderboard(movement.slug, "country", profile.countryCode)
+        : [];
+      return {
+        sportSlug: movement.slug,
+        sportTitle: movement.title,
+        metricLabel: mine.metricLabel,
+        formattedScore: mine.formattedScore,
+        globalRank: global.findIndex((e) => e.id === mine.id) + 1 || null,
+        countryRank: country.findIndex((e) => e.id === mine.id) + 1 || null,
+      };
+    }).filter((row) => row.formattedScore !== "—");
+  }, [profile, leaderboardEntries, getLeaderboard]);
+
+  const signInWithMagicLink = useCallback(
+    async (email: string): Promise<{ error: string | null }> => {
+      setAuthError(null);
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${siteOrigin()}/auth/callback`,
+        },
+      });
+      if (error) {
+        setAuthError(error.message);
+        return { error: error.message };
+      }
+      return { error: null };
+    },
+    [supabase]
+  );
+
+  const verifyEmailOtp = useCallback(
+    async (email: string, token: string): Promise<{ error: string | null }> => {
+      setAuthError(null);
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: token.trim(),
+        type: "email",
+      });
+      if (error) {
+        setAuthError(error.message);
+        return { error: error.message };
+      }
+      return { error: null };
+    },
+    [supabase]
+  );
+
+  /** Opens the Sign In / Create Account modal. */
+  const signIn = useCallback((_tier?: Exclude<AccountTier, "guest">, _email?: string) => {
+    setSignInOpen(true);
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    setPendingLeaderboardScore(null);
+    setLeaderboardSaveOpen(false);
+    setOnboardingOpen(false);
+    setSignInOpen(false);
+    setProPaywallOpen(false);
+    pendingStudioAccessRef.current = null;
+    wasAuthenticatedRef.current = false;
+    setAuthError(null);
+  }, [supabase]);
+
+  const completeOnboarding = useCallback(
+    async (input: OnboardingInput) => {
+      if (!user) return;
+
+      const patch = {
+        display_name: input.displayName.trim(),
+        country_code: input.countryCode,
+        locale: input.locale,
+        onboarding_complete: true,
+      };
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(patch)
+        .eq("id", user.id)
+        .select(
+          "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
+        )
+        .single();
+
+      if (error || !data) {
+        console.error("Onboarding update failed", error?.message);
+        setAuthError(error?.message ?? "Failed to save profile");
+        // Optimistic local update so UX isn't blocked.
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                displayName: patch.display_name,
+                countryCode: patch.country_code,
+                locale: input.locale,
+                onboardingComplete: true,
+              }
+            : prev
+        );
+      } else {
+        setProfile(mapProfileRow(data as ProfileRow, user));
+      }
+
+      setOnboardingOpen(false);
+
+      setPendingLeaderboardScore((pending) => {
+        if (!pending) return null;
+        const entry: LeaderboardEntry = {
+          id: `lb-user-${Date.now()}`,
+          sportSlug: pending.sportSlug,
+          metricKey: pending.metricKey,
+          metricLabel: pending.metricLabel,
+          metricValue: pending.metricValue,
+          formattedScore: pending.formattedScore,
+          displayName: patch.display_name,
+          countryCode: patch.country_code,
+          userId: user.id,
+          createdAt: new Date().toISOString(),
+        };
+        setLeaderboardEntries((prev) => [entry, ...prev]);
+        setLeaderboardSaveOpen(false);
+        return null;
+      });
+    },
+    [supabase, user]
+  );
+
+  const setMockTier = useCallback(
+    (nextTier: Exclude<AccountTier, "guest">) => {
+      if (process.env.NODE_ENV !== "development") return;
+      setProfile((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          tier: nextTier,
+          onboardingComplete: true,
+          displayName: prev.displayName || "Dev User",
+        };
+      });
+      if (user) {
+        void supabase
+          .from("profiles")
+          .update({
+            tier: nextTier === "partner" ? "pro" : nextTier,
+            onboarding_complete: true,
+          })
+          .eq("id", user.id);
+      }
+    },
+    [supabase, user]
+  );
+
+  const submitLeaderboardScore = useCallback(
+    (score: LeaderboardScorePayload) => {
+      if (!profile?.onboardingComplete) return;
+      const entry: LeaderboardEntry = {
+        id: `lb-user-${Date.now()}`,
+        sportSlug: score.sportSlug,
+        metricKey: score.metricKey,
+        metricLabel: score.metricLabel,
+        metricValue: score.metricValue,
+        formattedScore: score.formattedScore,
+        displayName: profile.displayName,
+        countryCode: profile.countryCode,
+        userId: profile.id,
+        createdAt: new Date().toISOString(),
+      };
+      setLeaderboardEntries((prev) => [entry, ...prev]);
+      setPendingLeaderboardScore(null);
+      setLeaderboardSaveOpen(false);
+    },
+    [profile]
+  );
+
+  const queueLeaderboardSave = useCallback((score: LeaderboardScorePayload) => {
+    setPendingLeaderboardScore(score);
+    setLeaderboardSaveOpen(true);
+  }, []);
+
+  const dismissLeaderboardSave = useCallback(() => {
+    setPendingLeaderboardScore(null);
+    setLeaderboardSaveOpen(false);
+  }, []);
+
+  const openOnboarding = useCallback(() => setOnboardingOpen(true), []);
+  const closeOnboarding = useCallback(() => setOnboardingOpen(false), []);
+  const openSignIn = useCallback(() => {
+    setOnboardingOpen(false);
+    setSignInOpen(true);
+  }, []);
+  const closeSignIn = useCallback(() => setSignInOpen(false), []);
+  const openProPaywall = useCallback(() => setProPaywallOpen(true), []);
+  const closeProPaywall = useCallback(() => {
+    setProPaywallOpen(false);
+    pendingStudioAccessRef.current = null;
+  }, []);
+
+  const requestStudioAccess = useCallback(
+    (onGranted: () => void) => {
+      if (userHasProAccess) {
+        onGranted();
+        return;
+      }
+      pendingStudioAccessRef.current = onGranted;
+      setProPaywallOpen(true);
+    },
+    [userHasProAccess]
+  );
+
+  const mockUpgradeToPro = useCallback(() => {
+    if (!user) {
+      setProPaywallOpen(false);
+      setSignInOpen(true);
+      return;
+    }
+
+    setProfile((prev) => (prev ? { ...prev, tier: "pro" } : prev));
+    void supabase.from("profiles").update({ tier: "pro" }).eq("id", user.id);
+    setProPaywallOpen(false);
+    const callback = pendingStudioAccessRef.current;
+    pendingStudioAccessRef.current = null;
+    callback?.();
+  }, [supabase, user]);
+
+  const value = useMemo<MockAuthContextValue>(
+    () => ({
+      tier,
+      profile,
+      isAuthenticated,
+      authLoading,
+      canPostToLeaderboard,
+      hasProAccess: userHasProAccess,
+      leaderboardEntries,
+      pendingLeaderboardScore,
+      onboardingOpen,
+      signInOpen,
+      leaderboardSaveOpen,
+      proPaywallOpen,
+      authError,
+      getLeaderboard,
+      getMyLeaderboardRanks,
+      signIn,
+      signInWithMagicLink,
+      verifyEmailOtp,
+      signOut,
+      completeOnboarding,
+      setMockTier,
+      submitLeaderboardScore,
+      queueLeaderboardSave,
+      dismissLeaderboardSave,
+      openSignIn,
+      closeSignIn,
+      openOnboarding,
+      closeOnboarding,
+      requestStudioAccess,
+      openProPaywall,
+      closeProPaywall,
+      mockUpgradeToPro,
+    }),
+    [
+      tier,
+      profile,
+      isAuthenticated,
+      authLoading,
+      canPostToLeaderboard,
+      userHasProAccess,
+      leaderboardEntries,
+      pendingLeaderboardScore,
+      onboardingOpen,
+      signInOpen,
+      leaderboardSaveOpen,
+      proPaywallOpen,
+      authError,
+      getLeaderboard,
+      getMyLeaderboardRanks,
+      signIn,
+      signInWithMagicLink,
+      verifyEmailOtp,
+      signOut,
+      completeOnboarding,
+      setMockTier,
+      submitLeaderboardScore,
+      queueLeaderboardSave,
+      dismissLeaderboardSave,
+      openSignIn,
+      closeSignIn,
+      openOnboarding,
+      closeOnboarding,
+      requestStudioAccess,
+      openProPaywall,
+      closeProPaywall,
+      mockUpgradeToPro,
+    ]
+  );
+
+  return <MockAuthContext.Provider value={value}>{children}</MockAuthContext.Provider>;
+}
+
+export function useAccount(): MockAuthContextValue {
+  const ctx = useContext(MockAuthContext);
+  if (!ctx) {
+    throw new Error("useAccount must be used within MockAuthProvider");
+  }
+  return ctx;
+}
+
+/** Dev-only: ?mockTier=pro overrides tier after sign-in. */
+export function useMockTierQueryParam() {
+  const { setMockTier, isAuthenticated } = useAccount();
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    if (typeof window === "undefined" || !isAuthenticated) return;
+    const params = new URLSearchParams(window.location.search);
+    const mockTier = params.get("mockTier");
+    if (mockTier === "free" || mockTier === "pro" || mockTier === "partner") {
+      setMockTier(mockTier);
+    }
+  }, [setMockTier, isAuthenticated]);
+}

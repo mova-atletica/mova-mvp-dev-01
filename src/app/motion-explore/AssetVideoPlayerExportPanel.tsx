@@ -3,6 +3,7 @@
 import React from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown, Download } from "lucide-react";
+import { useExportPanelPopoverLayers } from "../../contexts/EmbeddedModalPopoverContext";
 import type { AssetVideoEngine } from "./useAssetVideoEngine";
 
 /** Shared with Open Move Studio cycling knee control — matches export Format/Quality triggers. */
@@ -21,6 +22,7 @@ export const exportPanelSelectTriggerClass =
 
 /** Download / export settings — Parque-style dark glass; shared by overlay menu and desktop rail footer. */
 export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngine }) {
+  const popoverLayers = useExportPanelPopoverLayers();
   const {
     exportConfig,
     setExportConfig,
@@ -44,6 +46,7 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
           <div className="min-w-0">
             <div className={exportPanelFieldLabelClass}>Format</div>
             <Popover.Root
+              modal={popoverLayers.modal}
               open={formatDropdownOpen}
               onOpenChange={(open) => {
                 setFormatDropdownOpen(open);
@@ -58,8 +61,15 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
                   />
                 </button>
               </Popover.Trigger>
-              <Popover.Portal>
-                <Popover.Content side="bottom" align="start" sideOffset={6} collisionPadding={12} className={exportPanelPopoverContentClass}>
+              <Popover.Portal container={popoverLayers.portalContainer}>
+                <Popover.Content
+                  side="bottom"
+                  align="start"
+                  sideOffset={6}
+                  collisionPadding={12}
+                  style={popoverLayers.contentStyle}
+                  className={popoverLayers.contentClassName}
+                >
                   <div
                     role="menuitem"
                     className={exportPanelDropdownMenuItemClass}
@@ -88,6 +98,7 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
           <div className="min-w-0">
             <div className={exportPanelFieldLabelClass}>Quality</div>
             <Popover.Root
+              modal={popoverLayers.modal}
               open={qualityDropdownOpen}
               onOpenChange={(open) => {
                 setQualityDropdownOpen(open);
@@ -108,8 +119,15 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
                   />
                 </button>
               </Popover.Trigger>
-              <Popover.Portal>
-                <Popover.Content side="bottom" align="start" sideOffset={6} collisionPadding={12} className={exportPanelPopoverContentClass}>
+              <Popover.Portal container={popoverLayers.portalContainer}>
+                <Popover.Content
+                  side="bottom"
+                  align="start"
+                  sideOffset={6}
+                  collisionPadding={12}
+                  style={popoverLayers.contentStyle}
+                  className={popoverLayers.contentClassName}
+                >
                   <div
                     className={exportPanelDropdownMenuItemClass}
                     onClick={() => {

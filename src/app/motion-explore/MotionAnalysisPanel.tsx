@@ -1,6 +1,6 @@
 // Updated MotionAnalysisPanel.tsx
 "use client";
-import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { PanelLeftClose } from "lucide-react";
 import {
   BarChart,
@@ -64,9 +64,13 @@ interface MotionAnalysisPanelProps {
   squatAnalysisError?: string | null;
   poseFlexibilityAnalysisResult?: PoseFlexibilityAnalysisResult | null;
   poseFlexibilityAnalysisError?: string | null;
+  /** Exercise studio: metadata + programs list */
+  enableDetailsTab?: boolean;
+  detailsContent?: React.ReactNode;
+  defaultTab?: TabType;
 }
 
-type TabType = 'overview' | 'joints' | 'sport';
+type TabType = "overview" | "joints" | "sport" | "details";
 
 type ChartJointKey =
   | "leftKnee"
@@ -132,8 +136,13 @@ export default function MotionAnalysisPanel({
   squatAnalysisError = null,
   poseFlexibilityAnalysisResult = null,
   poseFlexibilityAnalysisError = null,
+  enableDetailsTab = false,
+  detailsContent = null,
+  defaultTab,
 }: MotionAnalysisPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [activeTab, setActiveTab] = useState<TabType>(
+    defaultTab ?? (enableDetailsTab ? "details" : "overview")
+  );
   const [hoveredFrame, setHoveredFrame] = useState<number | null>(null);
   const [jointLineVisible, setJointLineVisible] =
     useState<Record<ChartJointKey, boolean>>(() => ({ ...DEFAULT_JOINT_LINE_VISIBLE }));
@@ -144,6 +153,10 @@ export default function MotionAnalysisPanel({
   useEffect(() => {
     if (!enableSportAnalysisTab && activeTab === "sport") setActiveTab("overview");
   }, [enableSportAnalysisTab, activeTab]);
+
+  useEffect(() => {
+    if (!enableDetailsTab && activeTab === "details") setActiveTab("overview");
+  }, [enableDetailsTab, activeTab]);
 
   /** Reset playhead when clip length changes. */
   useEffect(() => {
@@ -1261,13 +1274,13 @@ export default function MotionAnalysisPanel({
   ]);
 
   const tabs = useMemo(() => {
-    const base: { id: TabType; label: string }[] = [
-      { id: "overview", label: "Overview" },
-      { id: "joints", label: "Joint Analysis" },
-    ];
+    const base: { id: TabType; label: string }[] = [];
+    if (enableDetailsTab) base.push({ id: "details", label: "Details" });
+    base.push({ id: "overview", label: "Overview" });
+    base.push({ id: "joints", label: "Joint Analysis" });
     if (enableSportAnalysisTab) base.push({ id: "sport", label: "Sport analysis" });
     return base;
-  }, [enableSportAnalysisTab]);
+  }, [enableSportAnalysisTab, enableDetailsTab]);
 
   const renderOverviewTab = () => (
     <div className="space-y-4">
@@ -1624,15 +1637,14 @@ export default function MotionAnalysisPanel({
   ]);
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Tab Navigation - Using Results Page Styling */}
+    <div className="flex h-full flex-col">
       <div
         className="mb-0 ml-0 mr-0 flex flex-shrink-0 flex-row flex-wrap items-center justify-between"
         style={{
           padding: 6,
           gap: 6,
-          background: 'transparent',
-          border: '1px solid var(--results-tabs-border-color)',
+          background: "transparent",
+          border: "1px solid var(--results-tabs-border-color)",
           borderRadius: 6,
         }}
       >
@@ -1688,9 +1700,10 @@ export default function MotionAnalysisPanel({
 
       {/* Tab Content */}
       <div className="flex-1 p-4 overflow-y-auto">
-        {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'joints' && renderJointsTab}
-        {activeTab === 'sport' && enableSportAnalysisTab ? sportTabContent : null}
+        {activeTab === "details" && enableDetailsTab ? detailsContent : null}
+        {activeTab === "overview" && renderOverviewTab()}
+        {activeTab === "joints" && renderJointsTab}
+        {activeTab === "sport" && enableSportAnalysisTab ? sportTabContent : null}
       </div>
 
     </div>

@@ -1,5 +1,5 @@
-import OpenMoveStudio from "./OpenMoveStudio";
+import OpenMoveStudioGate from "./OpenMoveStudioGate";
 
 export default function OpenMoveV2Page() {
-  return <OpenMoveStudio />;
+  return <OpenMoveStudioGate />;
 }

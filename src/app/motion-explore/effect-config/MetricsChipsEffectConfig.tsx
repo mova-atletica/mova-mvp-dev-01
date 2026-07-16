@@ -1,16 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import * as Popover from "@radix-ui/react-popover";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import type { EffectConfigFormProps } from "./types";
 import { ConfigColorHexRow, ConfigRoot, ConfigSection, configFieldStyles } from "./fields";
 import { EFFECT_CONFIG_JOINT_OPTIONS } from "./jointOptions";
-import {
-  exportPanelDropdownMenuItemClass,
-  exportPanelPopoverContentClass,
-  exportPanelSelectTriggerClass,
-} from "../AssetVideoPlayerExportPanel";
+import { TraceSelect } from "./TraceSelect";
 
 type MetricChipKind =
   | "rom_joint"
@@ -27,55 +21,6 @@ type MetricChipKind =
   | "pose_flex_shoulders";
 
 type MetricChipRow = { id: string; kind: MetricChipKind; jointName?: string };
-
-function TraceSelect({
-  value,
-  options,
-  onSelect,
-}: {
-  value: string;
-  options: Array<{ value: string; label: string }>;
-  onSelect: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const selected = options.find((o) => o.value === value) ?? options[0];
-
-  return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger asChild>
-        <button type="button" className={exportPanelSelectTriggerClass}>
-          <span className="truncate">{selected?.label ?? value}</span>
-          <ChevronDown
-            className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${open ? "rotate-180" : ""}`}
-          />
-        </button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          side="bottom"
-          align="start"
-          sideOffset={6}
-          collisionPadding={12}
-          className={exportPanelPopoverContentClass}
-        >
-          {options.map((opt, index) => (
-            <div
-              key={opt.value}
-              role="menuitem"
-              className={`${exportPanelDropdownMenuItemClass} ${index === options.length - 1 ? "border-b-0" : ""}`}
-              onClick={() => {
-                onSelect(opt.value);
-                setOpen(false);
-              }}
-            >
-              {opt.label}
-            </div>
-          ))}
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
-  );
-}
 
 const ALL_METRIC_CHIP_OPTIONS: Array<{ value: MetricChipKind; label: string }> = [
   { value: "rom_joint", label: "ROM (joint)" },

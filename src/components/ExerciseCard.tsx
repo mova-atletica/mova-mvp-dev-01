@@ -3,7 +3,14 @@ import { Exercise } from '../data/exercises';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 
-export default function ExerciseCard({ exercise }: { exercise: Exercise }) {
+export default function ExerciseCard({
+  exercise,
+  onSelect,
+}: {
+  exercise: Exercise;
+  /** When set, overrides default navigation to archive exercise page. */
+  onSelect?: (exercise: Exercise) => void;
+}) {
   const router = useRouter();
   const [imageUrl, setImageUrl] = useState(exercise.image);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -119,7 +126,9 @@ export default function ExerciseCard({ exercise }: { exercise: Exercise }) {
         backgroundColor: 'var(--card-bg)',
         borderRadius: '8px'
       }}
-      onClick={() => router.push(`/exercises/${exercise.id}`)}
+      onClick={() =>
+        onSelect ? onSelect(exercise) : router.push(`/archive/exercises/${exercise.id}`)
+      }
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

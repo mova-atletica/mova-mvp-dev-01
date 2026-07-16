@@ -2,9 +2,15 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./effect-config-range.css";
+import "./mini-app-glass.css";
+import "./homepage-background.css";
 import { Roboto, Roboto_Mono } from 'next/font/google'
 import AppShell from '../components/AppShell'
 import { ThemeProvider } from '../contexts/ThemeContext'
+import { MockAuthProvider } from '../contexts/MockAuthContext'
+import { LocaleProvider } from '../i18n/LocaleProvider'
+import { MockEntitlementsProvider } from '../contexts/MockEntitlementsContext'
+import GlobalAccountModals from '../components/GlobalAccountModals'
 import ErrorBoundary from '../components/ErrorBoundary'
 
 const geistSans = Geist({
@@ -55,7 +61,14 @@ export default function RootLayout({
       <body className="font-roboto">
         <ErrorBoundary>
           <ThemeProvider>
-            <AppShell>{children}</AppShell>
+            <MockAuthProvider>
+              <MockEntitlementsProvider>
+                <LocaleProvider>
+                  <AppShell>{children}</AppShell>
+                  <GlobalAccountModals />
+                </LocaleProvider>
+              </MockEntitlementsProvider>
+            </MockAuthProvider>
           </ThemeProvider>
         </ErrorBoundary>
       </body>

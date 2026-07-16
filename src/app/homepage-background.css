@@ -1,0 +1,66 @@
+/**
+ * Homepage decorative canvas — sticky gradient + dot grid; content scrolls above.
+ * ThemeContext sets --homepage-* tokens on documentElement.
+ */
+
+.homepage-canvas {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Stays pinned in the scroll column while content moves over it */
+.homepage-canvas-backdrop {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100dvh;
+  margin-bottom: -100dvh;
+  pointer-events: none;
+  overflow: hidden;
+  background-color: var(--homepage-canvas-base, var(--background));
+}
+
+.homepage-canvas-gradient {
+  position: absolute;
+  inset: 0;
+  background-color: var(--homepage-canvas-base, var(--background));
+  background-image:
+    radial-gradient(
+      ellipse 90% 65% at 50% -8%,
+      var(--homepage-radial-glow, rgba(255, 255, 255, 0.42)) 0%,
+      transparent 68%
+    ),
+    linear-gradient(
+      155deg,
+      var(--homepage-gradient-a, #eef2f4) 0%,
+      var(--homepage-gradient-b, #d2dce1) 46%,
+      var(--homepage-gradient-c, #b4c2c8) 100%
+    );
+}
+
+.homepage-canvas-noise {
+  position: absolute;
+  inset: 0;
+  opacity: var(--homepage-noise-opacity, 0.16);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.9'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+  mix-blend-mode: soft-light;
+}
+
+.homepage-canvas-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle,
+    var(--homepage-dot-color, rgba(23, 21, 15, 0.16)) 0.8px,
+    transparent 0.8px
+  );
+  background-size: var(--homepage-dot-spacing, 22px) var(--homepage-dot-spacing, 22px);
+  background-position: 0 0;
+}
+
+.homepage-canvas-content {
+  position: relative;
+  z-index: 1;
+}
