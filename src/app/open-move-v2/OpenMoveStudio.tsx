@@ -74,7 +74,6 @@ import {
   archiveCollapsedRailControlClass,
 } from "../../components/archive/archiveRailTheme";
 import OpenMoveSportSetupFields from "./OpenMoveSportSetupFields";
-import OpenMoveEmbeddedModalTopBar from "../../components/open-move/OpenMoveEmbeddedModalTopBar";
 import { EmbeddedModalPopoverProvider } from "../../contexts/EmbeddedModalPopoverContext";
 import {
   getSportAnalysisLabel,
@@ -89,6 +88,16 @@ const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
 /** Rail width — CSS transition only (no framer-motion). */
 const openMoveRailWidthTransition = "width 0.35s ease-in-out";
+
+/**
+ * True when a Radix popover/menu is currently mounted (open) — export format/quality,
+ * effect-config selects, apps menu, etc. Used to stop the mobile rail backdrop from closing
+ * the panel when a tap is really just dismissing one of those popovers.
+ */
+function isRailPopoverContentOpen(): boolean {
+  if (typeof document === "undefined") return false;
+  return Boolean(document.querySelector("[data-radix-popper-content-wrapper]"));
+}
 
 /** Desktop analysis drawer: fixed cap so landscape video keeps room in the stage row. */
 const DESKTOP_ANALYSIS_DRAWER_WIDTH = "clamp(16rem, 36vw, 32rem)";
@@ -407,6 +416,20 @@ export default function OpenMoveStudio({
    * does not immediately hit the full-screen close target (ghost close).
    */
   const [mobileRailBackdropReady, setMobileRailBackdropReady] = useState(false);
+  /**
+   * Set on the backdrop's pointerdown when a rail popover is open, so the ensuing click
+   * (which really dismissed the popover) does not also collapse the panel.
+   */
+  const suppressBackdropCloseRef = useRef(false);
+
+  /**
+   * Portal mobile rail into the studio root (not document.body) so embedded Dialog
+   * treats panel taps as inside content. Whitelisting body-portaled rail + preventDefault
+   * on onPointerDownOutside cancels the original pointerdown and breaks all panel clicks.
+   */
+  const setStudioRootRef = useCallback((node: HTMLDivElement | null) => {
+    setPortalTarget(node);
+  }, []);
   const overlaySportMetricsSnapshot = useMemo(() => {
     if (!isQuickAnalysis) return null;
     const cadence = cyclingAnalysisResult?.trough?.cadence_rpm ?? cyclingAnalysisResult?.peak?.cadence_rpm ?? null;
@@ -463,10 +486,6 @@ export default function OpenMoveStudio({
     poseFlexibilityAnalysisResult,
     session.angles,
   ]);
-
-  useEffect(() => {
-    setPortalTarget(document.body);
-  }, []);
 
   useEffect(() => {
     if (!isDesktop && panelOpen) {
@@ -676,36 +695,6 @@ export default function OpenMoveStudio({
     sessionHasVideo &&
     (!hasAnalyzed || setupChangedFromLastAnalyze);
 
-  const hasAnalysisSession =
-    session.status === "ready" &&
-    !!session.angles &&
-    !!session.videoUrl &&
-    (!embeddedQuickAnalysis || hasAnalyzed);
-
-  const showEmbeddedSportTopBar = embeddedQuickAnalysis && !!onClose && railVisible;
-
-  const embeddedAnalyticsOpen = isDesktop
-    ? analyticsDrawerContentMounted && analyticsDrawerOpen
-    : analyticsOpen;
-
-  const toggleEmbeddedAnalytics = useCallback(() => {
-    if (isDesktop) {
-      if (analyticsDrawerContentMounted && analyticsDrawerOpen) {
-        setAnalyticsDrawerOpen(false);
-        return;
-      }
-      setAnalyticsDrawerContentMounted(true);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setAnalyticsDrawerOpen(true));
-      });
-      return;
-    }
-    setAnalyticsOpen((open) => !open);
-  }, [isDesktop, analyticsDrawerContentMounted, analyticsDrawerOpen]);
-
-  const toggleEmbeddedPanel = useCallback(() => {
-    setPanelOpen((open) => !open);
-  }, []);
 
   const clearSportAnalysisResults = useCallback(() => {
     setCyclingAnalysisResult(null);
@@ -1263,7 +1252,7 @@ export default function OpenMoveStudio({
       >
         <PanelLeftOpen size={18} />
       </button>
-      {embedded && onClose && !showEmbeddedSportTopBar ? (
+      {embedded && onClose ? (
         <ProgramModalCloseButton onClose={onClose} />
       ) : (
         <AppMegaMenu activeApp="studio" iconOnly embeddedInModal={embedded} />
@@ -1310,7 +1299,7 @@ export default function OpenMoveStudio({
               </p>
             </div>
             <div className="relative z-30 flex items-center gap-2">
-              {embedded && onClose && !showEmbeddedSportTopBar ? (
+              {embedded && onClose ? (
                 <ProgramModalCloseButton onClose={onClose} />
               ) : (
                 <Popover.Root>
@@ -1602,21 +1591,11 @@ export default function OpenMoveStudio({
       showVideoEngine={showVideoEngine}
     >
     <div
-      className={`flex w-full overflow-hidden bg-[var(--background)] text-[var(--foreground)] ${
+      ref={setStudioRootRef}
+      className={`relative flex w-full overflow-hidden bg-[var(--background)] text-[var(--foreground)] ${
         embedded ? "h-full min-h-0 flex-col" : "h-[100dvh]"
       }`}
     >
-      {showEmbeddedSportTopBar && onClose ? (
-        <OpenMoveEmbeddedModalTopBar
-          onClose={onClose}
-          hasAnalysis={hasAnalysisSession}
-          analyticsOpen={embeddedAnalyticsOpen}
-          onToggleAnalysis={toggleEmbeddedAnalytics}
-          panelOpen={panelOpen}
-          onTogglePanel={toggleEmbeddedPanel}
-          isMobile={!isDesktop}
-        />
-      ) : null}
       <div className={`flex min-h-0 min-w-0 flex-1 overflow-hidden ${embedded ? "w-full" : "w-full"}`}>
       <PausePlaybackWhenMobileAnalyticsOpen active={!isDesktop && analyticsOpen} />
       {isDesktop && railVisible ? (
@@ -1632,24 +1611,32 @@ export default function OpenMoveStudio({
         </aside>
       ) : null}
 
-      {/* &lt;lg: overlay rail — portaled to body (avoids overflow/transform clipping); z above stage FABs */}
+      {/* &lt;lg: overlay rail — portaled into studio root (inside Dialog when embedded) */}
       {portalTarget && !isDesktop && railVisible && panelOpen
         ? createPortal(
             <>
               <button
                 type="button"
-                className="fixed inset-0 bg-black/50"
+                className="absolute inset-y-0 right-0 bg-black/50"
                 style={{
+                  left: "min(79vw, 30rem)",
                   zIndex: portalLayers.mobileRailBackdrop,
                   pointerEvents: mobileRailBackdropReady ? "auto" : "none",
                 }}
                 aria-label="Close controls panel"
-                onClick={() => setPanelOpen(false)}
+                onPointerDown={() => {
+                  suppressBackdropCloseRef.current = isRailPopoverContentOpen();
+                }}
+                onClick={() => {
+                  if (suppressBackdropCloseRef.current) {
+                    suppressBackdropCloseRef.current = false;
+                    return;
+                  }
+                  setPanelOpen(false);
+                }}
               />
               <div
-                className={`fixed left-0 top-0 flex flex-col overflow-hidden bg-[var(--header-bg)] backdrop-blur-xl ${
-                  embedded ? "h-full max-h-full" : "h-[100dvh] max-h-[100dvh]"
-                }`}
+                className="absolute left-0 top-0 flex h-full max-h-full flex-col overflow-hidden bg-[var(--header-bg)] backdrop-blur-xl"
                 style={{
                   ...borderRightTheme,
                   width: "min(79vw, 30rem)",
@@ -1667,7 +1654,7 @@ export default function OpenMoveStudio({
         <div className={`flex min-h-0 min-w-0 flex-1 ${isDesktop ? "flex-row" : "flex-col"}`}>
           {/* Video area */}
           <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center bg-[var(--background)]">
-          {embedded && onClose && !railVisible ? (
+          {embedded && onClose && (isDesktop ? !railVisible : !panelOpen) ? (
             <div
               className="absolute z-[100]"
               style={{
@@ -1678,7 +1665,7 @@ export default function OpenMoveStudio({
               <ProgramModalCloseButton onClose={onClose} />
             </div>
           ) : null}
-          {!isDesktop && !showEmbeddedSportTopBar ? (
+          {!isDesktop ? (
             <div
               className="absolute z-[100] flex flex-col gap-2"
               style={{
@@ -1698,10 +1685,7 @@ export default function OpenMoveStudio({
                   <PanelLeftOpen size={18} />
                 </button>
               ) : null}
-              {embedded && onClose && railVisible && !panelOpen && !showEmbeddedSportTopBar ? (
-                <ProgramModalCloseButton onClose={onClose} />
-              ) : null}
-              {session.status === "ready" && session.angles && (!embeddedQuickAnalysis || hasAnalyzed) && !analyticsOpen && !showEmbeddedSportTopBar ? (
+              {session.status === "ready" && session.angles && (!embeddedQuickAnalysis || hasAnalyzed) && !analyticsOpen ? (
                 <button
                   type="button"
                   onClick={() => setAnalyticsOpen(true)}
@@ -1988,28 +1972,6 @@ export default function OpenMoveStudio({
           </div>
         </div>
 
-        {showEmbeddedSportTopBar && analyticsOpen && hasAnalysisSession && !isDesktop ? (
-          <div className="absolute inset-0 z-30 flex flex-col overflow-hidden bg-[var(--background)]">
-            <div className="open-move-studio-panel-scroll min-h-0 flex-1 overflow-y-auto p-2">
-              <Suspense
-                fallback={
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="animate-spin text-[color:var(--muted)]" />
-                  </div>
-                }
-              >
-                <MotionAnalysisPanel
-                  poses={session.poses}
-                  angles={session.angles!}
-                  videoUrl={session.videoUrl!}
-                  frameIntervalSec={session.frameIntervalSec}
-                  syncPlaybackFrame={false}
-                  {...sportAnalysisPanelProps}
-                />
-              </Suspense>
-            </div>
-          </div>
-        ) : null}
       </div>
 
       <Dialog.Root
@@ -2095,8 +2057,8 @@ export default function OpenMoveStudio({
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* Mobile: analytics dialog (full-page / non-embedded sport modal uses portaled dialog) */}
-      {!embeddedQuickAnalysis && !isDesktop ? (
+      {/* Mobile: analytics dialog — portaled full-screen sheet (plain Studio + mini-app/quick-analysis) */}
+      {!isDesktop ? (
       <Dialog.Root open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
         <Dialog.Portal>
           <Dialog.Overlay
