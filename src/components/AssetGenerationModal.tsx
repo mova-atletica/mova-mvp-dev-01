@@ -7,6 +7,7 @@ import * as Accordion from '@radix-ui/react-accordion';
 import * as Checkbox from '@radix-ui/react-checkbox';
 import { preExtractKeyFrames, clearFrameCache } from '../lib/effects/muybridge';
 import { exportAsset, downloadBlob, ExportConfig } from '../lib/exportService';
+import { sampleVideoElementFps, safeExportFps } from '../lib/videoFps';
 
 // 1. Add Tailwind and minimal custom CSS for transitions, shadows, and responsive design
 import './AssetGenerationModal.css';
@@ -140,7 +141,6 @@ export default function AssetGenerationModal({
     format: 'png',
     quality: 'high',
     duration: 3,
-    framerate: 30,
   });
   const [videoVisibility, setVideoVisibility] = useState({
     showVideo: true,
@@ -153,6 +153,7 @@ export default function AssetGenerationModal({
   const [isPlaying, setIsPlaying] = useState(false);
   const [formatDropdownOpen, setFormatDropdownOpen] = useState(false);
   const [qualityDropdownOpen, setQualityDropdownOpen] = useState(false);
+  const [sourceFps, setSourceFps] = useState<number | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -297,6 +298,31 @@ export default function AssetGenerationModal({
     };
   }, [isOpen]);
 
+  // Detect source fps for video export pacing
+  useEffect(() => {
+    if (!isOpen) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    let cancelled = false;
+    const probe = async () => {
+      const fps = await sampleVideoElementFps(video);
+      if (!cancelled && fps != null) setSourceFps(fps);
+    };
+
+    setSourceFps(null);
+    const onMeta = () => {
+      void probe();
+    };
+    video.addEventListener('loadedmetadata', onMeta);
+    if (video.readyState >= 1) void probe();
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener('loadedmetadata', onMeta);
+    };
+  }, [isOpen, videoUrl]);
+
   // Cleanup frame cache when modal closes or video changes
   useEffect(() => {
     return () => {
@@ -356,7 +382,11 @@ export default function AssetGenerationModal({
         showROM: false,
         romJoints: [],
         showGlobalStats: false,
-        safeZoneEnabled: true
+        safeZoneEnabled: true,
+        labelBg: 'glass',
+        labelBgColor: '#ffffff',
+        labelBgOpacity: 0.22,
+        labelBlurPx: 14,
       };
     } else if (effect.id === 'range-of-motion') {
       defaultConfig = {
@@ -368,7 +398,11 @@ export default function AssetGenerationModal({
         romColor: '#ff6b35',
         angleSize: 16,
         showGlobalStats: false,
-        safeZoneEnabled: false
+        safeZoneEnabled: false,
+        labelBg: 'glass',
+        labelBgColor: '#ffffff',
+        labelBgOpacity: 0.22,
+        labelBlurPx: 14,
       };
     }
     
@@ -520,10 +554,15 @@ export default function AssetGenerationModal({
     setIsExporting(true);
     
     try {
-  
-      
+      let fps = sourceFps;
+      if (fps == null) {
+        fps = await sampleVideoElementFps(video);
+        if (fps != null) setSourceFps(fps);
+      }
+
       const result = await exportAsset(video, poses, activeEffects, {
         ...finalExportConfig,
+        framerate: safeExportFps(fps),
         videoVisibility
       });
       
@@ -1129,7 +1168,7 @@ export default function AssetGenerationModal({
               </div>
 
               {/* Text Size */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs w-12" style={{ color: '#181A1A' }}>Size</span>
                 <input
                   type="range"
@@ -1145,6 +1184,80 @@ export default function AssetGenerationModal({
                 <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {effect.config.angleSize || 18}px
                 </span>
+              </div>
+
+              {/* Label background */}
+              <div className="mt-2">
+                <span className="text-xs font-medium mb-1 block" style={{ color: '#181A1A' }}>Label background</span>
+                <div className="flex overflow-hidden rounded border border-gray-300 mb-2">
+                  {(['none', 'solid', 'glass'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className="flex-1 px-2 py-1 text-xs capitalize"
+                      style={{
+                        background:
+                          (effect.config.labelBg || 'glass') === mode
+                            ? 'color-mix(in srgb, var(--accent, #3b82f6) 22%, transparent)'
+                            : 'transparent',
+                        color:
+                          (effect.config.labelBg || 'glass') === mode
+                            ? 'var(--foreground)'
+                            : 'var(--muted-foreground)',
+                        fontWeight: (effect.config.labelBg || 'glass') === mode ? 600 : 500,
+                      }}
+                      onClick={() => {
+                        const next: Record<string, unknown> = { labelBg: mode };
+                        if (mode === 'solid') {
+                          next.labelBgColor = '#000000';
+                          next.labelBgOpacity = 0.62;
+                        }
+                        if (mode === 'glass') {
+                          next.labelBgColor = '#ffffff';
+                          next.labelBgOpacity = 0.22;
+                          next.labelBlurPx = 14;
+                        }
+                        updateEffectConfig(effect.id, { ...effect.config, ...next });
+                      }}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+                {(effect.config.labelBg || 'glass') !== 'none' && (
+                  <>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs w-12" style={{ color: '#181A1A' }}>Tint</span>
+                      <input
+                        type="color"
+                        value={(effect.config.labelBgColor || '#ffffff').slice(0, 7)}
+                        onChange={(e) => updateEffectConfig(effect.id, {
+                          ...effect.config,
+                          labelBgColor: e.target.value,
+                        })}
+                        className="w-8 h-6 border border-gray-300 rounded cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs w-12" style={{ color: '#181A1A' }}>Opacity</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={effect.config.labelBgOpacity ?? 0.22}
+                        className="flex-1 h-1"
+                        onChange={(e) => updateEffectConfig(effect.id, {
+                          ...effect.config,
+                          labelBgOpacity: parseFloat(e.target.value),
+                        })}
+                      />
+                      <span className="text-xs w-10" style={{ color: '#181A1A' }}>
+                        {Math.round((effect.config.labelBgOpacity ?? 0.22) * 100)}%
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1233,7 +1346,7 @@ export default function AssetGenerationModal({
               </div>
 
               {/* Size */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs w-12" style={{ color: '#181A1A' }}>Size</span>
                 <input
                   type="range"
@@ -1249,6 +1362,79 @@ export default function AssetGenerationModal({
                 <span className="text-xs w-8" style={{ color: '#181A1A' }}>
                   {effect.config.angleSize || 16}px
                 </span>
+              </div>
+
+              <div className="mt-2">
+                <span className="text-xs font-medium mb-1 block" style={{ color: '#181A1A' }}>Label background</span>
+                <div className="flex overflow-hidden rounded border border-gray-300 mb-2">
+                  {(['none', 'solid', 'glass'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className="flex-1 px-2 py-1 text-xs capitalize"
+                      style={{
+                        background:
+                          (effect.config.labelBg || 'glass') === mode
+                            ? 'color-mix(in srgb, var(--accent, #3b82f6) 42%, transparent)'
+                            : 'transparent',
+                        color:
+                          (effect.config.labelBg || 'glass') === mode
+                            ? 'var(--foreground)'
+                            : 'var(--muted-foreground)',
+                        fontWeight: (effect.config.labelBg || 'glass') === mode ? 600 : 500,
+                      }}
+                      onClick={() => {
+                        const next: Record<string, unknown> = { labelBg: mode };
+                        if (mode === 'solid') {
+                          next.labelBgColor = '#000000';
+                          next.labelBgOpacity = 0.62;
+                        }
+                        if (mode === 'glass') {
+                          next.labelBgColor = '#ffffff';
+                          next.labelBgOpacity = 0.22;
+                          next.labelBlurPx = 14;
+                        }
+                        updateEffectConfig(effect.id, { ...effect.config, ...next });
+                      }}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+                {(effect.config.labelBg || 'glass') !== 'none' && (
+                  <>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs w-12" style={{ color: '#181A1A' }}>Tint</span>
+                      <input
+                        type="color"
+                        value={(effect.config.labelBgColor || '#ffffff').slice(0, 7)}
+                        onChange={(e) => updateEffectConfig(effect.id, {
+                          ...effect.config,
+                          labelBgColor: e.target.value,
+                        })}
+                        className="w-8 h-6 border border-gray-300 rounded cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs w-12" style={{ color: '#181A1A' }}>Opacity</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={effect.config.labelBgOpacity ?? 0.22}
+                        className="flex-1 h-1"
+                        onChange={(e) => updateEffectConfig(effect.id, {
+                          ...effect.config,
+                          labelBgOpacity: parseFloat(e.target.value),
+                        })}
+                      />
+                      <span className="text-xs w-10" style={{ color: '#181A1A' }}>
+                        {Math.round((effect.config.labelBgOpacity ?? 0.22) * 100)}%
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1741,50 +1927,13 @@ export default function AssetGenerationModal({
                       
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>
-                          Framerate (fps)
-                          {isVideoExportDisabled() && (
-                            <span style={{ color: '#F59E0B', marginLeft: '4px' }}>⚠️ Auto-locked</span>
-                          )}
+                          Export fps
                         </div>
-                        <input
-                          type="range"
-                          min="15"
-                          max="60"
-                          step="5"
-                          value={exportConfig.framerate || 30}
-                          onChange={(e) => setExportConfig({ ...exportConfig, framerate: parseInt(e.target.value) })}
-                          disabled={isVideoExportDisabled()}
-                          style={{
-                            width: '100%',
-                            height: '4px',
-                            borderRadius: '2px',
-                            background: isVideoExportDisabled() ? '#E5E7EB' : '#D1D5DB',
-                            outline: 'none',
-                            cursor: isVideoExportDisabled() ? 'not-allowed' : 'pointer',
-                            opacity: isVideoExportDisabled() ? 0.6 : 1,
-                          }}
-                        />
                         <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px', textAlign: 'center' }}>
-                          {exportConfig.framerate || 30} fps
-                          {isVideoExportDisabled() && (
-                            <span style={{ color: '#F59E0B', marginLeft: '4px' }}>
-                              (optimized for pose data)
-                            </span>
-                          )}
+                          {sourceFps != null
+                            ? `${Math.round(sourceFps)} fps (source)`
+                            : 'Detecting source… (falls back to 30)'}
                         </div>
-                        {isVideoExportDisabled() && (
-                          <div style={{ 
-                            fontSize: '9px', 
-                            color: '#F59E0B', 
-                            marginTop: '4px', 
-                            padding: '4px 8px',
-                            background: '#FEF3C7',
-                            borderRadius: '4px',
-                            border: '1px solid #F59E0B'
-                          }}>
-                            Frame rate is auto-locked when using Muybridge effects
-                          </div>
-                        )}
                       </div>
                     </>
                   )}

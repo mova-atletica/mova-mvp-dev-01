@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as Popover from "@radix-ui/react-popover";
-import { Home, LayoutDashboard, MoreVertical, User } from "lucide-react";
+import { Clapperboard, Home, LayoutDashboard, MoreVertical, User } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAccount } from "../contexts/MockAuthContext";
 import { EffectSelectedCheckIcon } from "../app/motion-explore/EffectSelectedCheckIcon";
@@ -11,7 +11,6 @@ import {
   EMBEDDED_MODAL_POPOVER_Z,
   getEmbeddedModalPopoverRoot,
 } from "../lib/embeddedModalPopover";
-import { PHASE_B_ENABLED } from "../lib/productPhase";
 
 const menuTextClass = "text-[color:var(--mega-menu-text)]";
 const menuTextMutedClass = "text-[color:var(--mega-menu-text-muted)]";
@@ -22,7 +21,7 @@ const menuPanelStyle = {
   backgroundColor: "var(--mega-menu-bg)",
 } as const;
 
-export type AppMegaMenuActive = "archive" | "studio";
+export type AppMegaMenuActive = "archive" | "studio" | "coach";
 
 interface AppMegaMenuProps {
   activeApp: AppMegaMenuActive;
@@ -86,18 +85,21 @@ export default function AppMegaMenu({
 }: AppMegaMenuProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, profile, tier, setMockTier, requestStudioAccess, openSignIn } =
-    useAccount();
-  const isDev = process.env.NODE_ENV === "development";
+  const { isAuthenticated, profile, requestStudioAccess, openSignIn } = useAccount();
   const isArchiveHome = pathname === "/";
   const isStudioHome =
     pathname === "/open-move-v2" || pathname.startsWith("/open-move-v2/");
+  const isCoachStudioHome =
+    pathname === "/coach-studio" || pathname.startsWith("/coach-studio/");
 
-  const archiveItemClass = `flex items-center gap-2 rounded-md px-2 py-1.5 font-normal text-xs ${menuTextClass} ${
+  const archiveItemClass = `flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs ${menuTextClass} ${
     isArchiveHome ? "bg-[color:var(--mega-menu-active-bg)]" : menuItemHoverClass
   }`;
-  const studioItemClass = `mt-1 flex items-center gap-2 rounded-md px-2 py-1.5 font-normal text-xs ${menuTextClass} ${
+  const studioItemClass = `mt-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs ${menuTextClass} ${
     isStudioHome ? "bg-[color:var(--mega-menu-active-bg)]" : menuItemHoverClass
+  }`;
+  const coachStudioItemClass = `mt-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs ${menuTextClass} ${
+    isCoachStudioHome ? "bg-[color:var(--mega-menu-active-bg)]" : menuItemHoverClass
   }`;
 
   const embeddedPopoverRoot = embeddedInModal ? getEmbeddedModalPopoverRoot() : null;
@@ -154,8 +156,21 @@ export default function AppMegaMenu({
             className={studioItemClass}
           >
             <LayoutDashboard className="h-3 w-3" />
-            <span>Mova Studio</span>
+            <span>Open Movement Viz</span>
             {isStudioHome ? (
+              <span className="ml-auto flex shrink-0 items-center justify-center text-[var(--accent,#3b82f6)]">
+                <EffectSelectedCheckIcon className="scale-[0.85]" />
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            onClick={() => requestStudioAccess(() => router.push("/coach-studio"))}
+            className={coachStudioItemClass}
+          >
+            <Clapperboard className="h-3 w-3" />
+            <span>Coach Studio</span>
+            {isCoachStudioHome ? (
               <span className="ml-auto flex shrink-0 items-center justify-center text-[var(--accent,#3b82f6)]">
                 <EffectSelectedCheckIcon className="scale-[0.85]" />
               </span>
@@ -176,27 +191,6 @@ export default function AppMegaMenu({
                 <User size={12} />
                 <span className="truncate">{profile?.displayName || "Account"}</span>
               </Link>
-              {isDev ? (
-                <div className="mt-2 px-2">
-                  <label className={`mb-1 block text-[9px] ${menuTextMutedClass}`}>Dev tier</label>
-                  <select
-                    value={tier === "guest" ? "free" : tier === "partner" && !PHASE_B_ENABLED ? "pro" : tier}
-                    onChange={(e) =>
-                      setMockTier(e.target.value as "free" | "pro" | "partner")
-                    }
-                    className="w-full rounded-md px-2 py-1 text-[10px]"
-                    style={{
-                      border: "1px solid var(--mega-menu-border)",
-                      backgroundColor: "var(--background)",
-                      color: "var(--foreground)",
-                    }}
-                  >
-                    <option value="free">Free</option>
-                    <option value="pro">Pro</option>
-                    {PHASE_B_ENABLED ? <option value="partner">Partner</option> : null}
-                  </select>
-                </div>
-              ) : null}
             </>
           ) : (
             <button

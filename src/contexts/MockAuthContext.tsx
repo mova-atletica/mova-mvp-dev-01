@@ -67,7 +67,7 @@ interface MockAuthContextValue {
   requestStudioAccess: (onGranted: () => void) => void;
   openProPaywall: () => void;
   closeProPaywall: () => void;
-  mockUpgradeToPro: () => void;
+  mockUpgradeToPro: () => Promise<void>;
 }
 
 const MockAuthContext = createContext<MockAuthContextValue | null>(null);
@@ -455,7 +455,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     setSignInOpen(true);
   }, []);
   const closeSignIn = useCallback(() => setSignInOpen(false), []);
-  const openProPaywall = useCallback(() => setProPaywallOpen(true), []);
+  const openProPaywall = useCallback(() => {
+    setAuthError(null);
+    setProPaywallOpen(true);
+  }, []);
   const closeProPaywall = useCallback(() => {
     setProPaywallOpen(false);
     pendingStudioAccessRef.current = null;
@@ -468,20 +471,36 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       pendingStudioAccessRef.current = onGranted;
+      setAuthError(null);
       setProPaywallOpen(true);
     },
     [userHasProAccess]
   );
 
-  const mockUpgradeToPro = useCallback(() => {
+  const mockUpgradeToPro = useCallback(async () => {
     if (!user) {
       setProPaywallOpen(false);
       setSignInOpen(true);
       return;
     }
 
-    setProfile((prev) => (prev ? { ...prev, tier: "pro" } : prev));
-    void supabase.from("profiles").update({ tier: "pro" }).eq("id", user.id);
+    setAuthError(null);
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({ tier: "pro" })
+      .eq("id", user.id)
+      .select(
+        "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
+      )
+      .single();
+
+    if (error || !data) {
+      console.error("Mock upgrade failed", error?.message);
+      setAuthError(error?.message ?? "Failed to upgrade to Pro");
+      return;
+    }
+
+    setProfile(mapProfileRow(data as ProfileRow, user));
     setProPaywallOpen(false);
     const callback = pendingStudioAccessRef.current;
     pendingStudioAccessRef.current = null;

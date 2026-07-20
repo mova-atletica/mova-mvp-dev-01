@@ -9,6 +9,7 @@ import {
   ConfigSliderRow,
 } from "./fields";
 import { EFFECT_CONFIG_JOINT_OPTIONS } from "./jointOptions";
+import { LabelChipBgControls } from "./LabelChipBgControls";
 
 export function JointAnglesEffectConfig({ config, updateConfig }: EffectConfigFormProps) {
   const enabledJoints = (config.enabledJoints as string[]) || [];
@@ -44,6 +45,8 @@ export function JointAnglesEffectConfig({ config, updateConfig }: EffectConfigFo
           displayValue={`${(config.angleSize as number) || 18}px`}
         />
       </ConfigSection>
+
+      <LabelChipBgControls config={config} updateConfig={updateConfig} />
     </ConfigRoot>
   );
 }

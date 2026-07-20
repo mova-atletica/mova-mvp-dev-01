@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState, useEffect, useLayoutEffect } from "react";
 import { exportAsset, downloadBlob, type ExportConfig } from "../../lib/exportService";
+import { sampleVideoElementFps, safeExportFps } from "../../lib/videoFps";
 import {
   renderMuybridge,
   renderMuybridgeFromCanvas,
@@ -12,6 +13,13 @@ import { renderMuybridgeTileEffects } from "../../lib/effects/muybridgeTileRende
 import { renderJointAngleTraceOverlay, renderStats } from "../../lib/effects/stats";
 import type { AssetVideoPlayerProps, Effect, ActiveEffect, EffectType } from "./assetVideoTypes";
 import { availableEffects } from "./assetVideoTypes";
+
+const DEFAULT_LABEL_CHIP = {
+  labelBg: "glass" as const,
+  labelBgColor: "#ffffff",
+  labelBgOpacity: 0.22,
+  labelBlurPx: 14,
+};
 
 export function useAssetVideoEngine({
   videoUrl,
@@ -32,13 +40,14 @@ export function useAssetVideoEngine({
     format: 'png',
     quality: 'high',
     duration: 3,
-    framerate: 30,
   });
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<EffectType | 'export' | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  /** Detected source fps; null until sampled. Export uses this (or 30 fallback). */
+  const [sourceFps, setSourceFps] = useState<number | null>(null);
   const [videoVisibility, setVideoVisibility] = useState({
     showVideo: true,
     opacity: 1.0,
@@ -64,25 +73,37 @@ export function useAssetVideoEngine({
     renderStats,
   });
 
-  // Track video duration when video loads
+  // Track video duration + source fps when video loads
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    let cancelled = false;
+
+    const probeFps = async () => {
+      if (cancelled) return;
+      const fps = await sampleVideoElementFps(video);
+      if (!cancelled && fps != null) setSourceFps(fps);
+    };
 
     const handleLoadedMetadata = () => {
       if (video.duration && isFinite(video.duration)) {
         setVideoDuration(video.duration);
       }
+      void probeFps();
     };
 
+    setSourceFps(null);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     
     // Also check if duration is already available
     if (video.duration && isFinite(video.duration)) {
       setVideoDuration(video.duration);
+      void probeFps();
     }
 
     return () => {
+      cancelled = true;
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
   }, [videoUrl]);
@@ -144,6 +165,7 @@ export function useAssetVideoEngine({
           romJoints: [],
           showGlobalStats: false,
           safeZoneEnabled: true,
+          ...DEFAULT_LABEL_CHIP,
         };
       case 'joint-angle-trace':
         return {
@@ -169,7 +191,8 @@ export function useAssetVideoEngine({
           romColor: '#ff6b35',
           angleSize: 16,
           showGlobalStats: false,
-          safeZoneEnabled: false
+          safeZoneEnabled: false,
+          ...DEFAULT_LABEL_CHIP,
         };
       case 'metrics-chips':
         return {
@@ -187,16 +210,41 @@ export function useAssetVideoEngine({
       case 'mobility-geometry':
         return {
           showMobilityGeometry: true,
-          mobilityGeometryColor: '#ffffff',
-          mobilityGeometryLineWidth: 1,
-          mobilityGeometryLineLength: 220,
-          mobilityGeometryLineStyle: 'solid',
-          mobilityGeometryCapStyle: 'tick',
-          mobilityGeometryOpacity: 0.9,
-          mobilityGeometryVerticalTargets: ['body_center'],
-          mobilityGeometryHorizontalTargets: ['hip_mid'],
-          mobilityGeometryArcRadius: 40,
-          mobilityGeometryAngleJoints: ['left_hip'],
+          mobilityGeometryAxes: [
+            {
+              id: "axis-v-body",
+              target: "body_center",
+              orient: "vertical",
+              color: "#ffffff",
+              lineWidth: 1,
+              lineLength: 220,
+              lineStyle: "solid",
+              capStyle: "tick",
+              opacity: 0.9,
+            },
+            {
+              id: "axis-h-hip",
+              target: "hip_mid",
+              orient: "horizontal",
+              color: "#ffffff",
+              lineWidth: 1,
+              lineLength: 220,
+              lineStyle: "solid",
+              capStyle: "tick",
+              opacity: 0.9,
+            },
+          ],
+          mobilityGeometryArcs: [
+            {
+              id: "arc-left-hip",
+              joint: "left_hip",
+              color: "#ffffff",
+              lineWidth: 1,
+              lineStyle: "solid",
+              arcRadius: 40,
+              opacity: 0.9,
+            },
+          ],
         };
       case 'skeleton-overlay':
         return {
@@ -294,8 +342,15 @@ export function useAssetVideoEngine({
     setExportSuccess(false);
 
     try {
+      let fps = sourceFps;
+      if (fps == null) {
+        fps = await sampleVideoElementFps(video);
+        if (fps != null) setSourceFps(fps);
+      }
+
       const result = await exportAsset(video, poses, activeEffects, {
         ...exportConfig,
+        framerate: safeExportFps(fps),
         videoVisibility,
         sportAnalysisKind,
         sportMetricsSnapshot,
@@ -714,6 +769,7 @@ export function useAssetVideoEngine({
     selectedCategory, setSelectedCategory,
     isPlaying, setIsPlaying,
     videoDuration, setVideoDuration,
+    sourceFps,
     videoVisibility, setVideoVisibility,
     formatDropdownOpen, setFormatDropdownOpen,
     qualityDropdownOpen, setQualityDropdownOpen,

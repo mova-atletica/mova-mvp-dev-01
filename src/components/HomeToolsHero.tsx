@@ -10,16 +10,23 @@ import {
   HOME_TOOLS_HERO_STUDIO_FR,
   HOME_TOOLS_STUDIO_TILE,
 } from "../lib/archiveLayout";
+import CoachStudioToolsTile from "./CoachStudioToolsTile";
 import HomeLeaderboardBlock from "./HomeLeaderboardBlock";
 import MovaStudioHeroTile from "./MovaStudioHeroTile";
 
 interface HomeToolsHeroProps {
   hasStudio: boolean;
   onOpenStudio: () => void;
+  onOpenCoachStudio: () => void;
   onTrySport: (sportSlug: string) => void;
 }
 
-export default function HomeToolsHero({ hasStudio, onOpenStudio, onTrySport }: HomeToolsHeroProps) {
+export default function HomeToolsHero({
+  hasStudio,
+  onOpenStudio,
+  onOpenCoachStudio,
+  onTrySport,
+}: HomeToolsHeroProps) {
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
@@ -34,6 +41,10 @@ export default function HomeToolsHero({ hasStudio, onOpenStudio, onTrySport }: H
     return null;
   }
 
+  // Column height ≈ two equal tiles (each ~half of original studio tile) + gap.
+  const stackedColumnHeight =
+    HOME_TOOLS_STUDIO_TILE.height + HOME_TOOLS_HERO_GAP.row;
+
   const rowStyle: CSSProperties = isDesktop
     ? {
         display: "grid",
@@ -42,7 +53,7 @@ export default function HomeToolsHero({ hasStudio, onOpenStudio, onTrySport }: H
         gap: `${HOME_TOOLS_HERO_GAP.row}px`,
         aspectRatio: `${
           HOME_TOOLS_HERO_STUDIO_FR + HOME_TOOLS_HERO_GAP.row + HOME_TOOLS_HERO_LEADERBOARD_FR
-        } / ${HOME_TOOLS_STUDIO_TILE.height}`,
+        } / ${stackedColumnHeight}`,
         alignItems: "stretch",
       }
     : {
@@ -58,9 +69,17 @@ export default function HomeToolsHero({ hasStudio, onOpenStudio, onTrySport }: H
         minWidth: 0,
         minHeight: 0,
         height: "100%",
-        display: "flex",
+        display: "grid",
+        gridTemplateRows: "1fr 1fr",
+        gap: `${HOME_TOOLS_HERO_GAP.row}px`,
       }
-    : { width: "100%" };
+    : {
+        width: "100%",
+        display: "grid",
+        gridTemplateRows: "1fr 1fr",
+        gap: "12px",
+        minHeight: "28rem",
+      };
 
   const leaderboardColumnStyle: CSSProperties = isDesktop
     ? {
@@ -72,6 +91,12 @@ export default function HomeToolsHero({ hasStudio, onOpenStudio, onTrySport }: H
       }
     : { width: "100%", minHeight: "min(52vh, 420px)" };
 
+  const tileSlotStyle: CSSProperties = {
+    minWidth: 0,
+    minHeight: 0,
+    height: "100%",
+  };
+
   return (
     <section
       className={ARCHIVE_HERO_SECTION_CLASS}
@@ -80,12 +105,20 @@ export default function HomeToolsHero({ hasStudio, onOpenStudio, onTrySport }: H
     >
       <div style={rowStyle} aria-label="Studio and leaderboards">
         <div style={studioColumnStyle}>
-          <MovaStudioHeroTile
-            onOpen={onOpenStudio}
-            mediaSrc={MOVA_STUDIO_MINI_APP.tileImage}
-            videoSrc={MOVA_STUDIO_MINI_APP.tileVideo}
-            layout={isDesktop ? "desktop" : "mobile"}
-          />
+          <div style={tileSlotStyle}>
+            <MovaStudioHeroTile
+              onOpen={onOpenStudio}
+              mediaSrc={MOVA_STUDIO_MINI_APP.tileImage}
+              videoSrc={MOVA_STUDIO_MINI_APP.tileVideo}
+              layout={isDesktop ? "desktop" : "mobile"}
+            />
+          </div>
+          <div style={tileSlotStyle}>
+            <CoachStudioToolsTile
+              onOpen={onOpenCoachStudio}
+              layout={isDesktop ? "desktop" : "mobile"}
+            />
+          </div>
         </div>
         <div style={leaderboardColumnStyle}>
           <HomeLeaderboardBlock variant="hero" onTrySport={onTrySport} />

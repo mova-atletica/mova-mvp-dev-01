@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, LayoutDashboard, Sparkles, X } from "lucide-react";
 import { useAccount } from "../../contexts/MockAuthContext";
@@ -14,9 +15,25 @@ const PRO_FEATURES = [
 ] as const;
 
 export default function ProPaywallModal() {
-  const { proPaywallOpen, closeProPaywall, mockUpgradeToPro, isAuthenticated, openSignIn } =
-    useAccount();
+  const {
+    proPaywallOpen,
+    closeProPaywall,
+    mockUpgradeToPro,
+    isAuthenticated,
+    openSignIn,
+    authError,
+  } = useAccount();
   const t = useTranslations();
+  const [upgrading, setUpgrading] = useState(false);
+
+  const handleUpgrade = async () => {
+    setUpgrading(true);
+    try {
+      await mockUpgradeToPro();
+    } finally {
+      setUpgrading(false);
+    }
+  };
 
   return (
     <Dialog.Root open={proPaywallOpen} onOpenChange={(open) => !open && closeProPaywall()}>
@@ -78,11 +95,16 @@ export default function ProPaywallModal() {
             </p>
           ) : null}
 
+          {authError ? (
+            <p className="mt-4 px-0.5 text-xs leading-relaxed text-red-500">{authError}</p>
+          ) : null}
+
           <div className="mt-6 flex flex-col gap-2.5">
             <button
               type="button"
-              onClick={mockUpgradeToPro}
-              className="w-full rounded-lg px-4 py-2.5 text-sm font-medium"
+              onClick={handleUpgrade}
+              disabled={upgrading}
+              className="w-full rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-60"
               style={{
                 background: "var(--primary-button-bg)",
                 color: "var(--primary-button-text)",

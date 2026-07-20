@@ -27,6 +27,7 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
     exportConfig,
     setExportConfig,
     videoDuration,
+    sourceFps,
     videoVisibility,
     setVideoVisibility,
     formatDropdownOpen,
@@ -195,21 +196,11 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
               </div>
             </div>
             <div>
-              <div className={exportPanelFieldLabelClass}>Framerate (fps)</div>
-              <input
-                type="range"
-                min="15"
-                max="60"
-                step="5"
-                value={exportConfig.framerate || 30}
-                onChange={(e) => setExportConfig({ ...exportConfig, framerate: parseInt(e.target.value) })}
-                className="h-1 w-full cursor-pointer appearance-none rounded-lg accent-[var(--accent,#3b82f6)]"
-                style={{
-                  background: "rgba(255,255,255,0.15)",
-                }}
-              />
-              <div className="mt-2 text-center text-[10px] text-[color:var(--muted)]">
-                {exportConfig.framerate || 30} fps
+              <div className={exportPanelFieldLabelClass}>Export fps</div>
+              <div className="mt-1 text-center text-[10px] text-[color:var(--muted)]">
+                {sourceFps != null
+                  ? `${Math.round(sourceFps)} fps (source)`
+                  : "Detecting source… (falls back to 30)"}
               </div>
             </div>
           </>

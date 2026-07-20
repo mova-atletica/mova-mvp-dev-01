@@ -1,7 +1,7 @@
 import type { SportAnalysisKind } from "../lib/sportAnalysis/pullUpsTypes";
 import type { LeaderboardScorePayload } from "./account";
 
-/** `default` — motion visualization only (Mova Studio). `quickAnalysis` — locked sport analysis mini apps. */
+/** `default` — motion visualization only (Open Movement Viz). `quickAnalysis` — locked sport analysis mini apps. */
 export type OpenMoveStudioMode = "default" | "quickAnalysis";
 
 export interface OpenMoveStudioProps {

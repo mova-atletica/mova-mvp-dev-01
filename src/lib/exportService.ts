@@ -5,6 +5,7 @@ import { renderMotionTrails } from './effects/motion-trails';
 import { renderMuybridgeFromCanvas, preExtractKeyFrames } from './effects/muybridge';
 import { renderMuybridgeTileEffects } from './effects/muybridgeTileRenderer';
 import { renderJointAngleTraceOverlay, renderStats } from './effects/stats';
+import { safeExportFps } from './videoFps';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -21,7 +22,8 @@ export interface ExportConfig {
   format: 'png' | 'webm';
   quality: 'low' | 'medium' | 'high';
   duration?: number; // for video exports
-  framerate?: number; // for video exports
+  /** Source fps (or override). Clamped 10–60; defaults to 30 if missing. */
+  framerate?: number;
   sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat' | 'poseFlexibility';
   sportMetricsSnapshot?: {
     cyclingCadenceRpm?: number | null;
@@ -379,9 +381,9 @@ async function exportAsVideo(
       ? Math.min(actualVideoDuration, maxDuration) 
       : (maxDuration || 3);
     
-    const framerate = config.framerate || 30;
+    const framerate = safeExportFps(config.framerate);
     const totalFrames = Math.floor(duration * framerate);
-    const frameDelayMs = Math.max(1, Math.round(1000 / framerate));
+    const frameIntervalMs = 1000 / framerate;
 
     const muybridgeEffect = activeEffects.find(
       (e) => e.effect.id === 'muybridge' && e.enabled
@@ -400,6 +402,9 @@ async function exportAsVideo(
     
     // Create a MediaStream from the canvas
     const stream = canvas.captureStream(framerate);
+    const track = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack & {
+      requestFrame?: () => void;
+    };
     
     // Check for MP4 support (most browsers don't support MP4 in MediaRecorder)
     const mp4Supported = MediaRecorder.isTypeSupported('video/mp4;codecs=h264') || 
@@ -441,6 +446,7 @@ async function exportAsVideo(
       
       let frameCount = 0;
       let recordingStarted = false;
+      const recordStart = performance.now();
 
       const finishExport = () => {
         mediaRecorder.stop();
@@ -691,6 +697,7 @@ async function exportAsVideo(
             recordingStarted = true;
           }
 
+          track.requestFrame?.();
           frameCount++;
 
           if (frameCount >= totalFrames) {
@@ -698,7 +705,13 @@ async function exportAsVideo(
             return;
           }
 
-          setTimeout(renderFrame, frameDelayMs);
+          // Pace to ideal timeline; if seek+draw already ate the slot, don't sleep extra.
+          const target = recordStart + frameCount * frameIntervalMs;
+          const wait = target - performance.now();
+          if (wait > 1) {
+            await new Promise<void>((r) => setTimeout(r, wait));
+          }
+          void renderFrame();
           
         } catch (error) {
           if (isDevelopment) {

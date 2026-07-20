@@ -59,6 +59,7 @@ export const config = {
     "/login",
     "/auth/:path*",
     "/open-move-v2/:path*",
+    "/coach-studio/:path*",
     "/",
   ],
 };

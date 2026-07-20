@@ -5,6 +5,10 @@ import {
   DISPLAY_ANGLE_SMOOTH_PRESET,
   smoothAngleSeries,
 } from "../angleSeriesSmoothing";
+import {
+  drawLabelChipBackground,
+  type LabelChipBg,
+} from "../canvasGlassChip";
 
 // Logo loading utility
 let logoImage: HTMLImageElement | null = null;
@@ -70,6 +74,11 @@ export interface StatsConfig {
   enabledJoints: string[];
   angleColor: string;
   angleSize: number;
+  /** Background behind joint-angle / ROM text chips (default glass). */
+  labelBg?: LabelChipBg;
+  labelBgColor?: string;
+  labelBgOpacity?: number;
+  labelBlurPx?: number;
   
   // ROM Tracking
   showROM: boolean;
@@ -121,20 +130,58 @@ export interface StatsConfig {
 
   /** Configurable body axes / mobility lines for side-view flexibility content. */
   showMobilityGeometry?: boolean;
+  /** Per-item axes (preferred). */
+  mobilityGeometryAxes?: MobilityGeometryAxis[];
+  /** Per-item arcs (preferred). */
+  mobilityGeometryArcs?: MobilityGeometryArc[];
+  /** @deprecated Prefer mobilityGeometryAxes — kept for legacy config migration. */
   mobilityGeometryColor?: string;
+  /** @deprecated */
   mobilityGeometryLineWidth?: number;
+  /** @deprecated */
   mobilityGeometryLineLength?: number;
+  /** @deprecated */
   mobilityGeometryLineStyle?: 'solid' | 'dashed' | 'dotted';
+  /** @deprecated */
   mobilityGeometryCapStyle?: 'none' | 'tick' | 'dot' | 'bracket';
+  /** @deprecated */
   mobilityGeometryOpacity?: number;
+  /** @deprecated */
   mobilityGeometryVerticalTargets?: string[];
+  /** @deprecated */
   mobilityGeometryHorizontalTargets?: string[];
-  /** Arc radius in video-space px; multiplied by preview/export scale like line length. */
+  /** @deprecated */
   mobilityGeometryArcRadius?: number;
+  /** @deprecated */
   mobilityGeometryAngleJoints?: string[];
   
   // Export mode flag
   isExport?: boolean;
+}
+
+export type MobilityGeometryLineStyle = 'solid' | 'dashed' | 'dotted';
+export type MobilityGeometryCapStyle = 'none' | 'tick' | 'dot' | 'bracket';
+
+export interface MobilityGeometryAxis {
+  id: string;
+  target: string;
+  orient: 'vertical' | 'horizontal';
+  color?: string;
+  lineWidth?: number;
+  lineLength?: number;
+  lineStyle?: MobilityGeometryLineStyle;
+  capStyle?: MobilityGeometryCapStyle;
+  opacity?: number;
+}
+
+export interface MobilityGeometryArc {
+  id: string;
+  joint: string;
+  color?: string;
+  lineWidth?: number;
+  lineStyle?: MobilityGeometryLineStyle;
+  arcRadius?: number;
+  opacity?: number;
 }
 
 export type MetricChipKind =
@@ -885,7 +932,8 @@ export function clearROMTracking(): void {
 export function renderJointAngles(
   ctx: CanvasRenderingContext2D,
   jointAngles: JointAngle[],
-  config: Partial<StatsConfig>
+  config: Partial<StatsConfig>,
+  glassSource?: CanvasImageSource | null
 ): void {
   if (!config.showJointAngles) return;
   
@@ -945,10 +993,14 @@ export function renderJointAngles(
     const bgX = x - bgWidth/2; // Center the entire container
     const bgY = y - backgroundHeight/2; // Center vertically around the text baseline
     
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.beginPath();
-    ctx.roundRect(bgX, bgY, bgWidth, backgroundHeight, borderRadius);
-    ctx.fill();
+    drawLabelChipBackground(ctx, bgX, bgY, bgWidth, backgroundHeight, borderRadius, {
+      bg: config.labelBg,
+      bgColor: config.labelBgColor,
+      bgOpacity: config.labelBgOpacity,
+      blurPx: config.labelBlurPx,
+      glassSource,
+      scale: scaleFactor,
+    });
     
     // Draw angle text - center within the background container
     ctx.fillStyle = config.angleColor || '#00ff00';
@@ -964,7 +1016,8 @@ export function renderJointAngles(
 export function renderROMStats(
   ctx: CanvasRenderingContext2D,
   romData: ROMData[],
-  config: Partial<StatsConfig>
+  config: Partial<StatsConfig>,
+  glassSource?: CanvasImageSource | null
 ): void {
   if (!config.showROM) return;
   
@@ -1022,11 +1075,14 @@ export function renderROMStats(
       const bgX = x - bgWidth/2; // Center the entire container
       const bgY = y + fontSize - backgroundHeight/2; // Position below joint, centered vertically
       
-      // Draw rounded background with proportional padding
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.beginPath();
-      ctx.roundRect(bgX, bgY, bgWidth, backgroundHeight, borderRadius);
-      ctx.fill();
+      drawLabelChipBackground(ctx, bgX, bgY, bgWidth, backgroundHeight, borderRadius, {
+        bg: config.labelBg,
+        bgColor: config.labelBgColor,
+        bgOpacity: config.labelBgOpacity,
+        blurPx: config.labelBlurPx,
+        glassSource,
+        scale: scaleFactor,
+      });
       
               // Draw ROM text - center within the background container
         ctx.fillStyle = config.romColor || '#ff6b35';
@@ -1242,7 +1298,7 @@ function resolveMobilityPoint(keypoints: any[], key: string): MobilityPoint | nu
   return kp(key);
 }
 
-function applyMobilityLineStyle(ctx: CanvasRenderingContext2D, style: StatsConfig['mobilityGeometryLineStyle']) {
+function applyMobilityLineStyle(ctx: CanvasRenderingContext2D, style: MobilityGeometryLineStyle | undefined) {
   if (style === 'dashed') ctx.setLineDash([14, 10]);
   else if (style === 'dotted') ctx.setLineDash([2, 10]);
   else ctx.setLineDash([]);
@@ -1252,7 +1308,7 @@ function drawMobilityCap(
   ctx: CanvasRenderingContext2D,
   point: MobilityPoint,
   orientation: 'vertical' | 'horizontal',
-  style: StatsConfig['mobilityGeometryCapStyle'],
+  style: MobilityGeometryCapStyle | undefined,
   size: number
 ) {
   if (!style || style === 'none') return;
@@ -1291,14 +1347,16 @@ function drawMobilityCap(
   ctx.stroke();
 }
 
-function drawMobilityAxis(
+function drawMobilityAxisLine(
   ctx: CanvasRenderingContext2D,
   center: MobilityPoint,
   orientation: 'vertical' | 'horizontal',
-  config: Partial<StatsConfig>,
+  lineLength: number,
+  lineWidth: number,
+  capStyle: MobilityGeometryCapStyle | undefined,
   scale: number
 ) {
-  const length = (config.mobilityGeometryLineLength || 220) * scale;
+  const length = lineLength * scale;
   const half = length / 2;
   const start =
     orientation === 'vertical'
@@ -1313,9 +1371,9 @@ function drawMobilityAxis(
   ctx.moveTo(start.x, start.y);
   ctx.lineTo(end.x, end.y);
   ctx.stroke();
-  const capSize = Math.max(8, (config.mobilityGeometryLineWidth ?? 1) * 5 * scale);
-  drawMobilityCap(ctx, start, orientation, config.mobilityGeometryCapStyle, capSize);
-  drawMobilityCap(ctx, end, orientation, config.mobilityGeometryCapStyle, capSize);
+  const capSize = Math.max(8, lineWidth * 5 * scale);
+  drawMobilityCap(ctx, start, orientation, capStyle, capSize);
+  drawMobilityCap(ctx, end, orientation, capStyle, capSize);
 }
 
 function drawMobilityAngleArc(
@@ -1341,6 +1399,73 @@ function drawMobilityAngleArc(
   ctx.stroke();
 }
 
+/** Resolve per-item axes/arcs, migrating legacy flat StatsConfig fields when needed. */
+export function resolveMobilityGeometryItems(config: Partial<StatsConfig>): {
+  axes: MobilityGeometryAxis[];
+  arcs: MobilityGeometryArc[];
+} {
+  if (
+    Array.isArray(config.mobilityGeometryAxes) ||
+    Array.isArray(config.mobilityGeometryArcs)
+  ) {
+    return {
+      axes: config.mobilityGeometryAxes ?? [],
+      arcs: config.mobilityGeometryArcs ?? [],
+    };
+  }
+
+  const color = config.mobilityGeometryColor;
+  const lineWidth = config.mobilityGeometryLineWidth;
+  const lineLength = config.mobilityGeometryLineLength;
+  const lineStyle = config.mobilityGeometryLineStyle;
+  const capStyle = config.mobilityGeometryCapStyle;
+  const opacity = config.mobilityGeometryOpacity;
+  const arcRadius = config.mobilityGeometryArcRadius;
+
+  const axes: MobilityGeometryAxis[] = [];
+  for (const target of config.mobilityGeometryVerticalTargets || []) {
+    axes.push({
+      id: `legacy-v-${target}`,
+      target,
+      orient: 'vertical',
+      color,
+      lineWidth,
+      lineLength,
+      lineStyle,
+      capStyle,
+      opacity,
+    });
+  }
+  for (const target of config.mobilityGeometryHorizontalTargets || []) {
+    axes.push({
+      id: `legacy-h-${target}`,
+      target,
+      orient: 'horizontal',
+      color,
+      lineWidth,
+      lineLength,
+      lineStyle,
+      capStyle,
+      opacity,
+    });
+  }
+
+  const arcs: MobilityGeometryArc[] = [];
+  for (const joint of config.mobilityGeometryAngleJoints || []) {
+    arcs.push({
+      id: `legacy-arc-${joint}`,
+      joint,
+      color,
+      lineWidth,
+      lineStyle,
+      arcRadius,
+      opacity,
+    });
+  }
+
+  return { axes, arcs };
+}
+
 function renderMobilityGeometry(
   ctx: CanvasRenderingContext2D,
   poses: any[],
@@ -1352,36 +1477,53 @@ function renderMobilityGeometry(
   if (!pose?.keypoints?.length) return;
   const keypoints = pose.keypoints;
   const scale = statsCanvasScaleFactor(ctx);
-  const arcRadius = Math.max(8, (config.mobilityGeometryArcRadius ?? 40) * scale);
+  const { axes, arcs } = resolveMobilityGeometryItems(config);
+  if (!axes.length && !arcs.length) return;
 
-  ctx.save();
-  ctx.globalAlpha = config.mobilityGeometryOpacity ?? 0.9;
-  ctx.strokeStyle = config.mobilityGeometryColor || '#ffffff';
-  ctx.fillStyle = config.mobilityGeometryColor || '#ffffff';
-  ctx.lineWidth = Math.max(1, (config.mobilityGeometryLineWidth ?? 1) * scale);
-  ctx.lineCap = config.mobilityGeometryLineStyle === 'dotted' ? 'round' : 'butt';
-  applyMobilityLineStyle(ctx, config.mobilityGeometryLineStyle || 'solid');
+  for (const axis of axes) {
+    const point = resolveMobilityPoint(keypoints, axis.target);
+    if (!point) continue;
+    const color = axis.color || '#ffffff';
+    const lineWidth = axis.lineWidth ?? 1;
+    const lineLength = axis.lineLength ?? 220;
+    const lineStyle = axis.lineStyle || 'solid';
+    const capStyle = axis.capStyle || 'tick';
+    const opacity = axis.opacity ?? 0.9;
 
-  for (const target of config.mobilityGeometryVerticalTargets || []) {
-    const point = resolveMobilityPoint(keypoints, target);
-    if (point) drawMobilityAxis(ctx, point, 'vertical', config, scale);
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = Math.max(1, lineWidth * scale);
+    ctx.lineCap = lineStyle === 'dotted' ? 'round' : 'butt';
+    applyMobilityLineStyle(ctx, lineStyle);
+    drawMobilityAxisLine(ctx, point, axis.orient, lineLength, lineWidth, capStyle, scale);
+    ctx.restore();
   }
-  for (const target of config.mobilityGeometryHorizontalTargets || []) {
-    const point = resolveMobilityPoint(keypoints, target);
-    if (point) drawMobilityAxis(ctx, point, 'horizontal', config, scale);
-  }
 
-  for (const joint of config.mobilityGeometryAngleJoints || []) {
-    const triple = MOBILITY_ANGLE_JOINTS[joint];
+  for (const arc of arcs) {
+    const triple = MOBILITY_ANGLE_JOINTS[arc.joint];
     if (!triple) continue;
     const a = resolveMobilityPoint(keypoints, triple[0]);
     const b = resolveMobilityPoint(keypoints, triple[1]);
     const c = resolveMobilityPoint(keypoints, triple[2]);
     if (!a || !b || !c) continue;
-    drawMobilityAngleArc(ctx, a, b, c, arcRadius);
-  }
 
-  ctx.restore();
+    const color = arc.color || '#ffffff';
+    const lineWidth = arc.lineWidth ?? 1;
+    const lineStyle = arc.lineStyle || 'solid';
+    const opacity = arc.opacity ?? 0.9;
+    const arcRadius = Math.max(8, (arc.arcRadius ?? 40) * scale);
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1, lineWidth * scale);
+    ctx.lineCap = lineStyle === 'dotted' ? 'round' : 'butt';
+    applyMobilityLineStyle(ctx, lineStyle);
+    drawMobilityAngleArc(ctx, a, b, c, arcRadius);
+    ctx.restore();
+  }
 }
 
 /**
@@ -1419,10 +1561,10 @@ export function renderStats(
   const romData = updateROMTracking(jointAngles);
 
   // Render joint angles
-  renderJointAngles(ctx, jointAngles, config);
+  renderJointAngles(ctx, jointAngles, config, ctx.canvas);
   
   // Render ROM stats
-  renderROMStats(ctx, romData, config);
+  renderROMStats(ctx, romData, config, ctx.canvas);
 
   renderMetricChips(ctx, poses, romData, config);
   renderMobilityGeometry(ctx, poses, config, currentFrameIndex);

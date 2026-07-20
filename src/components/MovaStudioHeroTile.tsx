@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Camera, LayoutDashboard } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 
 const DEFAULT_STUDIO_TILE_IMAGE = "/images/sports/studio.jpg";
 const DEFAULT_STUDIO_TILE_VIDEO = "/images/sports/studio.mp4";
+
+const OPEN_MOVE_TITLE = "Open Movement Viz";
+const OPEN_MOVE_TAG = "Viz";
 
 interface MovaStudioHeroTileProps {
   layout?: "desktop" | "mobile";
@@ -56,10 +59,10 @@ export default function MovaStudioHeroTile({
       style={{
         position: "relative",
         minHeight: isDesktop ? undefined : "12rem",
-        height: isDesktop ? "100%" : "auto",
+        height: "100%",
         boxSizing: "border-box",
       }}
-      aria-label="Open Mova Studio — record or upload any movement"
+      aria-label={`${OPEN_MOVE_TITLE} — record or upload any movement`}
     >
       {showPhoto && mediaSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -92,7 +95,7 @@ export default function MovaStudioHeroTile({
           showPhoto ? " mini-app-glass-photo-studio-content" : " flex h-full flex-col justify-between"
         }`}
         style={{
-          padding: "20px 24px",
+          padding: "16px 18px",
           boxSizing: "border-box",
           minHeight: "inherit",
         }}
@@ -100,7 +103,7 @@ export default function MovaStudioHeroTile({
         {showPhoto ? (
           <span className="mini-app-glass-photo-studio-tag">
             <LayoutDashboard size={12} aria-hidden />
-            Studio
+            {OPEN_MOVE_TAG}
           </span>
         ) : (
           <span
@@ -111,51 +114,41 @@ export default function MovaStudioHeroTile({
             }}
           >
             <LayoutDashboard size={12} aria-hidden />
-            Studio
+            {OPEN_MOVE_TAG}
           </span>
         )}
 
-        {!showPhoto ? (
-          <span
-            className="mini-app-glass-photo-fallback-icon"
-            style={{ minHeight: "5rem" }}
-            aria-hidden
-          >
-            <Camera
-              size={48}
-              strokeWidth={1.5}
-              style={{ color: "var(--mini-app-glass-icon)", opacity: 0.88 }}
-            />
-          </span>
-        ) : (
+        {showPhoto ? (
           <span aria-hidden style={{ flex: 1, minHeight: "1rem" }} />
+        ) : (
+          <span aria-hidden style={{ flex: 1 }} />
         )}
 
         <div>
           {showPhoto ? (
             <>
-              <h2 className="mini-app-glass-photo-studio-title">Mova Studio</h2>
+              <h2 className="mini-app-glass-photo-studio-title">{OPEN_MOVE_TITLE}</h2>
               <p className="mini-app-glass-photo-studio-description">
                 Easily add motion overlays to your videos to visualize your form. Export and share!
               </p>
-              <span className="mini-app-glass-photo-studio-cta">Open Studio</span>
+              <span className="mini-app-glass-photo-studio-cta">Open</span>
             </>
           ) : (
             <>
               <h2
                 style={{
                   marginBottom: "8px",
-                  fontSize: "20px",
+                  fontSize: "18px",
                   fontWeight: 300,
                   lineHeight: 1.2,
                   color: "var(--mini-app-glass-text)",
                 }}
               >
-                Mova Studio
+                {OPEN_MOVE_TITLE}
               </h2>
               <p
                 style={{
-                  marginBottom: "16px",
+                  marginBottom: "12px",
                   fontSize: "12px",
                   lineHeight: 1.45,
                   color: "var(--mini-app-glass-text-muted)",
@@ -171,7 +164,7 @@ export default function MovaStudioHeroTile({
                   padding: "10px 12px",
                 }}
               >
-                Open Studio
+                Open
               </span>
             </>
           )}

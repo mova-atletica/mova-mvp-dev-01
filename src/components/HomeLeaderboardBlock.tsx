@@ -10,7 +10,6 @@ import {
   leaderboardInitials,
 } from "../data/mockLeaderboards";
 import { useAccount } from "../contexts/MockAuthContext";
-import type { LeaderboardScope } from "../types/account";
 import ExportPanelSelect from "./ExportPanelSelect";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
@@ -33,13 +32,11 @@ export default function HomeLeaderboardBlock({
 }: HomeLeaderboardBlockProps) {
   const { getLeaderboard, profile } = useAccount();
   const [sportSlug, setSportSlug] = useState(QUICK_ANALYSIS_MOVEMENTS[0]?.slug ?? "plank");
-  const [scope, setScope] = useState<LeaderboardScope>("global");
 
   const movement = QUICK_ANALYSIS_MOVEMENTS.find((m) => m.slug === sportSlug);
-  const countryCode = profile?.countryCode;
   const entries = useMemo(
-    () => getLeaderboard(sportSlug, scope, countryCode),
-    [getLeaderboard, sportSlug, scope, countryCode]
+    () => getLeaderboard(sportSlug, "global"),
+    [getLeaderboard, sportSlug]
   );
 
   const uniqueCountries = useMemo(() => {
@@ -47,7 +44,6 @@ export default function HomeLeaderboardBlock({
     return codes.size;
   }, [entries]);
 
-  const scopeDisabled = scope === "country" && !countryCode;
   const isHero = variant === "hero";
 
   const sportOptions = useMemo(
@@ -110,44 +106,8 @@ export default function HomeLeaderboardBlock({
             aria-label="Select sport"
             triggerClassName="w-auto min-w-[8.5rem] max-w-[11rem] sm:min-w-[9.5rem]"
           />
-
-          <div
-            className="flex shrink-0 rounded-lg p-0.5"
-            style={{ ...borderAllTheme, backgroundColor: "var(--background)" }}
-            role="tablist"
-            aria-label="Leaderboard scope"
-          >
-            {(["global", "country"] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                aria-selected={scope === tab}
-                disabled={tab === "country" && !countryCode}
-                title={
-                  tab === "country" && !countryCode
-                    ? "Sign in and set your country to filter"
-                    : undefined
-                }
-                onClick={() => setScope(tab)}
-                className="rounded-md px-2 py-1 text-[10px] font-medium capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-[11px]"
-                style={{
-                  backgroundColor: scope === tab ? "var(--tag-bg)" : "transparent",
-                  color: scope === tab ? "var(--tag-text)" : "var(--muted-foreground)",
-                }}
-              >
-                {tab === "global" ? "Global" : "Country"}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
-
-      {scopeDisabled ? (
-        <p className="mb-2 shrink-0 text-[10px] text-[color:var(--muted-foreground)] sm:text-xs">
-          Set your country in profile to filter by country.
-        </p>
-      ) : null}
 
       <ol
         className={`min-h-0 flex-1 space-y-1.5 overflow-y-auto open-move-studio-panel-scroll ${

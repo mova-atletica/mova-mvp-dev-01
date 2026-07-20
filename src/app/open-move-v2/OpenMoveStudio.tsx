@@ -5,17 +5,13 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import * as Dialog from "@radix-ui/react-dialog";
-import * as Popover from "@radix-ui/react-popover";
 import {
   PanelLeftClose,
   PanelLeftOpen,
-  Home,
   Upload,
   Video,
   BarChart3,
   Loader2,
-  MoreVertical,
-  LayoutDashboard,
   X,
   Play,
 } from "lucide-react";
@@ -63,8 +59,6 @@ import {
   useAssetVideoEngineContext,
   useOptionalAssetVideoEngine,
 } from "../motion-explore/assetVideoEngineContext";
-import { useTheme } from "../../contexts/ThemeContext";
-import { EffectSelectedCheckIcon } from "../motion-explore/EffectSelectedCheckIcon";
 import AppMegaMenu from "../../components/AppMegaMenu";
 import { buildLeaderboardScorePayload } from "../../lib/leaderboardScore";
 import { ProgramModalCloseButton } from "../../components/exercise-studio/ExerciseStudioProgramControls";
@@ -101,6 +95,8 @@ function isRailPopoverContentOpen(): boolean {
 
 /** Desktop analysis drawer: fixed cap so landscape video keeps room in the stage row. */
 const DESKTOP_ANALYSIS_DRAWER_WIDTH = "clamp(16rem, 36vw, 32rem)";
+/** Slightly narrower in the homepage modal so the drawer isn't clipped by modal inset. */
+const DESKTOP_ANALYSIS_DRAWER_WIDTH_EMBEDDED = "clamp(14rem, 26vw, 22rem)";
 const FEATURED_VIDEO_MP4_PATH = "/featured/featured.mp4";
 const FEATURED_KEYPOINTS_PATH = "/featured/featured-keypoints.json";
 const FEATURED_FRAME_INTERVAL_SEC = 0.1;
@@ -334,7 +330,7 @@ const idleSession: SessionState = {
   source: "upload",
 };
 
-/** Archive modal — default Mova Studio starts empty (no featured sample). */
+/** Archive modal — default Open Movement Viz starts empty (no featured sample). */
 const embeddedStudioIdleSession: SessionState = { ...idleSession };
 
 export default function OpenMoveStudio({
@@ -407,7 +403,6 @@ export default function OpenMoveStudio({
     width: number;
     height: number;
   } | null>(null);
-  const { theme, toggleTheme } = useTheme();
 
   /** Avoid SSR mismatch; portal target only exists on client. */
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
@@ -1271,7 +1266,7 @@ export default function OpenMoveStudio({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <h1 className="font-light uppercase tracking-wider text-[color:var(--muted-foreground)]" style={{ fontSize: "18px" }}>
-                {isQuickAnalysis ? analysisTitle ?? getSportAnalysisLabel(sportAnalysisKind) : "Mova Studio"}
+                {isQuickAnalysis ? analysisTitle ?? getSportAnalysisLabel(sportAnalysisKind) : "Open Movement Viz"}
               </h1>
               <p className="mt-0 text-xs font-normal leading-relaxed text-[color:var(--muted)]">
                 {embeddedQuickAnalysis ? (
@@ -1302,92 +1297,7 @@ export default function OpenMoveStudio({
               {embedded && onClose ? (
                 <ProgramModalCloseButton onClose={onClose} />
               ) : (
-                <Popover.Root>
-                  <Popover.Trigger asChild>
-                    <button
-                      type="button"
-                      style={borderAllTheme}
-                      className="flex-shrink-0 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] p-2 text-[color:var(--muted-foreground)] backdrop-blur-md transition-all hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:text-[color:var(--foreground)]"
-                      title="Apps & Settings"
-                    >
-                      <MoreVertical size={16} />
-                    </button>
-                  </Popover.Trigger>
-
-                  <Popover.Content
-                    side="bottom"
-                    align="end"
-                    sideOffset={8}
-                    style={borderAllTheme}
-                    className="z-[220] w-56 rounded-lg bg-[color:color-mix(in_srgb,var(--card-bg)_90%,black)] p-2 shadow-2xl backdrop-blur-xl"
-                  >
-                    <div className="px-2 py-1 text-[9px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                      Apps
-                    </div>
-                    <Link
-                      href="/"
-                      className="flex items-center gap-2 rounded-md px-2 py-1.5 font-normal text-xs text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:text-[color:var(--foreground)]"
-                    >
-                      <Home size={12} />
-                      Mova Archive
-                    </Link>
-                    <div className="mt-1 flex items-center gap-2 rounded-md bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] px-2 py-1.5 font-normal text-xs text-[color:var(--foreground)]">
-                      <LayoutDashboard className="h-3 w-3" />
-                      <span>Mova Studio</span>
-                      <span className="ml-auto flex shrink-0 items-center justify-center text-[var(--accent,#3b82f6)]">
-                        <EffectSelectedCheckIcon className="scale-[0.85]" />
-                      </span>
-                    </div>
-                    <div className="my-2 h-px bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]" />
-                    <div className="px-2 py-1 text-[9px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                      Account
-                    </div>
-                    <button
-                      type="button"
-                      disabled
-                      className="w-full cursor-not-allowed rounded-md px-2 py-1.5 text-left font-bold text-xs text-[color:var(--muted)]"
-                    >
-                      Coming soon : )
-                    </button>
-                    <button
-                      type="button"
-                      onClick={toggleTheme}
-                      className="mt-1 flex min-h-[44px] w-full items-center justify-center rounded-md px-2 py-2 text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:text-[color:var(--foreground)]"
-                      aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-                    >
-                      {theme === "light" ? (
-                        <svg
-                          className="h-6 w-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          style={{ color: "var(--foreground)" }}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="h-6 w-6 text-[color:var(--foreground)]"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  </Popover.Content>
-                </Popover.Root>
+                <AppMegaMenu activeApp="studio" embeddedInModal={embedded} />
               )}
               <button
                 type="button"
@@ -1880,7 +1790,9 @@ export default function OpenMoveStudio({
                                 onTransitionEnd={onAnalyticsDrawerWidthTransitionEnd}
                                 style={{
                                   width: analyticsDrawerOpen
-                                    ? DESKTOP_ANALYSIS_DRAWER_WIDTH
+                                    ? embedded
+                                      ? DESKTOP_ANALYSIS_DRAWER_WIDTH_EMBEDDED
+                                      : DESKTOP_ANALYSIS_DRAWER_WIDTH
                                     : 0,
                                   transition: openMoveRailWidthTransition,
                                 }}
@@ -1999,7 +1911,7 @@ export default function OpenMoveStudio({
           >
             <Dialog.Title className="text-base font-medium">Desktop recommended</Dialog.Title>
             <Dialog.Description className="mt-2 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-              For the smoothest video analysis and feedback, use Mova Studio on desktop. Mobile works, but playback
+              For the smoothest video analysis and feedback, use Open Movement Viz on desktop. Mobile works, but playback
               and charts may feel slower.
             </Dialog.Description>
             <button

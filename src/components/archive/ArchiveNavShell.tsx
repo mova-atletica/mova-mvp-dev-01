@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import AppMegaMenu from "../AppMegaMenu";
+import AppMegaMenu, { type AppMegaMenuActive } from "../AppMegaMenu";
 import { ArchiveRailFooter } from "./ArchiveRailFooter";
 import {
   ARCHIVE_RAIL_WIDTH_COLLAPSED,
@@ -16,9 +16,15 @@ interface ArchiveNavShellProps {
   children: ReactNode;
   /** Full-height studio layout without content column padding/scroll. */
   studioLayout?: boolean;
+  /** Mega menu active app highlight. Default archive. */
+  activeApp?: AppMegaMenuActive;
 }
 
-export default function ArchiveNavShell({ children, studioLayout = false }: ArchiveNavShellProps) {
+export default function ArchiveNavShell({
+  children,
+  studioLayout = false,
+  activeApp = "archive",
+}: ArchiveNavShellProps) {
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
@@ -60,7 +66,7 @@ export default function ArchiveNavShell({ children, studioLayout = false }: Arch
         />
       </Link>
 
-      <AppMegaMenu activeApp="archive" iconOnly />
+      <AppMegaMenu activeApp={activeApp} iconOnly />
     </div>
   );
 
@@ -100,7 +106,7 @@ export default function ArchiveNavShell({ children, studioLayout = false }: Arch
                   style={{ height: "auto", filter: "var(--logo-color)" }}
                 />
               </Link>
-              <AppMegaMenu activeApp="archive" ghost />
+              <AppMegaMenu activeApp={activeApp} ghost />
             </div>
           ) : null}
 

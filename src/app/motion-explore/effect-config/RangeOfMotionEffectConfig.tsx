@@ -9,6 +9,7 @@ import {
   ConfigSliderRow,
 } from "./fields";
 import { EFFECT_CONFIG_JOINT_OPTIONS } from "./jointOptions";
+import { LabelChipBgControls } from "./LabelChipBgControls";
 
 export function RangeOfMotionEffectConfig({ config, updateConfig }: EffectConfigFormProps) {
   const romJoints = (config.romJoints as string[]) || [];
@@ -44,6 +45,8 @@ export function RangeOfMotionEffectConfig({ config, updateConfig }: EffectConfig
           displayValue={`${(config.angleSize as number) || 16}px`}
         />
       </ConfigSection>
+
+      <LabelChipBgControls config={config} updateConfig={updateConfig} />
     </ConfigRoot>
   );
 }

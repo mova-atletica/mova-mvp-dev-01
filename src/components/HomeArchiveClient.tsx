@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { MiniApp } from "../data/miniApps";
 import { MINI_APPS, MOVA_STUDIO_MINI_APP } from "../data/miniApps";
 import { getQuickAnalysisBySlug } from "../data/quickAnalysisMovements";
@@ -19,6 +20,7 @@ interface HomeArchiveClientProps {
 
 export default function HomeArchiveClient({ children }: HomeArchiveClientProps) {
   useMockTierQueryParam();
+  const router = useRouter();
   const { queueLeaderboardSave, requestStudioAccess } = useAccount();
   const [modalTarget, setModalTarget] = useState<OpenMoveStudioModalTarget | null>(null);
   const modalOpen = modalTarget !== null;
@@ -28,6 +30,12 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
       setModalTarget({ type: "studio" });
     });
   }, [requestStudioAccess]);
+
+  const openCoachStudio = useCallback(() => {
+    requestStudioAccess(() => {
+      router.push("/coach-studio");
+    });
+  }, [requestStudioAccess, router]);
 
   const openMiniAppModal = useCallback((app: MiniApp) => {
     const target = openMoveModalTargetFromMiniApp(app);
@@ -56,6 +64,7 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
       <HomeToolsHero
         hasStudio={MINI_APPS.some((app) => app.id === MOVA_STUDIO_MINI_APP.id)}
         onOpenStudio={openStudioModal}
+        onOpenCoachStudio={openCoachStudio}
         onTrySport={openSportBySlug}
       />
 
