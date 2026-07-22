@@ -1,42 +1,50 @@
-# Day 2 — Supabase Auth setup
+# Day 4 — Activity + leaderboards (Supabase)
 
-## 1. Run the profiles migration (required)
+## What you need to run in the Supabase SQL Editor
 
-1. Open [Supabase Dashboard](https://supabase.com/dashboard) → project **mova-atletica**
-2. Left sidebar → **SQL Editor** → **New query**
-3. Paste the contents of [`supabase/migrations/20260715_profiles.sql`](./migrations/20260715_profiles.sql)
-4. Click **Run**
+Open [Supabase Dashboard](https://supabase.com/dashboard) → project **mova-atletica** → **SQL Editor** → **New query**.
 
-This creates `public.profiles`, a signup trigger, backfills existing Parque users, and RLS so users can only read/update their own row.
+### Step 1 — Schema + storage (required)
 
-## 2. Env (already done locally)
+Paste and **Run** the full contents of:
 
-`.env.local` should include:
+[`supabase/migrations/20260721_activity_leaderboards.sql`](./migrations/20260721_activity_leaderboards.sql)
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_SITE_URL`
-- `NEXT_PUBLIC_PHASE_B_ENABLED=false`
+This creates:
 
-Also add the same keys in **Vercel → Project → Settings → Environment Variables** for production.
+- `public.activity_sessions` (+ RLS: own rows only)
+- `public.leaderboard_entries` (+ RLS: public read, own write)
+- Private Storage bucket **`activity-sessions`** (Pro-only upload via `profiles.tier`)
 
-## 3. Auth redirect URLs (already mostly done)
+Confirm in **Table Editor** that both tables exist, and under **Storage** that bucket `activity-sessions` exists.
 
-Ensure Redirect URLs include:
+### Step 2 — Demo seed for tresbradley (recommended)
 
-- `http://localhost:3000`
-- `http://localhost:3000/auth/callback`
-- `https://mova-mvp-dev-01.vercel.app`
-- `https://mova-mvp-dev-01.vercel.app/auth/callback`
+1. Sign into the app at least once with the email tied to **tresbradley** (so `auth.users` + `profiles` exist).
+2. Paste and **Run**:
 
-Site URL should be `https://mova-mvp-dev-01.vercel.app` (primary).
+[`supabase/migrations/20260721_seed_tresbradley_demo.sql`](./migrations/20260721_seed_tresbradley_demo.sql)
 
-## 4. Smoke test
+This will:
 
-1. Restart `npm run dev`
-2. Open `/login`
-3. Enter email → receive code/link
-4. Enter 6-digit code **or** click magic link
-5. Land on `/account` with your email shown
-6. Complete onboarding → values persist after refresh
+- Find your user by email / `display_name` containing `tresbradley`
+- Set `profiles.tier = 'pro'` and `onboarding_complete = true`
+- Insert seeded **Activity** rows (studio + mini-app)
+- Insert public **leaderboard** seed rows for plank / squat / pullups
+
+If you see `Could not find auth user for tresbradley`, check **Authentication → Users** for the exact email, then either sign in once or edit the `like '%tresbradley%'` clause in the seed to match your email.
+
+### Step 3 — Smoke test in the app
+
+1. Restart `npm run dev` (or refresh after deploy).
+2. Homepage leaderboard sport picker should only show **Plank / Squat / Pull-ups** (no cycling / flexibility).
+3. Sign in as tresbradley → **Account → Activity / Insights** should show seeded sessions.
+4. Run a mini app → Analyze → Activity row appears; optionally **Post to leaderboard**.
+5. As Pro, mini-app completion should also attempt a **720p** video upload into `activity-sessions` (check Storage after a run).
+
+## Notes
+
+- Free users still get **metrics** activity rows; **video** upload is blocked by Storage RLS unless `tier` is `pro` or `partner`.
+- Mini apps: no duration cap; Pro video is re-encoded toward **720p ~1.5 Mbps** when practical.
+- Open Movement Viz / Coach Studio: existing **30s** caps; no extra compress in this pass.
+- Re-running the seed deletes prior `is_seed` rows for that user / public LB seeds, then re-inserts.

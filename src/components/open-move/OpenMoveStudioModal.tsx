@@ -35,7 +35,10 @@ interface OpenMoveStudioModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   target: OpenMoveStudioModalTarget | null;
-  onQuickAnalysisComplete?: (score: LeaderboardScorePayload) => void;
+  onQuickAnalysisComplete?: (
+    score: LeaderboardScorePayload,
+    meta?: { videoUrl?: string | null }
+  ) => void;
 }
 
 export default function OpenMoveStudioModal({ open, onOpenChange, target, onQuickAnalysisComplete }: OpenMoveStudioModalProps) {

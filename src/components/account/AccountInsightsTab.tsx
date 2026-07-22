@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MOCK_ACCOUNT_ACTIVITY } from "../../data/mockAccountActivity";
 import {
   aggregateBodyFocus,
   aggregateJointRom,
@@ -13,6 +12,7 @@ import {
   type ChartTimeRange,
   xAxisLabelForRange,
 } from "../../lib/accountActivityInsights";
+import { useAccountActivityFeed } from "../../lib/useAccountActivityFeed";
 import { useTranslations } from "../../i18n/LocaleProvider";
 import ChartTimeRangeToggle from "./ChartTimeRangeToggle";
 import {
@@ -33,19 +33,20 @@ const TREND_LEGEND = [
 
 export default function AccountInsightsTab() {
   const t = useTranslations();
+  const { items: activity } = useAccountActivityFeed();
   const [trendRange, setTrendRange] = useState<ChartTimeRange>("month");
 
-  const movementSummary = useMemo(() => summarizeMovementStats(MOCK_ACCOUNT_ACTIVITY), []);
+  const movementSummary = useMemo(() => summarizeMovementStats(activity), [activity]);
   const trendData = useMemo(
-    () => aggregateMovementTrends(MOCK_ACCOUNT_ACTIVITY, trendRange),
-    [trendRange]
+    () => aggregateMovementTrends(activity, trendRange),
+    [trendRange, activity]
   );
-  const bodyFocusData = useMemo(() => aggregateBodyFocus(MOCK_ACCOUNT_ACTIVITY), []);
-  const jointRomData = useMemo(() => aggregateJointRom(MOCK_ACCOUNT_ACTIVITY), []);
-  const movementData = useMemo(() => aggregateMovementTags(MOCK_ACCOUNT_ACTIVITY), []);
+  const bodyFocusData = useMemo(() => aggregateBodyFocus(activity), [activity]);
+  const jointRomData = useMemo(() => aggregateJointRom(activity), [activity]);
+  const movementData = useMemo(() => aggregateMovementTags(activity), [activity]);
 
-  const recentSessions = countRecentSessions(MOCK_ACCOUNT_ACTIVITY);
-  const activeStreak = computeActiveDayStreak(MOCK_ACCOUNT_ACTIVITY);
+  const recentSessions = countRecentSessions(activity);
+  const activeStreak = computeActiveDayStreak(activity);
   const trendXLabel =
     xAxisLabelForRange(trendRange) === "Day"
       ? t("account.chartAxisDay")

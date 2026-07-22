@@ -14,6 +14,7 @@ import type { User } from "@supabase/supabase-js";
 import { MOCK_LEADERBOARD_ENTRIES } from "../data/mockLeaderboards";
 import { QUICK_ANALYSIS_MOVEMENTS } from "../data/quickAnalysisMovements";
 import { createClient } from "../lib/supabase/client";
+import { insertLeaderboardEntry, listLeaderboardEntries } from "../lib/leaderboards";
 import { mapProfileRow, type ProfileRow } from "../lib/supabase/profile";
 import { hasProAccess } from "../lib/proAccess";
 import type {
@@ -24,6 +25,12 @@ import type {
   LeaderboardScope,
   OnboardingInput,
 } from "../types/account";
+
+const FEATURED_SPORT_SLUGS = new Set(QUICK_ANALYSIS_MOVEMENTS.map((m) => m.slug));
+
+const FEATURED_MOCK_LEADERBOARD = MOCK_LEADERBOARD_ENTRIES.filter((e) =>
+  FEATURED_SPORT_SLUGS.has(e.sportSlug)
+);
 
 export interface MyLeaderboardRank {
   sportSlug: string;
@@ -78,22 +85,22 @@ function mergeLeaderboardSeed(stored: LeaderboardEntry[] | undefined): Leaderboa
   const userPosts = (stored ?? []).filter(
     (e) => Boolean(e.userId) || e.id.startsWith("lb-user-")
   );
-  const seedIds = new Set(MOCK_LEADERBOARD_ENTRIES.map((e) => e.id));
-  const merged = [...MOCK_LEADERBOARD_ENTRIES];
+  const seedIds = new Set(FEATURED_MOCK_LEADERBOARD.map((e) => e.id));
+  const merged = [...FEATURED_MOCK_LEADERBOARD];
   for (const post of userPosts) {
-    if (!seedIds.has(post.id)) merged.push(post);
+    if (!seedIds.has(post.id) && FEATURED_SPORT_SLUGS.has(post.sportSlug)) merged.push(post);
   }
   return merged;
 }
 
 function loadLeaderboardEntries(): LeaderboardEntry[] {
-  if (typeof window === "undefined") return MOCK_LEADERBOARD_ENTRIES;
+  if (typeof window === "undefined") return FEATURED_MOCK_LEADERBOARD;
   try {
     const raw = localStorage.getItem(LB_STORAGE_KEY);
-    if (!raw) return MOCK_LEADERBOARD_ENTRIES;
+    if (!raw) return FEATURED_MOCK_LEADERBOARD;
     return mergeLeaderboardSeed(JSON.parse(raw) as LeaderboardEntry[]);
   } catch {
-    return MOCK_LEADERBOARD_ENTRIES;
+    return FEATURED_MOCK_LEADERBOARD;
   }
 }
 
@@ -108,7 +115,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>(
-    MOCK_LEADERBOARD_ENTRIES
+    FEATURED_MOCK_LEADERBOARD
   );
   const [pendingLeaderboardScore, setPendingLeaderboardScore] =
     useState<LeaderboardScorePayload | null>(null);
@@ -189,6 +196,18 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     setLbHydrated(true);
 
     let mounted = true;
+
+    void listLeaderboardEntries(supabase, { limit: 200 }).then(({ data, error }) => {
+      if (!mounted) return;
+      if (error) {
+        console.warn("Leaderboard fetch failed; using local seed", error);
+        return;
+      }
+      const featured = data.filter((e) => FEATURED_SPORT_SLUGS.has(e.sportSlug));
+      if (featured.length > 0) {
+        setLeaderboardEntries(featured);
+      }
+    });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
@@ -371,7 +390,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
       setPendingLeaderboardScore((pending) => {
         if (!pending) return null;
-        const entry: LeaderboardEntry = {
+        const optimistic: LeaderboardEntry = {
           id: `lb-user-${Date.now()}`,
           sportSlug: pending.sportSlug,
           metricKey: pending.metricKey,
@@ -383,8 +402,25 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           userId: user.id,
           createdAt: new Date().toISOString(),
         };
-        setLeaderboardEntries((prev) => [entry, ...prev]);
+        setLeaderboardEntries((prev) => [optimistic, ...prev]);
         setLeaderboardSaveOpen(false);
+
+        void insertLeaderboardEntry(supabase, {
+          userId: user.id,
+          score: pending,
+          displayName: patch.display_name,
+          countryCode: patch.country_code,
+        }).then(({ data: inserted, error: insertErr }) => {
+          if (insertErr || !inserted) {
+            console.error("Leaderboard insert after onboarding failed", insertErr);
+            return;
+          }
+          setLeaderboardEntries((prev) => [
+            inserted,
+            ...prev.filter((e) => e.id !== optimistic.id),
+          ]);
+        });
+
         return null;
       });
     },
@@ -419,7 +455,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   const submitLeaderboardScore = useCallback(
     (score: LeaderboardScorePayload) => {
       if (!profile?.onboardingComplete) return;
-      const entry: LeaderboardEntry = {
+
+      const optimistic: LeaderboardEntry = {
         id: `lb-user-${Date.now()}`,
         sportSlug: score.sportSlug,
         metricKey: score.metricKey,
@@ -431,11 +468,24 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         userId: profile.id,
         createdAt: new Date().toISOString(),
       };
-      setLeaderboardEntries((prev) => [entry, ...prev]);
+      setLeaderboardEntries((prev) => [optimistic, ...prev]);
       setPendingLeaderboardScore(null);
       setLeaderboardSaveOpen(false);
+
+      void insertLeaderboardEntry(supabase, {
+        userId: profile.id,
+        score,
+        displayName: profile.displayName,
+        countryCode: profile.countryCode,
+      }).then(({ data, error }) => {
+        if (error || !data) {
+          console.error("Leaderboard insert failed", error);
+          return;
+        }
+        setLeaderboardEntries((prev) => [data, ...prev.filter((e) => e.id !== optimistic.id)]);
+      });
     },
-    [profile]
+    [profile, supabase]
   );
 
   const queueLeaderboardSave = useCallback((score: LeaderboardScorePayload) => {

@@ -19,7 +19,10 @@ export interface OpenMoveStudioProps {
   /** Quick analysis slug for leaderboard payloads (embedded modal). */
   analysisSlug?: string;
   /** Called after a successful quick-analysis run (embedded modal). */
-  onQuickAnalysisComplete?: (score: LeaderboardScorePayload) => void;
+  onQuickAnalysisComplete?: (
+    score: LeaderboardScorePayload,
+    meta?: { videoUrl?: string | null }
+  ) => void;
 }
 
 export function getSportAnalysisLabel(kind: SportAnalysisKind): string {

@@ -355,6 +355,8 @@ export default function OpenMoveStudio({
     if (skipFeaturedSample) return embeddedStudioIdleSession;
     return initialSession;
   });
+  const sessionVideoUrlRef = useRef<string | null>(session.videoUrl);
+  sessionVideoUrlRef.current = session.videoUrl;
   const railVisible = !deferRailUntilVideo || session.status !== "idle";
   /** MVP sport analysis (cleared when a new clip is processed). */
   const [cyclingAnalysisResult, setCyclingAnalysisResult] = useState<CyclingDualAnalysisResult | null>(null);
@@ -727,7 +729,7 @@ export default function OpenMoveStudio({
             const payload = buildLeaderboardScorePayload(analysisSlug, "cycling", {
               cycling: res.result,
             });
-            if (payload) onQuickAnalysisComplete(payload);
+            if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
           }
         } else {
           setCyclingAnalysisResult(null);
@@ -750,7 +752,7 @@ export default function OpenMoveStudio({
             const payload = buildLeaderboardScorePayload(analysisSlug, "pullups", {
               pullUps: res.result,
             });
-            if (payload) onQuickAnalysisComplete(payload);
+            if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
           }
         } else {
           setPullUpsAnalysisResult(null);
@@ -773,7 +775,7 @@ export default function OpenMoveStudio({
             const payload = buildLeaderboardScorePayload(analysisSlug, "plank", {
               plank: res.result,
             });
-            if (payload) onQuickAnalysisComplete(payload);
+            if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
           }
         } else {
           setPlankAnalysisResult(null);
@@ -796,7 +798,7 @@ export default function OpenMoveStudio({
             const payload = buildLeaderboardScorePayload(analysisSlug, "squat", {
               squat: squatRes.result,
             });
-            if (payload) onQuickAnalysisComplete(payload);
+            if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
           }
         } else {
           setSquatAnalysisResult(null);
@@ -819,7 +821,7 @@ export default function OpenMoveStudio({
           const payload = buildLeaderboardScorePayload(analysisSlug, "poseFlexibility", {
             poseFlexibility: poseFlexRes.result,
           });
-          if (payload) onQuickAnalysisComplete(payload);
+          if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
         }
       } else {
         setPoseFlexibilityAnalysisResult(null);

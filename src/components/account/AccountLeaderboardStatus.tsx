@@ -1,18 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { MOCK_ACCOUNT_ACTIVITY } from "../../data/mockAccountActivity";
 import { QUICK_ANALYSIS_MOVEMENTS } from "../../data/quickAnalysisMovements";
 import { useAccount } from "../../contexts/MockAuthContext";
+import { useAccountActivityFeed } from "../../lib/useAccountActivityFeed";
 import { useTranslations } from "../../i18n/LocaleProvider";
+import type { AccountActivityItem } from "../../types/accountActivity";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
 const TAG_TO_SPORT: Record<string, string> = {
   squat: "squat",
   plank: "plank",
-  cycling: "cycling",
-  flexibility: "flexibility",
   "pull-ups": "pullups",
   pullups: "pullups",
 };
@@ -25,10 +24,10 @@ interface ActivityBestScore {
   occurredAt: string;
 }
 
-function bestScoresFromActivity(): ActivityBestScore[] {
+function bestScoresFromActivity(activity: AccountActivityItem[]): ActivityBestScore[] {
   const bestBySport = new Map<string, ActivityBestScore & { sortKey: number }>();
 
-  for (const item of MOCK_ACCOUNT_ACTIVITY) {
+  for (const item of activity) {
     if (item.kind !== "mini-app" || !item.metricValue) continue;
     const tag = item.tags?.find((t) => TAG_TO_SPORT[t.toLowerCase()]);
     if (!tag) continue;
@@ -63,9 +62,10 @@ function bestScoresFromActivity(): ActivityBestScore[] {
 
 export default function AccountLeaderboardStatus({ embedded = false }: { embedded?: boolean }) {
   const { getMyLeaderboardRanks } = useAccount();
+  const { items: activity } = useAccountActivityFeed();
   const t = useTranslations();
   const ranks = getMyLeaderboardRanks();
-  const activityBests = useMemo(() => bestScoresFromActivity(), []);
+  const activityBests = useMemo(() => bestScoresFromActivity(activity), [activity]);
 
   if (ranks.length > 0) {
     return (
