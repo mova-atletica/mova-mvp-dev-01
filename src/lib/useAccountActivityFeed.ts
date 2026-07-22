@@ -1,20 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MOCK_ACCOUNT_ACTIVITY } from "../data/mockAccountActivity";
 import { listActivitySessions } from "./activitySessions";
 import { createClient } from "./supabase/client";
 import { PHASE_B_ENABLED } from "./productPhase";
 import type { AccountActivityItem } from "../types/accountActivity";
 import { useAccount } from "../contexts/MockAuthContext";
 
-function mockFallback(): AccountActivityItem[] {
-  return PHASE_B_ENABLED
-    ? MOCK_ACCOUNT_ACTIVITY
-    : MOCK_ACCOUNT_ACTIVITY.filter((item) => item.kind !== "program");
-}
-
-/** Live activity for the signed-in user; mock fallback if logged out or fetch fails. */
+/**
+ * Live activity for the signed-in user.
+ * No global mock fallback — only tresbradley (or any user) sees rows that exist in Supabase.
+ */
 export function useAccountActivityFeed(): {
   items: AccountActivityItem[];
   loading: boolean;
@@ -22,14 +18,14 @@ export function useAccountActivityFeed(): {
   refresh: () => void;
 } {
   const { isAuthenticated, profile } = useAccount();
-  const [items, setItems] = useState<AccountActivityItem[]>(mockFallback);
+  const [items, setItems] = useState<AccountActivityItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated || !profile) {
-      setItems(mockFallback());
+      setItems([]);
       setLoading(false);
       setError(null);
       return;
@@ -43,7 +39,7 @@ export function useAccountActivityFeed(): {
       setLoading(false);
       if (fetchError) {
         setError(fetchError);
-        setItems(mockFallback());
+        setItems([]);
         return;
       }
       setError(null);

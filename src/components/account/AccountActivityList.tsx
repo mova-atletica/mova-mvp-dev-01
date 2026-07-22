@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { LayoutDashboard, Smartphone, Trophy } from "lucide-react";
-import { MOCK_ACCOUNT_ACTIVITY } from "../../data/mockAccountActivity";
 import type { AccountActivityKind, AccountActivityItem } from "../../types/accountActivity";
 import {
   aggregateActivityByTimeRange,
@@ -10,6 +9,7 @@ import {
   type ChartTimeRange,
   xAxisLabelForRange,
 } from "../../lib/accountActivityInsights";
+import { useAccountActivityFeed } from "../../lib/useAccountActivityFeed";
 import { useTranslations } from "../../i18n/LocaleProvider";
 import { PHASE_B_ENABLED } from "../../lib/productPhase";
 import AccountLeaderboardStatus from "./AccountLeaderboardStatus";
@@ -37,9 +37,6 @@ const KIND_LABELS: Record<AccountActivityKind, string> = {
   program: "Program",
 };
 
-const PHASE_A_ACTIVITY = MOCK_ACCOUNT_ACTIVITY.filter((item) => item.kind !== "program");
-const SOURCE_ACTIVITY = PHASE_B_ENABLED ? MOCK_ACCOUNT_ACTIVITY : PHASE_A_ACTIVITY;
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     month: "short",
@@ -50,13 +47,14 @@ function formatDate(iso: string): string {
 
 export default function AccountActivityList() {
   const t = useTranslations();
+  const { items: sourceActivity } = useAccountActivityFeed();
   const [filter, setFilter] = useState<ActivityFilter>("all");
   const [volumeRange, setVolumeRange] = useState<ChartTimeRange>("month");
 
   const items = useMemo(() => {
-    if (filter === "all") return SOURCE_ACTIVITY;
-    return SOURCE_ACTIVITY.filter((item) => item.kind === filter);
-  }, [filter]);
+    if (filter === "all") return sourceActivity;
+    return sourceActivity.filter((item) => item.kind === filter);
+  }, [filter, sourceActivity]);
 
   const kindLabels = useMemo(
     (): Record<AccountActivityKind, string> => ({
@@ -68,10 +66,10 @@ export default function AccountActivityList() {
   );
 
   const weeklyData = useMemo(
-    () => aggregateActivityByTimeRange(SOURCE_ACTIVITY, volumeRange),
-    [volumeRange]
+    () => aggregateActivityByTimeRange(sourceActivity, volumeRange),
+    [volumeRange, sourceActivity]
   );
-  const mixData = useMemo(() => aggregateActivityMix(SOURCE_ACTIVITY), []);
+  const mixData = useMemo(() => aggregateActivityMix(sourceActivity), [sourceActivity]);
   const volumeXLabel =
     xAxisLabelForRange(volumeRange) === "Day"
       ? t("account.chartAxisDay")
