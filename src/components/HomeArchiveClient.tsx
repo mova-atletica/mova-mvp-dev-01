@@ -7,22 +7,15 @@ import { MINI_APPS, MOVA_STUDIO_MINI_APP } from "../data/miniApps";
 import { getQuickAnalysisBySlug } from "../data/quickAnalysisMovements";
 import { useMockTierQueryParam, useAccount } from "../contexts/MockAuthContext";
 import type { LeaderboardScorePayload } from "../types/account";
+import type { ActivityPersistAnalysisMeta } from "../lib/activityPersistMeta";
 import {
   openMoveModalTargetFromMiniApp,
   type OpenMoveStudioModalTarget,
 } from "../types/openMoveStudioModal";
 import {
-  activityKindForMiniApp,
-  activitySubtitleForScore,
-  activityTitleForScore,
-  metricsFromLeaderboardScore,
-} from "../lib/activityFromScore";
-import {
-  createActivitySession,
-  updateActivitySessionVideo,
-  uploadActivityVideo,
-} from "../lib/activitySessions";
-import { encodeVideoBlobTo720p, fetchBlobFromUrl } from "../lib/encodeVideo720p";
+  persistMiniAppActivitySession,
+  persistOpenMoveStudioActivitySession,
+} from "../lib/persistActivitySession";
 import { createClient } from "../lib/supabase/client";
 import HomeToolsHero from "./HomeToolsHero";
 import OpenMoveStudioModal from "./open-move/OpenMoveStudioModal";
@@ -72,60 +65,37 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
   );
 
   const handleQuickAnalysisComplete = useCallback(
-    (score: LeaderboardScorePayload, meta?: { videoUrl?: string | null }) => {
+    (score: LeaderboardScorePayload, meta?: ActivityPersistAnalysisMeta) => {
       queueLeaderboardSave(score);
 
       if (!isAuthenticated || !profile) return;
 
       const supabase = createClient();
-      void (async () => {
-        const { data: activity, error } = await createActivitySession(supabase, {
-          userId: profile.id,
-          kind: activityKindForMiniApp(),
-          title: activityTitleForScore(score),
-          subtitle: activitySubtitleForScore(score),
-          sportSlug: score.sportSlug,
-          tags: [score.sportSlug],
-          metricLabel: score.metricLabel,
-          metricValueText: score.formattedScore,
-          metricNumeric: score.metricValue,
-          metrics: metricsFromLeaderboardScore(score),
-        });
-
-        if (error || !activity) {
-          console.error("Failed to save activity session", error);
-          return;
-        }
-
-        if (!hasProAccess || !meta?.videoUrl) return;
-
-        try {
-          const raw = await fetchBlobFromUrl(meta.videoUrl);
-          if (!raw) return;
-          const encoded = await encodeVideoBlobTo720p(raw);
-          const contentType = encoded.blob.type || "video/webm";
-          const extension = contentType.includes("mp4") ? "mp4" : "webm";
-          const { path, error: uploadError } = await uploadActivityVideo(supabase, {
-            userId: profile.id,
-            sessionId: activity.id,
-            file: encoded.blob,
-            contentType,
-            extension,
-          });
-          if (uploadError || !path) {
-            console.error("Failed to upload activity video", uploadError);
-            return;
-          }
-          await updateActivitySessionVideo(supabase, activity.id, {
-            videoPath: path,
-            videoDurationMs: encoded.durationMs || null,
-          });
-        } catch (err) {
-          console.error("Pro video save failed", err);
-        }
-      })();
+      void persistMiniAppActivitySession(supabase, {
+        userId: profile.id,
+        score,
+        meta,
+        hasProAccess,
+      }).then(({ error }) => {
+        if (error) console.error("Failed to save activity session", error);
+      });
     },
     [queueLeaderboardSave, isAuthenticated, profile, hasProAccess]
+  );
+
+  const handleStudioSessionPersist = useCallback(
+    (meta: ActivityPersistAnalysisMeta) => {
+      if (!isAuthenticated || !profile) return;
+      const supabase = createClient();
+      void persistOpenMoveStudioActivitySession(supabase, {
+        userId: profile.id,
+        meta,
+        hasProAccess,
+      }).then(({ error }) => {
+        if (error) console.error("Failed to save Open Movement Viz session", error);
+      });
+    },
+    [isAuthenticated, profile, hasProAccess]
   );
 
   return (
@@ -146,6 +116,7 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
         }}
         target={modalTarget}
         onQuickAnalysisComplete={handleQuickAnalysisComplete}
+        onStudioSessionPersist={handleStudioSessionPersist}
       />
     </>
   );

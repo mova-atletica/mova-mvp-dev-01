@@ -34,6 +34,7 @@ const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 const KIND_COLORS: Record<AccountActivityKind, string> = {
   "mini-app": "var(--accent, #3b82f6)",
   studio: "#a855f7",
+  coach: "#f59e0b",
   program: "#22c55e",
 };
 

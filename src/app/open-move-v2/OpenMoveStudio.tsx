@@ -344,6 +344,7 @@ export default function OpenMoveStudio({
   onActiveSessionChange,
   analysisSlug,
   onQuickAnalysisComplete,
+  onStudioSessionPersist,
 }: OpenMoveStudioProps = {}) {
   const isQuickAnalysis = mode === "quickAnalysis";
   const embeddedQuickAnalysis = embedded && isQuickAnalysis;
@@ -357,6 +358,7 @@ export default function OpenMoveStudio({
   });
   const sessionVideoUrlRef = useRef<string | null>(session.videoUrl);
   sessionVideoUrlRef.current = session.videoUrl;
+  const studioPersistKeyRef = useRef<string | null>(null);
   const railVisible = !deferRailUntilVideo || session.status !== "idle";
   /** MVP sport analysis (cleared when a new clip is processed). */
   const [cyclingAnalysisResult, setCyclingAnalysisResult] = useState<CyclingDualAnalysisResult | null>(null);
@@ -713,6 +715,24 @@ export default function OpenMoveStudio({
       frameIntervalSec: number,
       setup: AnalyzedSetupSnapshot
     ) => {
+      const emitQuickComplete = (
+        kind: SportAnalysisKind,
+        sportAnalysis: unknown,
+        scoreBuilder: () => ReturnType<typeof buildLeaderboardScorePayload>
+      ) => {
+        if (!isQuickAnalysis || !analysisSlug || !onQuickAnalysisComplete) return;
+        const payload = scoreBuilder();
+        if (!payload) return;
+        onQuickAnalysisComplete(payload, {
+          videoUrl: sessionVideoUrlRef.current,
+          angles,
+          poses,
+          frameIntervalSec,
+          sportAnalysisKind: kind,
+          sportAnalysis,
+        });
+      };
+
       if (sportAnalysisKind === "cycling") {
         setCyclingAnalysisResult(null);
         setCyclingAnalysisError(null);
@@ -725,12 +745,9 @@ export default function OpenMoveStudio({
         if (res.ok) {
           setCyclingAnalysisResult(res.result);
           setCyclingAnalysisError(null);
-          if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
-            const payload = buildLeaderboardScorePayload(analysisSlug, "cycling", {
-              cycling: res.result,
-            });
-            if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
-          }
+          emitQuickComplete("cycling", res.result, () =>
+            buildLeaderboardScorePayload(analysisSlug!, "cycling", { cycling: res.result })
+          );
         } else {
           setCyclingAnalysisResult(null);
           setCyclingAnalysisError(res.error);
@@ -748,12 +765,9 @@ export default function OpenMoveStudio({
         if (res.ok) {
           setPullUpsAnalysisResult(res.result);
           setPullUpsAnalysisError(null);
-          if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
-            const payload = buildLeaderboardScorePayload(analysisSlug, "pullups", {
-              pullUps: res.result,
-            });
-            if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
-          }
+          emitQuickComplete("pullups", res.result, () =>
+            buildLeaderboardScorePayload(analysisSlug!, "pullups", { pullUps: res.result })
+          );
         } else {
           setPullUpsAnalysisResult(null);
           setPullUpsAnalysisError(res.error);
@@ -771,12 +785,9 @@ export default function OpenMoveStudio({
         if (res.ok) {
           setPlankAnalysisResult(res.result);
           setPlankAnalysisError(null);
-          if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
-            const payload = buildLeaderboardScorePayload(analysisSlug, "plank", {
-              plank: res.result,
-            });
-            if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
-          }
+          emitQuickComplete("plank", res.result, () =>
+            buildLeaderboardScorePayload(analysisSlug!, "plank", { plank: res.result })
+          );
         } else {
           setPlankAnalysisResult(null);
           setPlankAnalysisError(res.error);
@@ -794,12 +805,9 @@ export default function OpenMoveStudio({
         if (squatRes.ok) {
           setSquatAnalysisResult(squatRes.result);
           setSquatAnalysisError(null);
-          if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
-            const payload = buildLeaderboardScorePayload(analysisSlug, "squat", {
-              squat: squatRes.result,
-            });
-            if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
-          }
+          emitQuickComplete("squat", squatRes.result, () =>
+            buildLeaderboardScorePayload(analysisSlug!, "squat", { squat: squatRes.result })
+          );
         } else {
           setSquatAnalysisResult(null);
           setSquatAnalysisError(squatRes.error);
@@ -817,12 +825,11 @@ export default function OpenMoveStudio({
       if (poseFlexRes.ok) {
         setPoseFlexibilityAnalysisResult(poseFlexRes.result);
         setPoseFlexibilityAnalysisError(null);
-        if (isQuickAnalysis && analysisSlug && onQuickAnalysisComplete) {
-          const payload = buildLeaderboardScorePayload(analysisSlug, "poseFlexibility", {
+        emitQuickComplete("poseFlexibility", poseFlexRes.result, () =>
+          buildLeaderboardScorePayload(analysisSlug!, "poseFlexibility", {
             poseFlexibility: poseFlexRes.result,
-          });
-          if (payload) onQuickAnalysisComplete(payload, { videoUrl: sessionVideoUrlRef.current });
-        }
+          })
+        );
       } else {
         setPoseFlexibilityAnalysisResult(null);
         setPoseFlexibilityAnalysisError(poseFlexRes.error);
@@ -831,11 +838,35 @@ export default function OpenMoveStudio({
     [sportAnalysisKind, isQuickAnalysis, analysisSlug, onQuickAnalysisComplete]
   );
 
+  const persistStudioSessionIfNeeded = useCallback(
+    (
+      angles: NonNullable<SessionState["angles"]>,
+      poses: any[],
+      frameIntervalSec: number,
+      videoUrl: string | null,
+      sessionLabel: string | null
+    ) => {
+      if (isQuickAnalysis || !onStudioSessionPersist) return;
+      const key = `${videoUrl ?? ""}:${poses.length}:${frameIntervalSec}`;
+      if (studioPersistKeyRef.current === key) return;
+      studioPersistKeyRef.current = key;
+      onStudioSessionPersist({
+        videoUrl,
+        angles,
+        poses,
+        frameIntervalSec,
+        sessionLabel,
+      });
+    },
+    [isQuickAnalysis, onStudioSessionPersist]
+  );
+
   const attachVideoClip = useCallback(
     (videoUrl: string, label: string, source: SessionState["source"]) => {
       clearSportAnalysisResults();
       setHasAnalyzed(false);
       setLastAnalyzedSetup(null);
+      studioPersistKeyRef.current = null;
       setSession({
         status: "clip_ready",
         videoUrl,
@@ -920,6 +951,13 @@ export default function OpenMoveStudio({
       applySportAnalysisFromData(angles, optimized, frameIntervalSec, currentSetup);
       setHasAnalyzed(true);
       setLastAnalyzedSetup(currentSetup);
+      persistStudioSessionIfNeeded(
+        angles,
+        optimized,
+        frameIntervalSec,
+        videoUrl,
+        session.sessionLabel ?? null
+      );
     } catch (e) {
       console.error(e);
       setSession((s) => ({
@@ -944,6 +982,7 @@ export default function OpenMoveStudio({
     currentSetup,
     clearSportAnalysisResults,
     applySportAnalysisFromData,
+    persistStudioSessionIfNeeded,
   ]);
 
   const applyProcessedVideo = useCallback(
@@ -977,8 +1016,9 @@ export default function OpenMoveStudio({
         sessionLabel: label,
         source,
       });
+      persistStudioSessionIfNeeded(angles, optimized, frameIntervalSec, videoUrl, label);
     },
-    []
+    [persistStudioSessionIfNeeded]
   );
 
   const runTfjsOnUrl = useCallback(

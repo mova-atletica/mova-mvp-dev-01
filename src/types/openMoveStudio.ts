@@ -1,5 +1,10 @@
 import type { SportAnalysisKind } from "../lib/sportAnalysis/pullUpsTypes";
 import type { LeaderboardScorePayload } from "./account";
+import type {
+  ActivityPersistAnalysisMeta,
+  QuickAnalysisCompleteHandler,
+  StudioSessionPersistHandler,
+} from "../lib/activityPersistMeta";
 
 /** `default` — motion visualization only (Open Movement Viz). `quickAnalysis` — locked sport analysis mini apps. */
 export type OpenMoveStudioMode = "default" | "quickAnalysis";
@@ -19,11 +24,12 @@ export interface OpenMoveStudioProps {
   /** Quick analysis slug for leaderboard payloads (embedded modal). */
   analysisSlug?: string;
   /** Called after a successful quick-analysis run (embedded modal). */
-  onQuickAnalysisComplete?: (
-    score: LeaderboardScorePayload,
-    meta?: { videoUrl?: string | null }
-  ) => void;
+  onQuickAnalysisComplete?: QuickAnalysisCompleteHandler;
+  /** Open Movement Viz: persist angles/poses when a clip finishes processing. */
+  onStudioSessionPersist?: StudioSessionPersistHandler;
 }
+
+export type { ActivityPersistAnalysisMeta, QuickAnalysisCompleteHandler, StudioSessionPersistHandler };
 
 export function getSportAnalysisLabel(kind: SportAnalysisKind): string {
   switch (kind) {

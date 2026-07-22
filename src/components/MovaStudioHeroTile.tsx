@@ -129,7 +129,7 @@ export default function MovaStudioHeroTile({
             <>
               <h2 className="mini-app-glass-photo-studio-title">{OPEN_MOVE_TITLE}</h2>
               <p className="mini-app-glass-photo-studio-description">
-                Easily add motion overlays to your videos to visualize your form. Export and share!
+                Easily add overlays to your videos to visualize your body's movement!
               </p>
               <span className="mini-app-glass-photo-studio-cta">Open</span>
             </>

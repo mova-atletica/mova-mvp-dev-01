@@ -54,7 +54,7 @@ export interface MovementSummaryStats {
   sessionsWithMetrics: number;
 }
 
-const GENERIC_TAGS = new Set(["studio", "program", "export-ready"]);
+const GENERIC_TAGS = new Set(["studio", "program", "export-ready", "coach-studio"]);
 
 const BODY_REGION_LABELS: Record<BodyRegion, string> = {
   lower: "Lower body",
@@ -145,6 +145,14 @@ function emptyBucket(start: Date): WeeklyActivityBucket {
   };
 }
 
+function chartKind(kind: AccountActivityKind): keyof Pick<
+  WeeklyActivityBucket,
+  "studio" | "mini-app" | "program"
+> {
+  if (kind === "coach") return "studio";
+  return kind;
+}
+
 function fillBuckets(
   items: AccountActivityItem[],
   starts: Date[],
@@ -157,7 +165,7 @@ function fillBuckets(
     for (const item of items) {
       const t = new Date(item.occurredAt).getTime();
       if (t >= start.getTime() && t < end.getTime()) {
-        bucket[item.kind] += 1;
+        bucket[chartKind(item.kind)] += 1;
         bucket.total += 1;
       }
     }
@@ -242,13 +250,13 @@ export function xAxisLabelForRange(range: ChartTimeRange): "Day" | "Week" {
 }
 
 export function aggregateActivityMix(items: AccountActivityItem[]): ActivityMixSlice[] {
-  const counts: Record<AccountActivityKind, number> = {
+  const counts: Record<"studio" | "mini-app" | "program", number> = {
     studio: 0,
     "mini-app": 0,
     program: 0,
   };
   for (const item of items) {
-    counts[item.kind] += 1;
+    counts[chartKind(item.kind)] += 1;
   }
   return (Object.entries(counts) as [AccountActivityKind, number][])
     .filter(([, count]) => count > 0)

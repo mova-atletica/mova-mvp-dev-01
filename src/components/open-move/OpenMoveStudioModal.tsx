@@ -29,19 +29,23 @@ function isEmbeddedModalPortaledLayer(target: EventTarget | null): boolean {
   );
 }
 
-import type { LeaderboardScorePayload } from "../../types/account";
+import type { QuickAnalysisCompleteHandler, StudioSessionPersistHandler } from "../../types/openMoveStudio";
 
 interface OpenMoveStudioModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   target: OpenMoveStudioModalTarget | null;
-  onQuickAnalysisComplete?: (
-    score: LeaderboardScorePayload,
-    meta?: { videoUrl?: string | null }
-  ) => void;
+  onQuickAnalysisComplete?: QuickAnalysisCompleteHandler;
+  onStudioSessionPersist?: StudioSessionPersistHandler;
 }
 
-export default function OpenMoveStudioModal({ open, onOpenChange, target, onQuickAnalysisComplete }: OpenMoveStudioModalProps) {
+export default function OpenMoveStudioModal({
+  open,
+  onOpenChange,
+  target,
+  onQuickAnalysisComplete,
+  onStudioSessionPersist,
+}: OpenMoveStudioModalProps) {
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
 
@@ -143,6 +147,7 @@ export default function OpenMoveStudioModal({ open, onOpenChange, target, onQuic
               setupHint={isAnalysis ? target.setupHint : undefined}
               analysisSlug={isAnalysis ? target.slug : undefined}
               onQuickAnalysisComplete={isAnalysis ? onQuickAnalysisComplete : undefined}
+              onStudioSessionPersist={!isAnalysis ? onStudioSessionPersist : undefined}
             />
           ) : null}
 

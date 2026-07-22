@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LayoutDashboard, Smartphone, Trophy } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Clapperboard, LayoutDashboard, Smartphone, Trophy } from "lucide-react";
 import type { AccountActivityKind, AccountActivityItem } from "../../types/accountActivity";
 import {
   aggregateActivityByTimeRange,
@@ -13,6 +14,7 @@ import { useAccountActivityFeed } from "../../lib/useAccountActivityFeed";
 import { useTranslations } from "../../i18n/LocaleProvider";
 import { PHASE_B_ENABLED } from "../../lib/productPhase";
 import AccountLeaderboardStatus from "./AccountLeaderboardStatus";
+import ActivityReplayModal from "./ActivityReplayModal";
 import ChartTimeRangeToggle from "./ChartTimeRangeToggle";
 import {
   ActivityMixDonut,
@@ -29,12 +31,14 @@ const KIND_ICONS: Record<AccountActivityKind, typeof LayoutDashboard> = {
   studio: LayoutDashboard,
   "mini-app": Smartphone,
   program: Trophy,
+  coach: Clapperboard,
 };
 
 const KIND_LABELS: Record<AccountActivityKind, string> = {
   studio: "Studio",
   "mini-app": "Mini app",
   program: "Program",
+  coach: "Coach",
 };
 
 function formatDate(iso: string): string {
@@ -45,14 +49,25 @@ function formatDate(iso: string): string {
   });
 }
 
+function isActivityClickable(item: AccountActivityItem): boolean {
+  if (item.isSeed) return false;
+  if (item.coachSessionId) return true;
+  return Boolean(item.hasReplayPayload);
+}
+
 export default function AccountActivityList() {
   const t = useTranslations();
+  const router = useRouter();
   const { items: sourceActivity } = useAccountActivityFeed();
   const [filter, setFilter] = useState<ActivityFilter>("all");
   const [volumeRange, setVolumeRange] = useState<ChartTimeRange>("month");
+  const [replayActivity, setReplayActivity] = useState<AccountActivityItem | null>(null);
 
   const items = useMemo(() => {
     if (filter === "all") return sourceActivity;
+    if (filter === "studio") {
+      return sourceActivity.filter((item) => item.kind === "studio" || item.kind === "coach");
+    }
     return sourceActivity.filter((item) => item.kind === filter);
   }, [filter, sourceActivity]);
 
@@ -61,6 +76,7 @@ export default function AccountActivityList() {
       studio: t("account.activityFilterStudio"),
       "mini-app": t("account.activityFilterMiniApp"),
       program: t("account.activityFilterProgram"),
+      coach: t("account.activityFilterCoach"),
     }),
     [t]
   );
@@ -84,107 +100,137 @@ export default function AccountActivityList() {
       : []),
   ];
 
+  const onActivityActivate = (item: AccountActivityItem) => {
+    if (item.coachSessionId) {
+      router.push(`/coach-studio/${item.coachSessionId}`);
+      return;
+    }
+    if (item.hasReplayPayload) {
+      setReplayActivity(item);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
-      <div className="min-w-0 space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {filters.map(({ id, label }) => {
-            const active = filter === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setFilter(id)}
-                className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
-                style={{
-                  ...borderAllTheme,
-                  backgroundColor: active ? "var(--primary-button-bg)" : "transparent",
-                  color: active ? "var(--primary-button-text)" : "var(--foreground)",
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
+    <>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="min-w-0 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {filters.map(({ id, label }) => {
+              const active = filter === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFilter(id)}
+                  className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                  style={{
+                    ...borderAllTheme,
+                    backgroundColor: active ? "var(--primary-button-bg)" : "transparent",
+                    color: active ? "var(--primary-button-text)" : "var(--foreground)",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {items.length === 0 ? (
+            <p
+              className="rounded-xl px-4 py-8 text-center text-sm text-[color:var(--muted-foreground)]"
+              style={borderAllTheme}
+            >
+              {t("account.activityEmpty")}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {items.map((item) => (
+                <ActivityCard
+                  key={item.id}
+                  item={item}
+                  clickable={isActivityClickable(item)}
+                  onActivate={() => onActivityActivate(item)}
+                />
+              ))}
+            </ul>
+          )}
         </div>
 
-        {items.length === 0 ? (
-          <p
-            className="rounded-xl px-4 py-8 text-center text-sm text-[color:var(--muted-foreground)]"
-            style={borderAllTheme}
+        <div className="min-w-0 space-y-4 lg:sticky lg:top-4">
+          <section
+            className="rounded-xl p-4"
+            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
           >
-            {t("account.activityEmpty")}
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {items.map((item) => (
-              <ActivityCard key={item.id} item={item} />
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="min-w-0 space-y-4 lg:sticky lg:top-4">
-        <section
-          className="rounded-xl p-4"
-          style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
-        >
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
-            {t("account.insightsActivityMix")}
-          </h2>
-          <ActivityMixDonut data={mixData} labels={kindLabels} />
-        </section>
-
-        <section
-          className="rounded-xl p-4"
-          style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
-        >
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              {t("account.insightsWeeklyVolume")}
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
+              {t("account.insightsActivityMix")}
             </h2>
-            <ChartTimeRangeToggle value={volumeRange} onChange={setVolumeRange} />
-          </div>
-          <WeeklyVolumeChart
-            data={weeklyData}
-            labels={kindLabels}
-            includeProgram={PHASE_B_ENABLED}
-            xAxisLabel={volumeXLabel}
-            yAxisLabel={t("account.chartAxisSessions")}
-          />
-          <ChartLegend
-            items={[
-              { color: KIND_COLORS["mini-app"], label: kindLabels["mini-app"] },
-              { color: KIND_COLORS.studio, label: kindLabels.studio },
-              ...(PHASE_B_ENABLED
-                ? [{ color: KIND_COLORS.program, label: kindLabels.program }]
-                : []),
-            ]}
-          />
-        </section>
+            <ActivityMixDonut data={mixData} labels={kindLabels} />
+          </section>
 
-        <section
-          className="rounded-xl p-4"
-          style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
-        >
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
-            {t("account.insightsLeaderboards")}
-          </h2>
-          <AccountLeaderboardStatus embedded />
-        </section>
+          <section
+            className="rounded-xl p-4"
+            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
+          >
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
+                {t("account.insightsWeeklyVolume")}
+              </h2>
+              <ChartTimeRangeToggle value={volumeRange} onChange={setVolumeRange} />
+            </div>
+            <WeeklyVolumeChart
+              data={weeklyData}
+              labels={kindLabels}
+              includeProgram={PHASE_B_ENABLED}
+              xAxisLabel={volumeXLabel}
+              yAxisLabel={t("account.chartAxisSessions")}
+            />
+            <ChartLegend
+              items={[
+                { color: KIND_COLORS["mini-app"], label: kindLabels["mini-app"] },
+                { color: KIND_COLORS.studio, label: kindLabels.studio },
+                ...(PHASE_B_ENABLED
+                  ? [{ color: KIND_COLORS.program, label: kindLabels.program }]
+                  : []),
+              ]}
+            />
+          </section>
+
+          <section
+            className="rounded-xl p-4"
+            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
+          >
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
+              {t("account.insightsLeaderboards")}
+            </h2>
+            <AccountLeaderboardStatus embedded />
+          </section>
+        </div>
       </div>
-    </div>
+
+      <ActivityReplayModal
+        open={replayActivity != null}
+        onOpenChange={(open) => {
+          if (!open) setReplayActivity(null);
+        }}
+        activity={replayActivity}
+      />
+    </>
   );
 }
 
-function ActivityCard({ item }: { item: AccountActivityItem }) {
+function ActivityCard({
+  item,
+  clickable,
+  onActivate,
+}: {
+  item: AccountActivityItem;
+  clickable: boolean;
+  onActivate: () => void;
+}) {
   const Icon = KIND_ICONS[item.kind];
 
-  return (
-    <li
-      className="flex gap-3 rounded-xl p-3"
-      style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
-    >
+  const body = (
+    <>
       <span
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
         style={{ backgroundColor: "var(--background)", ...borderAllTheme }}
@@ -192,7 +238,7 @@ function ActivityCard({ item }: { item: AccountActivityItem }) {
       >
         <Icon size={16} className="text-[color:var(--foreground)]" />
       </span>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 text-left">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-medium text-[color:var(--foreground)]">{item.title}</p>
           <span
@@ -211,8 +257,35 @@ function ActivityCard({ item }: { item: AccountActivityItem }) {
               <span className="font-medium text-[color:var(--foreground)]">{item.metricValue}</span>
             </span>
           ) : null}
+          {clickable ? (
+            <span className="font-medium text-[color:var(--primary)]">· Open</span>
+          ) : null}
         </div>
       </div>
+    </>
+  );
+
+  if (clickable) {
+    return (
+      <li>
+        <button
+          type="button"
+          onClick={onActivate}
+          className="flex w-full gap-3 rounded-xl p-3 text-left transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_4%,transparent)]"
+          style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
+        >
+          {body}
+        </button>
+      </li>
+    );
+  }
+
+  return (
+    <li
+      className="flex gap-3 rounded-xl p-3"
+      style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
+    >
+      {body}
     </li>
   );
 }

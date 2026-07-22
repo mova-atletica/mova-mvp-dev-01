@@ -17,6 +17,7 @@ import {
   CoachVideoTooLongError,
   probeCoachVideoFile,
 } from "../../lib/coachStudio/probeCoachVideo";
+import { createActivitySession } from "../../lib/activitySessions";
 import { useTranslations } from "../../i18n/LocaleProvider";
 import type { CoachSession } from "../../types/coachSession";
 
@@ -97,6 +98,20 @@ export default function CoachStudioProjects() {
         metadata: { title: baseTitle },
       });
       if (createError || !data) throw new Error(createError ?? t("coachStudio.createFailed"));
+
+      void createActivitySession(supabase, {
+        userId: profile.id,
+        kind: "coach",
+        title: baseTitle,
+        subtitle: t("coachStudio.activitySubtitle"),
+        tags: ["coach-studio"],
+        coachSessionId: data.id,
+        metricLabel: t("coachStudio.durationLabel"),
+        metricValueText: `${(probe.durationMs / 1000).toFixed(1)}s`,
+        metricNumeric: probe.durationMs / 1000,
+      }).then(({ error: activityError }) => {
+        if (activityError) console.error("Failed to save Coach Studio activity", activityError);
+      });
 
       router.push(`/coach-studio/${data.id}`);
     } catch (err) {

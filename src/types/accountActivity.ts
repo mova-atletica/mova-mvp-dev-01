@@ -1,4 +1,4 @@
-export type AccountActivityKind = "studio" | "mini-app" | "program";
+export type AccountActivityKind = "studio" | "mini-app" | "program" | "coach";
 
 export type BodyRegion = "lower" | "upper" | "core";
 
@@ -30,4 +30,16 @@ export interface AccountActivityItem {
   metricLabel?: string;
   metricValue?: string;
   metrics?: SessionMovementMetrics;
+  sportSlug?: string | null;
+  sportAnalysisKind?: string | null;
+  frameIntervalSec?: number | null;
+  /** True when angles + (sport analysis or studio angles) exist for replay modal */
+  hasReplayPayload?: boolean;
+  videoPath?: string | null;
+  posesPath?: string | null;
+  coachSessionId?: string | null;
+  isSeed?: boolean;
+  /** Inline angles when loaded for detail modal (optional on list) */
+  angles?: import("../lib/openMoveAngleSeries").OpenMoveAngleSeries | null;
+  sportAnalysis?: unknown | null;
 }
