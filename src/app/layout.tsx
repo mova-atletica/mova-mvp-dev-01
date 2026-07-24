@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./mova-popover.css";
 import "./effect-config-range.css";
 import "./mini-app-glass.css";
 import "./homepage-background.css";

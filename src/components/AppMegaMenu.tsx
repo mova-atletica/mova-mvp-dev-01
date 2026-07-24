@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as Popover from "@radix-ui/react-popover";
-import { Clapperboard, Home, LayoutDashboard, MoreVertical, User } from "lucide-react";
+import { Clapperboard, Home, LayoutDashboard, Lock, MoreVertical, User } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAccount } from "../contexts/MockAuthContext";
 import { EffectSelectedCheckIcon } from "../app/motion-explore/EffectSelectedCheckIcon";
+import { MovaPopoverMotionInner } from "./MovaPopoverMotionInner";
 import {
   EMBEDDED_MODAL_POPOVER_Z,
   getEmbeddedModalPopoverRoot,
@@ -85,7 +86,8 @@ export default function AppMegaMenu({
 }: AppMegaMenuProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, profile, requestStudioAccess, openSignIn } = useAccount();
+  const { isAuthenticated, profile, requestStudioAccess, openSignIn, hasCoachAccess } =
+    useAccount();
   const isArchiveHome = pathname === "/";
   const isStudioHome =
     pathname === "/open-move-v2" || pathname.startsWith("/open-move-v2/");
@@ -98,9 +100,11 @@ export default function AppMegaMenu({
   const studioItemClass = `mt-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs ${menuTextClass} ${
     isStudioHome ? "bg-[color:var(--mega-menu-active-bg)]" : menuItemHoverClass
   }`;
-  const coachStudioItemClass = `mt-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs ${menuTextClass} ${
-    isCoachStudioHome ? "bg-[color:var(--mega-menu-active-bg)]" : menuItemHoverClass
-  }`;
+  const coachStudioItemClass = hasCoachAccess
+    ? `mt-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs ${menuTextClass} ${
+        isCoachStudioHome ? "bg-[color:var(--mega-menu-active-bg)]" : menuItemHoverClass
+      }`
+    : `mt-1 flex w-full cursor-not-allowed items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs opacity-55 ${menuTextMutedClass}`;
 
   const embeddedPopoverRoot = embeddedInModal ? getEmbeddedModalPopoverRoot() : null;
 
@@ -134,8 +138,9 @@ export default function AppMegaMenu({
             ...menuPanelStyle,
             ...(embeddedInModal ? { zIndex: EMBEDDED_MODAL_POPOVER_Z } : undefined),
           }}
-          className={`${embeddedInModal ? "pointer-events-auto" : "z-[220]"} ml-2 w-60 rounded-lg p-2.5 shadow-2xl backdrop-blur-xl`}
+          className={`${embeddedInModal ? "pointer-events-auto" : "z-[220]"} mova-popover-motion ml-2 w-60 rounded-lg p-2.5 shadow-2xl backdrop-blur-xl`}
         >
+          <MovaPopoverMotionInner>
           <div
             className={`px-2 py-1 text-[9px] font-normal uppercase tracking-wider ${menuTextMutedClass}`}
           >
@@ -163,19 +168,32 @@ export default function AppMegaMenu({
               </span>
             ) : null}
           </button>
-          <button
-            type="button"
-            onClick={() => requestStudioAccess(() => router.push("/coach-studio"))}
-            className={coachStudioItemClass}
-          >
-            <Clapperboard className="h-3 w-3" />
-            <span>Coach Studio</span>
-            {isCoachStudioHome ? (
-              <span className="ml-auto flex shrink-0 items-center justify-center text-[var(--accent,#3b82f6)]">
-                <EffectSelectedCheckIcon className="scale-[0.85]" />
-              </span>
-            ) : null}
-          </button>
+          {hasCoachAccess ? (
+            <button
+              type="button"
+              onClick={() => router.push("/coach-studio")}
+              className={coachStudioItemClass}
+            >
+              <Clapperboard className="h-3 w-3" />
+              <span>Coach Studio</span>
+              {isCoachStudioHome ? (
+                <span className="ml-auto flex shrink-0 items-center justify-center text-[var(--accent,#3b82f6)]">
+                  <EffectSelectedCheckIcon className="scale-[0.85]" />
+                </span>
+              ) : null}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className={coachStudioItemClass}
+            >
+              <Clapperboard className="h-3 w-3" />
+              <span>Coach Studio</span>
+              <Lock className="ml-auto h-3 w-3 shrink-0 opacity-80" aria-hidden />
+            </button>
+          )}
           <div className="my-2 h-px bg-[color:var(--mega-menu-border)]" />
           <div
             className={`px-2 py-1 text-[9px] font-normal uppercase tracking-wider ${menuTextMutedClass}`}
@@ -209,6 +227,7 @@ export default function AppMegaMenu({
             Settings
           </div>
           <ThemeToggleMenuItem />
+          </MovaPopoverMotionInner>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

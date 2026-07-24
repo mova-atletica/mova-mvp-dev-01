@@ -714,17 +714,6 @@ export default function CoreVideoPlayer({
           z-index: 1;
         }
         
-        .vp-dropdown-anim {
-          opacity: 0;
-          transform: translateY(-8px);
-          pointer-events: none;
-          transition: opacity 0.18s cubic-bezier(.4,0,.2,1), transform 0.18s cubic-bezier(.4,0,.2,1);
-        }
-        .vp-dropdown-anim.open {
-          opacity: 1;
-          transform: translateY(0);
-          pointer-events: auto;
-        }
         input[type="range"].slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;

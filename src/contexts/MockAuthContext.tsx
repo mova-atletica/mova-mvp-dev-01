@@ -16,7 +16,7 @@ import { QUICK_ANALYSIS_MOVEMENTS } from "../data/quickAnalysisMovements";
 import { createClient } from "../lib/supabase/client";
 import { insertLeaderboardEntry, listLeaderboardEntries } from "../lib/leaderboards";
 import { mapProfileRow, type ProfileRow } from "../lib/supabase/profile";
-import { hasProAccess } from "../lib/proAccess";
+import { hasCoachAccess, hasProAccess } from "../lib/proAccess";
 import type {
   AccountProfile,
   AccountTier,
@@ -48,6 +48,8 @@ interface MockAuthContextValue {
   authLoading: boolean;
   canPostToLeaderboard: boolean;
   hasProAccess: boolean;
+  /** Coach Studio — DB tier `partner`. */
+  hasCoachAccess: boolean;
   leaderboardEntries: LeaderboardEntry[];
   pendingLeaderboardScore: LeaderboardScorePayload | null;
   onboardingOpen: boolean;
@@ -250,6 +252,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = Boolean(user && profile);
   const canPostToLeaderboard = Boolean(profile?.onboardingComplete && profile.displayName);
   const userHasProAccess = hasProAccess(tier);
+  const userHasCoachAccess = hasCoachAccess(tier);
 
   const getLeaderboard = useCallback(
     (sportSlug: string, scope: LeaderboardScope, countryCode?: string) => {
@@ -565,6 +568,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       authLoading,
       canPostToLeaderboard,
       hasProAccess: userHasProAccess,
+      hasCoachAccess: userHasCoachAccess,
       leaderboardEntries,
       pendingLeaderboardScore,
       onboardingOpen,
@@ -599,6 +603,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       authLoading,
       canPostToLeaderboard,
       userHasProAccess,
+      userHasCoachAccess,
       leaderboardEntries,
       pendingLeaderboardScore,
       onboardingOpen,

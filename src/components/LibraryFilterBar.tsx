@@ -9,6 +9,7 @@ import {
   exportPanelPopoverContentClass,
   exportPanelSelectTriggerClass,
 } from "../app/motion-explore/AssetVideoPlayerExportPanel";
+import { MovaPopoverMotionInner } from "./MovaPopoverMotionInner";
 import type { HomeFilterState } from "../lib/homeFilters";
 import {
   CONTENT_FILTER_OPTIONS,
@@ -81,6 +82,7 @@ function FilterSingleSelect<T extends string>({
             collisionPadding={12}
             className={exportPanelPopoverContentClass}
           >
+            <MovaPopoverMotionInner scrollable>
             {options.map((opt, index) => (
               <div
                 key={opt.value}
@@ -94,6 +96,7 @@ function FilterSingleSelect<T extends string>({
                 {opt.label}
               </div>
             ))}
+            </MovaPopoverMotionInner>
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
@@ -151,8 +154,9 @@ function FilterMultiSelect({
             align="start"
             sideOffset={6}
             collisionPadding={12}
-            className={`${exportPanelPopoverContentClass} max-h-56 overflow-y-auto`}
+            className={exportPanelPopoverContentClass}
           >
+            <MovaPopoverMotionInner scrollable>
             {options.map((option, index) => {
               const isSelected = selected.some(
                 (s) => s.toLowerCase() === option.toLowerCase()
@@ -172,6 +176,7 @@ function FilterMultiSelect({
                 </div>
               );
             })}
+            </MovaPopoverMotionInner>
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>

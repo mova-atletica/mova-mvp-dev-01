@@ -1,0 +1,77 @@
+/**
+ * Popover menu motion + height cap.
+ * Kept outside globals.css — Tailwind v4 was stripping these rules from the
+ * compiled layout.css bundle (rail-accordion survived; this block did not).
+ */
+
+/* Shared Radix Popover — animate INNER (placement transform lives on Content) */
+.mova-popover-motion {
+  transform-origin: var(--radix-popover-content-transform-origin);
+}
+
+/* Clip rounded corners on the Content shell; scrollport is the inner. */
+.mova-popover-menu {
+  overflow: hidden;
+}
+
+.mova-popover-menu-scroll {
+  max-height: min(240px, 50vh) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+.mova-popover-motion[data-state="closed"] {
+  animation: movaPopoverFadeOut 200ms ease forwards;
+}
+
+.mova-popover-motion-inner {
+  will-change: opacity, transform;
+}
+
+.mova-popover-motion[data-state="open"] > .mova-popover-motion-inner {
+  animation: movaPopoverSlideIn 200ms ease;
+}
+
+@keyframes movaPopoverSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes movaPopoverFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Legacy absolute dropdowns (VideoPlayer / LiveVideoPlayer) */
+.vp-dropdown-anim {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease,
+    visibility 0ms linear 200ms;
+}
+
+.vp-dropdown-anim.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  visibility: visible;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease,
+    visibility 0ms linear 0ms;
+}

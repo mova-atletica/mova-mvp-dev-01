@@ -4,6 +4,7 @@ import React from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown, Download } from "lucide-react";
 import { useExportPanelPopoverLayers } from "../../contexts/EmbeddedModalPopoverContext";
+import { MovaPopoverMotionInner } from "../../components/MovaPopoverMotionInner";
 import type { AssetVideoEngine } from "./useAssetVideoEngine";
 
 /** Shared with Open Move Studio cycling knee control — matches export Format/Quality triggers. */
@@ -12,7 +13,7 @@ export const exportPanelFieldLabelClass =
 
 /** Portaled surface — matches Open Move Studio mega menu (Popover.Content) */
 export const exportPanelPopoverContentClass =
-  "z-[220] w-[var(--radix-popover-trigger-width)] min-w-[8rem] overflow-hidden rounded-lg border border-border-theme bg-[var(--card-bg)] p-0 shadow-2xl backdrop-blur-xl outline-none";
+  "mova-popover-motion mova-popover-menu z-[220] w-[var(--radix-popover-trigger-width)] min-w-[8rem] rounded-lg border border-border-theme bg-[var(--card-bg)] p-0 shadow-2xl backdrop-blur-xl outline-none";
 
 export const exportPanelDropdownMenuItemClass =
   "px-2 py-1.5 text-[11px] cursor-pointer text-[color:var(--foreground)] transition-colors border-b border-border-theme last:border-b-0 hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]";
@@ -58,7 +59,7 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
                 <button type="button" className={exportPanelSelectTriggerClass}>
                   <span className="truncate">{exportConfig.format === "png" ? "PNG Image" : "Video"}</span>
                   <ChevronDown
-                    className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${formatDropdownOpen ? "rotate-180" : ""}`}
+                    className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform duration-200 ${formatDropdownOpen ? "rotate-180" : ""}`}
                   />
                 </button>
               </Popover.Trigger>
@@ -71,26 +72,28 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
                   style={popoverLayers.contentStyle}
                   className={popoverLayers.contentClassName}
                 >
-                  <div
-                    role="menuitem"
-                    className={exportPanelDropdownMenuItemClass}
-                    onClick={() => {
-                      setExportConfig({ ...exportConfig, format: "png" });
-                      setFormatDropdownOpen(false);
-                    }}
-                  >
-                    PNG Image
-                  </div>
-                  <div
-                    role="menuitem"
-                    className={exportPanelDropdownMenuItemClass}
-                    onClick={() => {
-                      setExportConfig({ ...exportConfig, format: "webm" });
-                      setFormatDropdownOpen(false);
-                    }}
-                  >
-                    Video (MP4/WebM)
-                  </div>
+                  <MovaPopoverMotionInner scrollable>
+                    <div
+                      role="menuitem"
+                      className={exportPanelDropdownMenuItemClass}
+                      onClick={() => {
+                        setExportConfig({ ...exportConfig, format: "png" });
+                        setFormatDropdownOpen(false);
+                      }}
+                    >
+                      PNG Image
+                    </div>
+                    <div
+                      role="menuitem"
+                      className={exportPanelDropdownMenuItemClass}
+                      onClick={() => {
+                        setExportConfig({ ...exportConfig, format: "webm" });
+                        setFormatDropdownOpen(false);
+                      }}
+                    >
+                      Video (MP4/WebM)
+                    </div>
+                  </MovaPopoverMotionInner>
                 </Popover.Content>
               </Popover.Portal>
             </Popover.Root>
@@ -116,7 +119,7 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
                         : "High"}
                   </span>
                   <ChevronDown
-                    className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${qualityDropdownOpen ? "rotate-180" : ""}`}
+                    className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform duration-200 ${qualityDropdownOpen ? "rotate-180" : ""}`}
                   />
                 </button>
               </Popover.Trigger>
@@ -129,33 +132,35 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
                   style={popoverLayers.contentStyle}
                   className={popoverLayers.contentClassName}
                 >
-                  <div
-                    className={exportPanelDropdownMenuItemClass}
-                    onClick={() => {
-                      setExportConfig({ ...exportConfig, quality: "low" });
-                      setQualityDropdownOpen(false);
-                    }}
-                  >
-                    Low
-                  </div>
-                  <div
-                    className={exportPanelDropdownMenuItemClass}
-                    onClick={() => {
-                      setExportConfig({ ...exportConfig, quality: "medium" });
-                      setQualityDropdownOpen(false);
-                    }}
-                  >
-                    Medium
-                  </div>
-                  <div
-                    className={`${exportPanelDropdownMenuItemClass} border-b-0`}
-                    onClick={() => {
-                      setExportConfig({ ...exportConfig, quality: "high" });
-                      setQualityDropdownOpen(false);
-                    }}
-                  >
-                    High
-                  </div>
+                  <MovaPopoverMotionInner scrollable>
+                    <div
+                      className={exportPanelDropdownMenuItemClass}
+                      onClick={() => {
+                        setExportConfig({ ...exportConfig, quality: "low" });
+                        setQualityDropdownOpen(false);
+                      }}
+                    >
+                      Low
+                    </div>
+                    <div
+                      className={exportPanelDropdownMenuItemClass}
+                      onClick={() => {
+                        setExportConfig({ ...exportConfig, quality: "medium" });
+                        setQualityDropdownOpen(false);
+                      }}
+                    >
+                      Medium
+                    </div>
+                    <div
+                      className={`${exportPanelDropdownMenuItemClass} border-b-0`}
+                      onClick={() => {
+                        setExportConfig({ ...exportConfig, quality: "high" });
+                        setQualityDropdownOpen(false);
+                      }}
+                    >
+                      High
+                    </div>
+                  </MovaPopoverMotionInner>
                 </Popover.Content>
               </Popover.Portal>
             </Popover.Root>

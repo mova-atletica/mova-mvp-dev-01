@@ -4,6 +4,7 @@ import { useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown } from "lucide-react";
 import { useExportPanelPopoverLayers } from "../../../contexts/EmbeddedModalPopoverContext";
+import { MovaPopoverMotionInner } from "../../../components/MovaPopoverMotionInner";
 import {
   exportPanelDropdownMenuItemClass,
   exportPanelSelectTriggerClass,
@@ -28,7 +29,7 @@ export function TraceSelect({
         <button type="button" className={exportPanelSelectTriggerClass}>
           <span className="truncate">{selected?.label ?? value}</span>
           <ChevronDown
-            className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${open ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           />
         </button>
       </Popover.Trigger>
@@ -41,19 +42,21 @@ export function TraceSelect({
           style={popoverLayers.contentStyle}
           className={popoverLayers.contentClassName}
         >
-          {options.map((opt, index) => (
-            <div
-              key={opt.value}
-              role="menuitem"
-              className={`${exportPanelDropdownMenuItemClass} ${index === options.length - 1 ? "border-b-0" : ""}`}
-              onClick={() => {
-                onSelect(opt.value);
-                setOpen(false);
-              }}
-            >
-              {opt.label}
-            </div>
-          ))}
+          <MovaPopoverMotionInner scrollable>
+            {options.map((opt, index) => (
+              <div
+                key={opt.value}
+                role="menuitem"
+                className={`${exportPanelDropdownMenuItemClass} ${index === options.length - 1 ? "border-b-0" : ""}`}
+                onClick={() => {
+                  onSelect(opt.value);
+                  setOpen(false);
+                }}
+              >
+                {opt.label}
+              </div>
+            ))}
+          </MovaPopoverMotionInner>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

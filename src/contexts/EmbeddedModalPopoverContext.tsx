@@ -38,7 +38,7 @@ export function useExportPanelPopoverLayers(extraClassName = "") {
     contentStyle: getEmbeddedPopoverContentStyle(embeddedInModal),
     modal: getEmbeddedPopoverModalProp(embeddedInModal),
     contentClassName: embeddedInModal
-      ? `pointer-events-auto w-[var(--radix-popover-trigger-width)] min-w-[8rem] overflow-hidden rounded-lg border border-border-theme bg-[var(--card-bg)] p-0 shadow-2xl backdrop-blur-xl outline-none${trimmedExtra ? ` ${trimmedExtra}` : ""}`
-      : `z-[220] w-[var(--radix-popover-trigger-width)] min-w-[8rem] overflow-hidden rounded-lg border border-border-theme bg-[var(--card-bg)] p-0 shadow-2xl backdrop-blur-xl outline-none${trimmedExtra ? ` ${trimmedExtra}` : ""}`,
+      ? `mova-popover-motion mova-popover-menu pointer-events-auto w-[var(--radix-popover-trigger-width)] min-w-[8rem] rounded-lg border border-border-theme bg-[var(--card-bg)] p-0 shadow-2xl backdrop-blur-xl outline-none${trimmedExtra ? ` ${trimmedExtra}` : ""}`
+      : `mova-popover-motion mova-popover-menu z-[220] w-[var(--radix-popover-trigger-width)] min-w-[8rem] rounded-lg border border-border-theme bg-[var(--card-bg)] p-0 shadow-2xl backdrop-blur-xl outline-none${trimmedExtra ? ` ${trimmedExtra}` : ""}`,
   };
 }

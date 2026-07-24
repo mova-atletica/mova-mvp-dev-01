@@ -50,32 +50,6 @@ export interface ActiveEffect {
 
 export const availableEffects: Effect[] = [
   {
-    id: "muybridge",
-    name: "Muybridge",
-    description: "Grid of key frames",
-    preview: "Grid layout",
-    category: "Motion",
-    videoConfig: {
-      shouldRenderVideo: false,
-      videoOpacity: 0,
-      blendMode: "normal",
-      renderOrder: "replace",
-    },
-  },
-  {
-    id: "motion-trails",
-    name: "Motion Trails",
-    description: "Ghost trail effect",
-    preview: "Trailing animation",
-    category: "Motion",
-    videoConfig: {
-      shouldRenderVideo: true,
-      videoOpacity: 0.3,
-      blendMode: "multiply",
-      renderOrder: "before",
-    },
-  },
-  {
     id: "mobility-geometry",
     name: "Mobility Geometry",
     description: "Body axes, torso line, and angle arcs for flexibility analysis",

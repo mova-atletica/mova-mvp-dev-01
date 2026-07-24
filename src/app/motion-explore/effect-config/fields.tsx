@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown } from "lucide-react";
 import { useExportPanelPopoverLayers } from "../../../contexts/EmbeddedModalPopoverContext";
+import { MovaPopoverMotionInner } from "../../../components/MovaPopoverMotionInner";
 import {
   EFFECT_CONFIG_JOINT_OPTIONS,
   hasSideSpecificOptions,
@@ -346,7 +347,7 @@ export function ConfigMultiSelect({
   showSideQuickSelect?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const popoverLayers = useExportPanelPopoverLayers("max-h-[min(260px,55vh)] overflow-y-auto p-0");
+  const popoverLayers = useExportPanelPopoverLayers();
   const selectedSet = new Set(selectedKeys);
   const sideQuickSelect = showSideQuickSelect && hasSideSpecificOptions(options);
   const leftKeys = sideQuickSelect ? optionKeysForSide(options, "left") : [];
@@ -366,7 +367,7 @@ export function ConfigMultiSelect({
         <button type="button" className={exportPanelSelectTriggerClass}>
           <span className="min-w-0 flex-1 truncate text-left">{summary}</span>
           <ChevronDown
-            className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${open ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           />
         </button>
       </Popover.Trigger>
@@ -379,6 +380,7 @@ export function ConfigMultiSelect({
           style={popoverLayers.contentStyle}
           className={popoverLayers.contentClassName}
         >
+          <MovaPopoverMotionInner scrollable>
           {showSelectAllNone || sideQuickSelect ? (
             <QuickSelectBar>
               {showSelectAllNone ? (
@@ -423,6 +425,7 @@ export function ConfigMultiSelect({
               </label>
             );
           })}
+          </MovaPopoverMotionInner>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

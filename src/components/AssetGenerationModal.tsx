@@ -45,34 +45,6 @@ interface ActiveEffect {
 }
 
 const availableEffects: Effect[] = [
-  // Visual guides (Muybridge, motion trails, …)
-  { 
-    id: "muybridge", 
-    name: "Muybridge", 
-    description: "Grid of key frames", 
-    preview: "Grid layout", 
-    category: "Motion",
-    videoConfig: {
-      shouldRenderVideo: false,
-      videoOpacity: 0,
-      blendMode: 'normal',
-      renderOrder: 'replace'
-    }
-  },
-  { 
-    id: "motion-trails", 
-    name: "Motion Trails", 
-    description: "Ghost trail effect", 
- 
-    preview: "Trailing animation", 
-    category: "Motion",
-    videoConfig: {
-      shouldRenderVideo: true,
-      videoOpacity: 0.3,
-      blendMode: 'multiply',
-      renderOrder: 'before'
-    }
-  },
   // Stats Effects (Working)
   { 
     id: "joint-angles", 
@@ -1630,12 +1602,12 @@ export default function AssetGenerationModal({
                   }} />
                 </button>
 
-                {(["Motion", "Stats"] as EffectType[]).map((category) => (
+                {(["Stats"] as EffectType[]).map((category) => (
                   <button
                     key={category}
                     type="button"
-                    title={category === "Motion" ? "Visual guides" : "Stats overlays"}
-                    aria-label={category === "Motion" ? "Visual guides" : "Stats overlays"}
+                    title="Stats overlays"
+                    aria-label="Stats overlays"
                     onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
                     style={{
                       width: '40px',
@@ -1727,8 +1699,8 @@ export default function AssetGenerationModal({
                               <ChevronDown style={{ width: '12px', height: '12px' }} />
                             </span>
                           </button>
-                          {formatDropdownOpen && (
-                            <div style={{ 
+                          <div
+                            style={{ 
                               position: 'absolute', 
                               left: 0, 
                               top: '100%', 
@@ -1740,7 +1712,10 @@ export default function AssetGenerationModal({
                               borderRadius: '6px',
                               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                               marginTop: '2px'
-                            }} className="rounded-lg p-2">
+                            }}
+                            className={`rounded-lg p-2 vp-dropdown-anim${formatDropdownOpen ? ' open' : ''}`}
+                            aria-hidden={!formatDropdownOpen}
+                          >
                               <label
                                 className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
                                 style={{ background: 'transparent', color: '#181A1A', whiteSpace: 'nowrap' }}
@@ -1795,7 +1770,6 @@ export default function AssetGenerationModal({
                                 )}
                               </label>
                             </div>
-                          )}
                   </div>
                   <div ref={qualityDropdownRef} style={{ position: 'relative' }}>
                           <div style={{ fontSize: '11px', fontWeight: 500, color: '#6B7280', marginBottom: '4px' }}>Quality</div>
@@ -1827,8 +1801,8 @@ export default function AssetGenerationModal({
                               <ChevronDown style={{ width: '12px', height: '12px' }} />
                             </span>
                           </button>
-                          {qualityDropdownOpen && (
-                            <div style={{ 
+                          <div
+                            style={{ 
                               position: 'absolute', 
                               left: 0, 
                               top: '100%', 
@@ -1840,7 +1814,10 @@ export default function AssetGenerationModal({
                               borderRadius: '6px',
                               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                               marginTop: '2px'
-                            }} className="rounded-lg p-2">
+                            }}
+                            className={`rounded-lg p-2 vp-dropdown-anim${qualityDropdownOpen ? ' open' : ''}`}
+                            aria-hidden={!qualityDropdownOpen}
+                          >
                               <label
                                 className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors"
                                 style={{ background: 'transparent', color: '#181A1A', whiteSpace: 'nowrap' }}
@@ -1896,7 +1873,6 @@ export default function AssetGenerationModal({
                                 Low Quality
                               </label>
                             </div>
-                          )}
                   </div>
                   
                   {/* Duration and Framerate controls for video exports */}
@@ -2017,7 +1993,7 @@ export default function AssetGenerationModal({
                         {getEffectsForCategory(selectedCategory).map((effect) => {
                           const isActive = isEffectActive(effect.id);
                           const isComingSoon = effect.description.includes('Coming Soon');
-                          const isImplemented = ['muybridge', 'motion-trails', 'joint-angles', 'range-of-motion'].includes(effect.id);
+                          const isImplemented = ['joint-angles', 'range-of-motion'].includes(effect.id);
                           return (
             <button
                               key={effect.id}

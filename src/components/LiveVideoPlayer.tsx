@@ -1149,8 +1149,11 @@ export default function LiveVideoPlayer({
             </svg>
           </span>
         </button>
-        {openDropdown === 'angles' &&
-          <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open">
+        <div
+          style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }}
+          className={`rounded-lg p-2 vp-dropdown-anim${openDropdown === 'angles' ? ' open' : ''}`}
+          aria-hidden={openDropdown !== 'angles'}
+        >
             {ANGLE_OPTIONS.map(opt => (
               <label key={opt.key} className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors" style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }} onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')} onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}>
                 <input
@@ -1165,7 +1168,6 @@ export default function LiveVideoPlayer({
               </label>
             ))}
           </div>
-        }
       </div>
       {/* Joints Dropdown */}
       <div ref={jointsDropdownRef} className="flex flex-col" style={{ position: 'relative' }}>
@@ -1194,8 +1196,11 @@ export default function LiveVideoPlayer({
             </svg>
           </span>
         </button>
-        {openDropdown === 'joints' && (
-          <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open dropdown-scroll">
+        <div
+          style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }}
+          className={`rounded-lg p-2 vp-dropdown-anim${openDropdown === 'joints' ? ' open' : ''} dropdown-scroll`}
+          aria-hidden={openDropdown !== 'joints'}
+        >
             {JOINT_OPTIONS.map(opt => (
               <label key={opt.key} className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors" style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }} onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')} onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}>
                 <input
@@ -1210,7 +1215,6 @@ export default function LiveVideoPlayer({
               </label>
             ))}
           </div>
-        )}
       </div>
       {/* Bones Dropdown */}
       <div ref={bonesDropdownRef} className="flex flex-col" style={{ position: 'relative' }}>
@@ -1239,8 +1243,11 @@ export default function LiveVideoPlayer({
             </svg>
           </span>
         </button>
-        {openDropdown === 'bones' && (
-          <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }} className="rounded-lg p-2 vp-dropdown-anim open dropdown-scroll">
+        <div
+          style={{ position: 'absolute', left: 0, top: '110%', zIndex: 20, minWidth: '100px', width: 'max-content', background: 'var(--vp-dropdown-bg)', border: '1px solid var(--vp-dropdown-border)', boxShadow: 'var(--vp-dropdown-shadow)' }}
+          className={`rounded-lg p-2 vp-dropdown-anim${openDropdown === 'bones' ? ' open' : ''} dropdown-scroll`}
+          aria-hidden={openDropdown !== 'bones'}
+        >
             {BONE_OPTIONS.map(opt => (
               <label key={opt.key} className="flex items-center text-xs mb-1 rounded px-1 py-1 cursor-pointer transition-colors" style={{ background: 'var(--vp-dropdown-item-bg)', color: 'var(--vp-dropdown-item-text)', whiteSpace: 'nowrap' }} onMouseOver={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-hover-bg)')} onMouseOut={e => (e.currentTarget.style.background = 'var(--vp-dropdown-item-bg)')}>
                 <input
@@ -1255,7 +1262,6 @@ export default function LiveVideoPlayer({
               </label>
             ))}
           </div>
-        )}
       </div>
     </div>
   );

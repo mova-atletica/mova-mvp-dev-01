@@ -8,6 +8,7 @@ import {
   ConfigSliderRow,
   configFieldStyles,
 } from "./fields";
+import { TraceSelect } from "./TraceSelect";
 import type { EffectConfigFormProps } from "./types";
 import { MOBILITY_ARC_JOINT_OPTIONS, MOBILITY_AXIS_POINT_OPTIONS } from "./jointOptions";
 import { useOptionalAssetVideoEngine } from "../assetVideoEngineContext";
@@ -69,31 +70,23 @@ function labelForJoint(joint: string): string {
   return MOBILITY_ARC_JOINT_OPTIONS.find((o) => o.key === joint)?.label ?? joint;
 }
 
-function NativeSelect({
+function LabeledSelect({
   label,
   value,
   options,
-  onChange,
+  onSelect,
 }: {
   label: string;
   value: string;
   options: Array<{ value: string; label: string }>;
-  onChange: (v: string) => void;
+  onSelect: (v: string) => void;
 }) {
   return (
     <div style={configFieldStyles.row}>
       {label ? <span style={configFieldStyles.labelNarrow}>{label}</span> : null}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={configFieldStyles.select}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <TraceSelect value={value} options={options} onSelect={onSelect} />
+      </div>
     </div>
   );
 }
@@ -155,20 +148,20 @@ export function MobilityGeometryEffectConfig({ config, updateConfig }: EffectCon
     <ConfigRoot>
       <ConfigSection title="Axes">
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <NativeSelect
+          <LabeledSelect
             label="Point"
             value={addTarget}
             options={MOBILITY_AXIS_POINT_OPTIONS.map((o) => ({ value: o.key, label: o.label }))}
-            onChange={setAddTarget}
+            onSelect={setAddTarget}
           />
-          <NativeSelect
+          <LabeledSelect
             label="Orient"
             value={addOrient}
             options={[
               { value: "vertical", label: "Vertical" },
               { value: "horizontal", label: "Horizontal" },
             ]}
-            onChange={(v) => setAddOrient(v as "vertical" | "horizontal")}
+            onSelect={(v) => setAddOrient(v as "vertical" | "horizontal")}
           />
           <button
             type="button"
@@ -233,10 +226,12 @@ export function MobilityGeometryEffectConfig({ config, updateConfig }: EffectCon
                   </button>
                   <button
                     type="button"
-                    onClick={() => commit(
-                      axes.filter((a) => a.id !== axis.id),
-                      arcs
-                    )}
+                    onClick={() =>
+                      commit(
+                        axes.filter((a) => a.id !== axis.id),
+                        arcs
+                      )
+                    }
                     style={{
                       background: "transparent",
                       border: "none",
@@ -250,19 +245,19 @@ export function MobilityGeometryEffectConfig({ config, updateConfig }: EffectCon
                 </div>
                 {open ? (
                   <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
-                    <NativeSelect
+                    <LabeledSelect
                       label="Style"
                       value={axis.lineStyle ?? DEFAULTS.lineStyle}
                       options={LINE_STYLE_OPTIONS}
-                      onChange={(v) =>
+                      onSelect={(v) =>
                         updateAxis(axis.id, { lineStyle: v as MobilityGeometryLineStyle })
                       }
                     />
-                    <NativeSelect
+                    <LabeledSelect
                       label="Caps"
                       value={axis.capStyle ?? DEFAULTS.capStyle}
                       options={CAP_OPTIONS}
-                      onChange={(v) =>
+                      onSelect={(v) =>
                         updateAxis(axis.id, { capStyle: v as MobilityGeometryCapStyle })
                       }
                     />
@@ -324,14 +319,14 @@ export function MobilityGeometryEffectConfig({ config, updateConfig }: EffectCon
 
       <ConfigSection title="Angle arcs">
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <NativeSelect
+          <LabeledSelect
             label="Joint"
             value={addArcJoint}
             options={MOBILITY_ARC_JOINT_OPTIONS.map((o) => ({
               value: o.key,
               label: o.label,
             }))}
-            onChange={setAddArcJoint}
+            onSelect={setAddArcJoint}
           />
           <button
             type="button"
@@ -339,23 +334,23 @@ export function MobilityGeometryEffectConfig({ config, updateConfig }: EffectCon
             onClick={() => {
               if (arcs.some((a) => a.joint === addArcJoint)) return;
               const id = newId("marc");
-                commit(axes, [
-                  ...arcs,
-                  {
-                    id,
-                    joint: addArcJoint,
-                    color: DEFAULTS.color,
-                    lineWidth: DEFAULTS.lineWidth,
-                    lineStyle: DEFAULTS.lineStyle,
-                    arcRadius: DEFAULTS.arcRadius,
-                    opacity: DEFAULTS.opacity,
-                  },
-                ]);
-                setExpandedId(id);
-              }}
-            >
-              Add arc
-            </button>
+              commit(axes, [
+                ...arcs,
+                {
+                  id,
+                  joint: addArcJoint,
+                  color: DEFAULTS.color,
+                  lineWidth: DEFAULTS.lineWidth,
+                  lineStyle: DEFAULTS.lineStyle,
+                  arcRadius: DEFAULTS.arcRadius,
+                  opacity: DEFAULTS.opacity,
+                },
+              ]);
+              setExpandedId(id);
+            }}
+          >
+            Add arc
+          </button>
 
           {arcs.map((arc) => {
             const open = expandedId === arc.id;
@@ -387,10 +382,12 @@ export function MobilityGeometryEffectConfig({ config, updateConfig }: EffectCon
                   </button>
                   <button
                     type="button"
-                    onClick={() => commit(
-                      axes,
-                      arcs.filter((a) => a.id !== arc.id)
-                    )}
+                    onClick={() =>
+                      commit(
+                        axes,
+                        arcs.filter((a) => a.id !== arc.id)
+                      )
+                    }
                     style={{
                       background: "transparent",
                       border: "none",
@@ -404,11 +401,11 @@ export function MobilityGeometryEffectConfig({ config, updateConfig }: EffectCon
                 </div>
                 {open ? (
                   <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
-                    <NativeSelect
+                    <LabeledSelect
                       label="Style"
                       value={arc.lineStyle ?? DEFAULTS.lineStyle}
                       options={LINE_STYLE_OPTIONS}
-                      onChange={(v) =>
+                      onSelect={(v) =>
                         updateArc(arc.id, { lineStyle: v as MobilityGeometryLineStyle })
                       }
                     />

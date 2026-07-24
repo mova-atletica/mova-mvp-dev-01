@@ -1,28 +1,22 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { Clapperboard } from "lucide-react";
 import { useAccount } from "../../contexts/MockAuthContext";
 import { useTranslations } from "../../i18n/LocaleProvider";
 
 export default function CoachStudioGate({ children }: { children: ReactNode }) {
-  const { hasProAccess, requestStudioAccess, authLoading } = useAccount();
+  const { hasCoachAccess, authLoading } = useAccount();
   const t = useTranslations();
   const [allowed, setAllowed] = useState(false);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
-    setAllowed(hasProAccess);
+    setAllowed(hasCoachAccess);
     setChecked(true);
-  }, [hasProAccess, authLoading]);
-
-  const reopenPaywall = () => {
-    requestStudioAccess(() => {
-      setAllowed(true);
-      setChecked(true);
-    });
-  };
+  }, [hasCoachAccess, authLoading]);
 
   if (!checked) {
     return null;
@@ -55,18 +49,17 @@ export default function CoachStudioGate({ children }: { children: ReactNode }) {
             <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
               {t("coachStudio.lockedBody")}
             </p>
-            <button
-              type="button"
-              onClick={reopenPaywall}
-              className="mt-5 w-full rounded-lg px-4 py-2.5 text-sm font-medium"
+            <Link
+              href="/"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium"
               style={{
                 background: "var(--primary-button-bg)",
                 color: "var(--primary-button-text)",
                 border: "2px solid var(--primary-button-border)",
               }}
             >
-              {t("account.upgradePro")}
-            </button>
+              {t("common.backToArchive")}
+            </Link>
           </div>
         </div>
       </main>

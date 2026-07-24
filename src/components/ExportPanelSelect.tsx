@@ -8,6 +8,7 @@ import {
   exportPanelPopoverContentClass,
   exportPanelSelectTriggerClass,
 } from "../app/motion-explore/AssetVideoPlayerExportPanel";
+import { MovaPopoverMotionInner } from "./MovaPopoverMotionInner";
 
 interface ExportPanelSelectProps {
   value: string;
@@ -49,7 +50,7 @@ export default function ExportPanelSelect({
         >
           <span className="truncate">{selected?.label ?? value}</span>
           <ChevronDown
-            className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform ${open ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
             aria-hidden
           />
         </button>
@@ -63,23 +64,25 @@ export default function ExportPanelSelect({
           style={contentStyle}
           className={`${exportPanelPopoverContentClass} ${contentClassName}`.trim()}
         >
-          {options.map((opt, index) => (
-            <div
-              key={opt.value}
-              role="menuitem"
-              className={`${exportPanelDropdownMenuItemClass} ${index === options.length - 1 ? "border-b-0" : ""} ${
-                value === opt.value
-                  ? "bg-[color:color-mix(in_srgb,var(--foreground)_12%,transparent)]"
-                  : ""
-              }`}
-              onClick={() => {
-                onSelect(opt.value);
-                setOpen(false);
-              }}
-            >
-              {opt.label}
-            </div>
-          ))}
+          <MovaPopoverMotionInner scrollable>
+            {options.map((opt, index) => (
+              <div
+                key={opt.value}
+                role="menuitem"
+                className={`${exportPanelDropdownMenuItemClass} ${index === options.length - 1 ? "border-b-0" : ""} ${
+                  value === opt.value
+                    ? "bg-[color:color-mix(in_srgb,var(--foreground)_12%,transparent)]"
+                    : ""
+                }`}
+                onClick={() => {
+                  onSelect(opt.value);
+                  setOpen(false);
+                }}
+              >
+                {opt.label}
+              </div>
+            ))}
+          </MovaPopoverMotionInner>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

@@ -16,6 +16,7 @@ import MovaStudioHeroTile from "./MovaStudioHeroTile";
 
 interface HomeToolsHeroProps {
   hasStudio: boolean;
+  showCoachStudio: boolean;
   onOpenStudio: () => void;
   onOpenCoachStudio: () => void;
   onTrySport: (sportSlug: string) => void;
@@ -23,6 +24,7 @@ interface HomeToolsHeroProps {
 
 export default function HomeToolsHero({
   hasStudio,
+  showCoachStudio,
   onOpenStudio,
   onOpenCoachStudio,
   onTrySport,
@@ -42,6 +44,7 @@ export default function HomeToolsHero({
   }
 
   // Column height ≈ two equal tiles (each ~half of original studio tile) + gap.
+  // When Coach is hidden, Open Move still uses the full stacked column height.
   const stackedColumnHeight =
     HOME_TOOLS_STUDIO_TILE.height + HOME_TOOLS_HERO_GAP.row;
 
@@ -65,21 +68,36 @@ export default function HomeToolsHero({
       };
 
   const studioColumnStyle: CSSProperties = isDesktop
-    ? {
-        minWidth: 0,
-        minHeight: 0,
-        height: "100%",
-        display: "grid",
-        gridTemplateRows: "1fr 1fr",
-        gap: `${HOME_TOOLS_HERO_GAP.row}px`,
-      }
-    : {
-        width: "100%",
-        display: "grid",
-        gridTemplateRows: "1fr 1fr",
-        gap: "12px",
-        minHeight: "28rem",
-      };
+    ? showCoachStudio
+      ? {
+          minWidth: 0,
+          minHeight: 0,
+          height: "100%",
+          display: "grid",
+          gridTemplateRows: "1fr 1fr",
+          gap: `${HOME_TOOLS_HERO_GAP.row}px`,
+        }
+      : {
+          minWidth: 0,
+          minHeight: 0,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+        }
+    : showCoachStudio
+      ? {
+          width: "100%",
+          display: "grid",
+          gridTemplateRows: "1fr 1fr",
+          gap: "12px",
+          minHeight: "28rem",
+        }
+      : {
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "14rem",
+        };
 
   const leaderboardColumnStyle: CSSProperties = isDesktop
     ? {
@@ -95,6 +113,7 @@ export default function HomeToolsHero({
     minWidth: 0,
     minHeight: 0,
     height: "100%",
+    flex: showCoachStudio ? undefined : 1,
   };
 
   return (
@@ -113,12 +132,14 @@ export default function HomeToolsHero({
               layout={isDesktop ? "desktop" : "mobile"}
             />
           </div>
-          <div style={tileSlotStyle}>
-            <CoachStudioToolsTile
-              onOpen={onOpenCoachStudio}
-              layout={isDesktop ? "desktop" : "mobile"}
-            />
-          </div>
+          {showCoachStudio ? (
+            <div style={tileSlotStyle}>
+              <CoachStudioToolsTile
+                onOpen={onOpenCoachStudio}
+                layout={isDesktop ? "desktop" : "mobile"}
+              />
+            </div>
+          ) : null}
         </div>
         <div style={leaderboardColumnStyle}>
           <HomeLeaderboardBlock variant="hero" onTrySport={onTrySport} />

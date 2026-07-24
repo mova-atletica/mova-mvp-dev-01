@@ -18,6 +18,7 @@ import {
   exportPanelPopoverContentClass,
   exportPanelSelectTriggerClass,
 } from "../motion-explore/AssetVideoPlayerExportPanel";
+import { MovaPopoverMotionInner } from "../../components/MovaPopoverMotionInner";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
@@ -92,7 +93,7 @@ function PopoverSideSelect({
             collisionPadding={12}
             className={exportPanelPopoverContentClass}
           >
-            {children}
+            <MovaPopoverMotionInner scrollable>{children}</MovaPopoverMotionInner>
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
