@@ -58,143 +58,145 @@ export default function HomeLeaderboardBlock({
       }`}
       style={borderAllTheme}
     >
-      <div
-        className={`mb-3 flex shrink-0 flex-col gap-2 ${isHero ? "" : "sm:flex-row sm:items-center sm:justify-between"}`}
-      >
-        <div className="flex items-center gap-2.5">
-          {movement ? (
-            <div
-              className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg sm:h-10 sm:w-10"
-              style={borderAllTheme}
-            >
-              <Image
-                src={movement.tileImage}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="40px"
-              />
-            </div>
-          ) : (
-            <Trophy
-              size={isHero ? 16 : 18}
-              className="text-[color:var(--section-title)]"
-              aria-hidden
-            />
-          )}
-          <div className="min-w-0">
-            <h2
-              className={`font-bold leading-tight ${isHero ? "text-sm" : "text-base sm:text-lg"}`}
-              style={{ color: "var(--section-title)" }}
-            >
-              Leaderboards
-            </h2>
+      <div className="mini-app-glass-content relative z-10 flex min-h-0 flex-1 flex-col">
+        <div
+          className={`mb-3 flex shrink-0 flex-col gap-2 ${isHero ? "" : "sm:flex-row sm:items-center sm:justify-between"}`}
+        >
+          <div className="flex items-center gap-2.5">
             {movement ? (
-              <p className="truncate text-[10px] sm:text-[11px]" style={{ color: "var(--section-subtitle)" }}>
-                Top {movement.primaryMetric.toLowerCase()} · {movement.title}
-                {uniqueCountries > 0 ? ` · ${uniqueCountries} countries` : ""}
-              </p>
-            ) : null}
+              <div
+                className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg sm:h-10 sm:w-10"
+                style={borderAllTheme}
+              >
+                <Image
+                  src={movement.tileImage}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="40px"
+                />
+              </div>
+            ) : (
+              <Trophy
+                size={isHero ? 16 : 18}
+                className="text-[color:var(--section-title)]"
+                aria-hidden
+              />
+            )}
+            <div className="min-w-0">
+              <h2
+                className={`font-bold leading-tight ${isHero ? "text-sm" : "text-base sm:text-lg"}`}
+                style={{ color: "var(--section-title)" }}
+              >
+                Leaderboards
+              </h2>
+              {movement ? (
+                <p className="truncate text-[10px] sm:text-[11px]" style={{ color: "var(--section-subtitle)" }}>
+                  Top {movement.primaryMetric.toLowerCase()} · {movement.title}
+                  {uniqueCountries > 0 ? ` · ${uniqueCountries} countries` : ""}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportPanelSelect
+              value={sportSlug}
+              options={sportOptions}
+              onSelect={setSportSlug}
+              aria-label="Select sport"
+              triggerClassName="w-auto min-w-[8.5rem] max-w-[11rem] sm:min-w-[9.5rem]"
+            />
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <ExportPanelSelect
-            value={sportSlug}
-            options={sportOptions}
-            onSelect={setSportSlug}
-            aria-label="Select sport"
-            triggerClassName="w-auto min-w-[8.5rem] max-w-[11rem] sm:min-w-[9.5rem]"
-          />
-        </div>
-      </div>
+        <ol
+          className={`min-h-0 flex-1 space-y-1.5 overflow-y-auto open-move-studio-panel-scroll ${
+            isHero ? "max-h-none" : ""
+          }`}
+          aria-label="Leaderboard rankings"
+        >
+          {entries.length === 0 ? (
+            <li
+              className="rounded-lg px-3 py-5 text-center text-xs sm:text-sm"
+              style={{ ...borderAllTheme, color: "var(--section-subtitle)" }}
+            >
+              No scores yet — be the first!
+            </li>
+          ) : (
+            entries.map((entry, index) => {
+              const podium = index < 3 ? PODIUM_STYLES[index] : null;
+              const tone = leaderboardAvatarTone(entry.displayName);
+              const isMe = Boolean(profile?.id && entry.userId === profile.id);
 
-      <ol
-        className={`min-h-0 flex-1 space-y-1.5 overflow-y-auto open-move-studio-panel-scroll ${
-          isHero ? "max-h-none" : ""
-        }`}
-        aria-label="Leaderboard rankings"
-      >
-        {entries.length === 0 ? (
-          <li
-            className="rounded-lg px-3 py-5 text-center text-xs sm:text-sm"
-            style={{ ...borderAllTheme, color: "var(--section-subtitle)" }}
-          >
-            No scores yet — be the first!
-          </li>
-        ) : (
-          entries.map((entry, index) => {
-            const podium = index < 3 ? PODIUM_STYLES[index] : null;
-            const tone = leaderboardAvatarTone(entry.displayName);
-            const isMe = Boolean(profile?.id && entry.userId === profile.id);
-
-            return (
-              <li
-                key={entry.id}
-                className="flex items-center gap-2 rounded-lg px-2 py-2 sm:gap-2.5 sm:px-2.5 sm:py-2.5"
-                style={{
-                  ...borderAllTheme,
-                  backgroundColor: isMe
-                    ? "color-mix(in srgb, var(--accent, #3b82f6) 10%, transparent)"
-                    : podium
-                      ? podium.bg
-                      : "transparent",
-                  boxShadow: podium ? `inset 3px 0 0 ${podium.ring}` : undefined,
-                }}
-              >
-                <span
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold sm:h-7 sm:w-7 sm:text-xs"
+              return (
+                <li
+                  key={entry.id}
+                  className="flex items-center gap-2 rounded-lg px-2 py-2 sm:gap-2.5 sm:px-2.5 sm:py-2.5"
                   style={{
-                    backgroundColor: podium ? podium.ring : "var(--tag-bg)",
-                    color: podium ? "#fff" : "var(--tag-text)",
+                    ...borderAllTheme,
+                    backgroundColor: isMe
+                      ? "color-mix(in srgb, var(--accent, #3b82f6) 10%, transparent)"
+                      : podium
+                        ? podium.bg
+                        : "transparent",
+                    boxShadow: podium ? `inset 3px 0 0 ${podium.ring}` : undefined,
                   }}
                 >
-                  {index + 1}
-                </span>
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold sm:h-8 sm:w-8 sm:text-[11px]"
-                  style={{ backgroundColor: tone.bg, color: tone.fg }}
-                  aria-hidden
-                >
-                  {leaderboardInitials(entry.displayName)}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-xs font-medium text-[color:var(--foreground)] sm:text-sm">
-                  {entry.displayName}
-                  {isMe ? (
-                    <span className="ml-1 text-[10px] font-normal text-[color:var(--muted-foreground)]">
-                      (you)
-                    </span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 text-sm sm:text-base" title={entry.countryCode} aria-hidden>
-                  {getCountryFlag(entry.countryCode)}
-                </span>
-                <span className="shrink-0 text-xs font-semibold tabular-nums text-[color:var(--foreground)] sm:text-sm">
-                  {entry.formattedScore}
-                </span>
-              </li>
-            );
-          })
-        )}
-      </ol>
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold sm:h-7 sm:w-7 sm:text-xs"
+                    style={{
+                      backgroundColor: podium ? podium.ring : "var(--tag-bg)",
+                      color: podium ? "#fff" : "var(--tag-text)",
+                    }}
+                  >
+                    {index + 1}
+                  </span>
+                  <span
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold sm:h-8 sm:w-8 sm:text-[11px]"
+                    style={{ backgroundColor: tone.bg, color: tone.fg }}
+                    aria-hidden
+                  >
+                    {leaderboardInitials(entry.displayName)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-[color:var(--foreground)] sm:text-sm">
+                    {entry.displayName}
+                    {isMe ? (
+                      <span className="ml-1 text-[10px] font-normal text-[color:var(--muted-foreground)]">
+                        (you)
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 text-sm sm:text-base" title={entry.countryCode} aria-hidden>
+                    {getCountryFlag(entry.countryCode)}
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold tabular-nums text-[color:var(--foreground)] sm:text-sm">
+                    {entry.formattedScore}
+                  </span>
+                </li>
+              );
+            })
+          )}
+        </ol>
 
-      <div className="mt-3 flex shrink-0 flex-col gap-2 pt-1">
-        <button
-          type="button"
-          onClick={() => onTrySport(sportSlug)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold tracking-wide transition-opacity hover:opacity-90 sm:py-4 sm:text-base"
-          style={{
-            background: "var(--primary-button-bg)",
-            color: "var(--primary-button-text)",
-            border: "2px solid var(--primary-button-border)",
-            boxShadow: "0 8px 24px color-mix(in srgb, var(--primary-button-bg) 35%, transparent)",
-          }}
-        >
-          Try {movement?.title ?? "sport"}
-        </button>
-        <p className="text-center text-[10px] text-[color:var(--muted-foreground)] sm:text-[11px]">
-          Tracked sessions · public ranks · {entries.length || 0} athletes shown
-        </p>
+        <div className="mt-3 flex shrink-0 flex-col gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => onTrySport(sportSlug)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold tracking-wide transition-opacity hover:opacity-90 sm:py-4 sm:text-base"
+            style={{
+              background: "var(--primary-button-bg)",
+              color: "var(--primary-button-text)",
+              border: "2px solid var(--primary-button-border)",
+              boxShadow: "0 8px 24px color-mix(in srgb, var(--primary-button-bg) 35%, transparent)",
+            }}
+          >
+            Try {movement?.title ?? "sport"}
+          </button>
+          <p className="text-center text-[10px] text-[color:var(--muted-foreground)] sm:text-[11px]">
+            Tracked sessions · public ranks · {entries.length || 0} athletes shown
+          </p>
+        </div>
       </div>
     </div>
   );
