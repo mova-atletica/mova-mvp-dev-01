@@ -1324,12 +1324,9 @@ export function renderStats(
   // Update ROM tracking
   const romData = updateROMTracking(jointAngles);
 
-  // Render joint angles
-  renderJointAngles(ctx, jointAngles, config, ctx.canvas);
-  
-  // Render ROM stats
-  renderROMStats(ctx, romData, config, ctx.canvas);
-
-  renderMetricChips(ctx, poses, romData, config);
+  // Back → front: geometry under chips; joint angles / ROM on top for legibility.
   renderMobilityGeometry(ctx, poses, config, currentFrameIndex);
+  renderMetricChips(ctx, poses, romData, config);
+  renderJointAngles(ctx, jointAngles, config, ctx.canvas);
+  renderROMStats(ctx, romData, config, ctx.canvas);
 } 

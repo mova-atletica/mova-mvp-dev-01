@@ -11,6 +11,7 @@ import {
 import { renderMotionTrails } from "../../lib/effects/motion-trails";
 import { renderMuybridgeTileEffects } from "../../lib/effects/muybridgeTileRenderer";
 import { renderJointAngleTraceOverlay, renderStats } from "../../lib/effects/stats";
+import { sortEffectsByOverlayDrawOrder } from "../../lib/effects/overlayDrawOrder";
 import type { AssetVideoPlayerProps, Effect, ActiveEffect, EffectType } from "./assetVideoTypes";
 import { availableEffects } from "./assetVideoTypes";
 
@@ -572,8 +573,8 @@ export function useAssetVideoEngine({
               }
             }
             
-            // Then render stats effects last (foreground effects)
-            for (const effect of activeEffects) {
+            // Then render stats / overlay effects (fixed z-order: labels above geometry)
+            for (const effect of sortEffectsByOverlayDrawOrder(activeEffects)) {
               if (!effect.enabled) continue;
               
               switch (effect.effect.id) {

@@ -4,6 +4,7 @@
 import { renderMotionTrails } from './effects/motion-trails';
 import { renderMuybridgeFromCanvas, preExtractKeyFrames } from './effects/muybridge';
 import { renderMuybridgeTileEffects } from './effects/muybridgeTileRenderer';
+import { sortEffectsByOverlayDrawOrder } from './effects/overlayDrawOrder';
 import { renderJointAngleTraceOverlay, renderStats } from './effects/stats';
 import { safeExportFps } from './videoFps';
 
@@ -230,8 +231,8 @@ async function renderEffectsToCanvas(
       }
     }
     
-    // Step 2: Render stats effects last (foreground effects)
-    for (const effect of activeEffects) {
+    // Step 2: Render stats / overlay effects (fixed z-order: labels above geometry)
+    for (const effect of sortEffectsByOverlayDrawOrder(activeEffects)) {
       if (!effect.enabled) continue;
       
       // Skip composite effects (like muybridge) for now
@@ -625,8 +626,8 @@ async function exportAsVideo(
             }
           }
           
-          // Step 2: Render stats effects last (foreground effects)
-          for (const effect of activeEffects) {
+          // Step 2: Render stats / overlay effects (fixed z-order: labels above geometry)
+          for (const effect of sortEffectsByOverlayDrawOrder(activeEffects)) {
             if (!effect.enabled) continue;
             
             // Skip composite effects (like muybridge) for now

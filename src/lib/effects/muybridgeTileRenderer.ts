@@ -1,4 +1,5 @@
 import { renderMotionTrails } from './motion-trails';
+import { sortEffectsByOverlayDrawOrder } from './overlayDrawOrder';
 import { renderJointAngleTraceOverlay, renderStats, type StatsConfig } from './stats';
 
 export interface MuybridgeTileRendererOptions {
@@ -121,7 +122,7 @@ export function renderMuybridgeTileEffects(
     }
   }
 
-  for (const effect of activeEffects) {
+  for (const effect of sortEffectsByOverlayDrawOrder(activeEffects)) {
     if (!effect.enabled || effect.effect.id === 'muybridge') continue;
 
     switch (effect.effect.id) {
