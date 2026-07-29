@@ -78,11 +78,23 @@ export function drawGlassBackground(
 
   if (source && sw > 0 && sh > 0) {
     try {
+      // Chip x/y are in user space. Canvas sources (esp. image-export with
+      // ctx.scale(resolutionMultiplier)) store pixels in bitmap space — convert.
+      // Video sources are already in native/user-space pixels.
+      const sampleScale =
+        typeof HTMLCanvasElement !== "undefined" && source instanceof HTMLCanvasElement
+          ? Math.abs(ctx.getTransform().a) || 1
+          : 1;
+      const srcSx = sx * sampleScale;
+      const srcSy = sy * sampleScale;
+      const srcSw = sw * sampleScale;
+      const srcSh = sh * sampleScale;
+
       glassSampleCanvas = ensureScratch(glassSampleCanvas, sw, sh);
       const sctx = glassSampleCanvas.getContext("2d");
       if (sctx) {
         sctx.clearRect(0, 0, sw, sh);
-        sctx.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+        sctx.drawImage(source, srcSx, srcSy, srcSw, srcSh, 0, 0, sw, sh);
 
         glassBlurCanvas = ensureScratch(glassBlurCanvas, sw, sh);
         const fctx = glassBlurCanvas.getContext("2d");

@@ -28,7 +28,6 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
     exportConfig,
     setExportConfig,
     videoDuration,
-    sourceFps,
     videoVisibility,
     setVideoVisibility,
     formatDropdownOpen,
@@ -168,77 +167,69 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
         </div>
 
         {exportConfig.format === "webm" && (
-          <>
-            <div>
-              <div className={exportPanelFieldLabelClass}>
-                Max duration (seconds)
-                {videoDuration && (
-                  <span className="ml-1 text-[10px] text-[color:var(--muted)] font-light normal-case tracking-normal">
-                    (Video: {videoDuration.toFixed(1)}s)
-                  </span>
-                )}
-              </div>
-              <input
-                type="range"
-                min="1"
-                max={videoDuration ? Math.max(10, Math.ceil(videoDuration)) : 10}
-                step="1"
-                value={exportConfig.duration || 3}
-                onChange={(e) => setExportConfig({ ...exportConfig, duration: parseInt(e.target.value) })}
-                className="h-1 w-full cursor-pointer appearance-none rounded-lg accent-[var(--accent,#3b82f6)]"
-                style={{
-                  background: "rgba(255,255,255,0.15)",
-                }}
-              />
-              <div className="mt-2 text-center text-[10px] text-[color:var(--muted)]">
-                {(() => {
-                  const maxDuration = exportConfig.duration || 3;
-                  const actualDuration = videoDuration ? Math.min(videoDuration, maxDuration) : maxDuration;
-                  return videoDuration && videoDuration < maxDuration
-                    ? `${actualDuration.toFixed(1)}s (full video)`
-                    : `${maxDuration}s`;
-                })()}
-              </div>
+          <div>
+            <div className={exportPanelFieldLabelClass}>
+              Max duration (seconds)
+              {videoDuration && (
+                <span className="ml-1 text-[10px] text-[color:var(--muted)] font-light normal-case tracking-normal">
+                  (Video: {videoDuration.toFixed(1)}s)
+                </span>
+              )}
             </div>
-            <div>
-              <div className={exportPanelFieldLabelClass}>Export fps</div>
-              <div className="mt-1 text-center text-[10px] text-[color:var(--muted)]">
-                {sourceFps != null
-                  ? `${Math.round(sourceFps)} fps (source)`
-                  : "Detecting source… (falls back to 30)"}
-              </div>
+            <input
+              type="range"
+              min="1"
+              max={videoDuration ? Math.max(10, Math.ceil(videoDuration)) : 10}
+              step="1"
+              value={exportConfig.duration || 3}
+              onChange={(e) => setExportConfig({ ...exportConfig, duration: parseInt(e.target.value) })}
+              className="h-1 w-full cursor-pointer appearance-none rounded-lg accent-[var(--accent,#3b82f6)]"
+              style={{
+                background: "rgba(255,255,255,0.15)",
+              }}
+            />
+            <div className="mt-2 text-center text-[10px] text-[color:var(--muted)]">
+              {(() => {
+                const maxDuration = exportConfig.duration || 3;
+                const actualDuration = videoDuration ? Math.min(videoDuration, maxDuration) : maxDuration;
+                return videoDuration && videoDuration < maxDuration
+                  ? `${actualDuration.toFixed(1)}s (full video)`
+                  : `${maxDuration}s`;
+              })()}
             </div>
-          </>
+          </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => setVideoVisibility((prev) => ({ ...prev, showVideo: !prev.showVideo }))}
-          className="w-full rounded-lg border border-border-theme bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] px-3 py-2 text-center text-xs font-light text-[color:var(--foreground)] opacity-90 transition-colors hover:border-border-theme hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
-        >
-          {videoVisibility.showVideo ? "Hide video in export" : "Show video in export"}
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setVideoVisibility((prev) => ({ ...prev, showVideo: !prev.showVideo }))}
+            className="flex h-10 w-full items-center justify-center rounded-lg border border-border-theme bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] px-3 py-2 text-center text-xs font-light text-[color:var(--foreground)] opacity-90 transition-colors hover:border-border-theme hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
+          >
+            {videoVisibility.showVideo ? "Hide video in export" : "Show video in export"}
+          </button>
 
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={isExporting}
-          className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-theme bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2.5 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isExporting ? (
-            <>
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-border-theme border-t-[color:var(--foreground)]" />
-              Exporting…
-            </>
-          ) : exportSuccess ? (
-            "✓ Exported!"
-          ) : (
-            <>
-              <Download className="h-3.5 w-3.5 opacity-90" />
-              Export asset
-            </>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting}
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-theme bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2.5 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isExporting ? (
+              <>
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-border-theme border-t-[color:var(--foreground)]" />
+                Exporting…
+              </>
+            ) : exportSuccess ? (
+              "✓ Exported!"
+            ) : (
+              <>
+                <Download className="h-3.5 w-3.5 opacity-90" />
+                Export asset
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

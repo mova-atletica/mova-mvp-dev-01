@@ -163,7 +163,6 @@ export function useAssetVideoEngine({
           angleSize: 12,
           showROM: false,
           romJoints: [],
-          showGlobalStats: false,
           safeZoneEnabled: true,
           ...DEFAULT_LABEL_CHIP,
         };
@@ -190,7 +189,6 @@ export function useAssetVideoEngine({
           romDisplayStyle: 'min_max',
           romColor: '#ff6b35',
           angleSize: 16,
-          showGlobalStats: false,
           safeZoneEnabled: false,
           ...DEFAULT_LABEL_CHIP,
         };
@@ -200,7 +198,6 @@ export function useAssetVideoEngine({
           enabledJoints: [],
           showROM: false,
           romJoints: [],
-          showGlobalStats: false,
           safeZoneEnabled: true,
           showMetricChips: true,
           metricChipLayout: "bottom_center_row",
@@ -463,22 +460,6 @@ export function useAssetVideoEngine({
               
               // Render muybridge with effects applied to each frame (now synchronous)
               effectModulesRef.current.renderMuybridgeFromCanvas(ctx, video, poses, muybridgeEffect.config, currentTime, false, effectRenderer, videoVisibility);
-              
-              // Render exercise-details once over the entire canvas (not in individual tiles)
-              const exerciseDetailsEffect = activeEffects.find(e => e.effect.id === 'exercise-details' && e.enabled);
-              if (exerciseDetailsEffect && effectModulesRef.current.renderStats) {
-                effectModulesRef.current.renderStats(
-                  ctx,
-                  video,
-                  poses,
-                  {
-                    ...exerciseDetailsEffect.config,
-                    sportAnalysisKind,
-                    sportMetricsSnapshot,
-                  },
-                  currentTime
-                );
-              }
             } catch (error) {
               console.warn('Failed to render muybridge effect:', error);
             }

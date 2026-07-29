@@ -1,4 +1,4 @@
-// Stats effects for displaying joint angles, ROM, and global overlays
+// Stats effects for displaying joint angles, ROM, and visual overlays
 // Includes safe zone calculations for Instagram Stories/Reels compliance
 
 import {
@@ -9,36 +9,6 @@ import {
   drawLabelChipBackground,
   type LabelChipBg,
 } from "../canvasGlassChip";
-
-// Logo loading utility
-let logoImage: HTMLImageElement | null = null;
-let logoLoaded = false;
-
-function loadLogo(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (typeof Image === "undefined") {
-      resolve();
-      return;
-    }
-    if (logoLoaded && logoImage) {
-      resolve();
-      return;
-    }
-
-    logoImage = new Image();
-    logoImage.onload = () => {
-      logoLoaded = true;
-      resolve();
-    };
-    logoImage.onerror = reject;
-    logoImage.src = '/images/brand/logo/Logo_Plain.svg';
-  });
-}
-
-// Pre-load the logo on the client only (Node/SSR has no `Image` constructor).
-if (typeof Image !== "undefined") {
-  loadLogo().catch(console.warn);
-}
 
 // PoseNet keypoint name to index mapping (COCO-17 format)
 const KEYPOINT_NAME_TO_INDEX: { [key: string]: number } = {
@@ -85,20 +55,7 @@ export interface StatsConfig {
   romJoints: string[];
   romDisplayStyle: 'min_max' | 'range_bar' | 'both';
   romColor: string;
-  
-  // Global/Branding Overlays
-  showGlobalStats: boolean;
-  exerciseTitle: string;
-  muscleGroups: string[];
-  showLogo: boolean;
-  logoPosition: 'top_left' | 'top_right' | 'bottom_left' | 'bottom_right';
-  
-  // Exercise Info Styling
-  textColor: string;
-  backgroundColor: string;
-  backgroundOpacity: number;
-  fontSize: number;
-  
+
   // Safe Zone Settings
   safeZoneEnabled: boolean;
   canvasAspectRatio: '9:16' | '16:9' | 'custom';
@@ -941,35 +898,9 @@ export function renderJointAngles(
   ctx.fillStyle = config.angleColor || '#00ff00';
   ctx.strokeStyle = config.angleColor || '#00ff00';
   ctx.lineWidth = 2;
-  
-  // Scale text size based on canvas dimensions
-  const canvasWidth = ctx.canvas.width;
-  const canvasHeight = ctx.canvas.height;
-  
-  // During export, the canvas context is already scaled by resolutionMultiplier
-  // We need to account for this to prevent double-scaling
-  let scaleFactor = 1;
-  if (config.isExport) {
-    // Detect if we're in a scaled context by checking the transform
-    const transform = ctx.getTransform();
-    const contextScale = transform.a; // a and d should be equal for uniform scaling
-    
-    if (contextScale !== 1) {
-      // The context is already scaled, so we don't need additional scaling
-      scaleFactor = 1;
-    } else {
-      // Use a reference size that matches typical video display dimensions
-      const referenceWidth = 400;
-      const referenceHeight = 711;
-      scaleFactor = Math.min(canvasWidth / referenceWidth, canvasHeight / referenceHeight);
-    }
-  } else {
-    // Use a reference size that matches typical video display dimensions
-    const referenceWidth = 400;
-    const referenceHeight = 711;
-    scaleFactor = Math.min(canvasWidth / referenceWidth, canvasHeight / referenceHeight);
-  }
-  
+
+  // Logical canvas size (undoes image-export resolutionMultiplier) so labels match preview/video.
+  const scaleFactor = statsCanvasScaleFactor(ctx);
   const scaledAngleSize = Math.round((config.angleSize || 18) * scaleFactor);
   
   ctx.font = `bold ${scaledAngleSize}px 'Roboto', sans-serif`;
@@ -1023,35 +954,9 @@ export function renderROMStats(
   
   ctx.save();
   ctx.fillStyle = config.romColor || '#ff6b35';
-  
-  // Scale text size based on canvas dimensions
-  const canvasWidth = ctx.canvas.width;
-  const canvasHeight = ctx.canvas.height;
-  
-  // During export, the canvas context is already scaled by resolutionMultiplier
-  // We need to account for this to prevent double-scaling
-  let scaleFactor = 1;
-  if (config.isExport) {
-    // Detect if we're in a scaled context by checking the transform
-    const transform = ctx.getTransform();
-    const contextScale = transform.a; // a and d should be equal for uniform scaling
-    
-    if (contextScale !== 1) {
-      // The context is already scaled, so we don't need additional scaling
-      scaleFactor = 1;
-    } else {
-      // Use a reference size that matches typical video display dimensions
-      const referenceWidth = 400;
-      const referenceHeight = 711;
-      scaleFactor = Math.min(canvasWidth / referenceWidth, canvasHeight / referenceHeight);
-    }
-  } else {
-    // Use a reference size that matches typical video display dimensions
-    const referenceWidth = 400;
-    const referenceHeight = 711;
-    scaleFactor = Math.min(canvasWidth / referenceWidth, canvasHeight / referenceHeight);
-  }
-  
+
+  // Logical canvas size (undoes image-export resolutionMultiplier) so labels match preview/video.
+  const scaleFactor = statsCanvasScaleFactor(ctx);
   const scaledAngleSize = Math.round((config.angleSize || 16) * scaleFactor);
   
   ctx.font = `bold ${scaledAngleSize}px 'Roboto', sans-serif`;
@@ -1107,147 +1012,6 @@ export function renderROMStats(
         ctx.fillRect(barX, barY, barWidth * progress, barHeight);
       }
     }
-  }
-  
-  ctx.restore();
-}
-
-/**
- * Render global overlays (exercise title, muscle groups, logo)
- */
-export function renderGlobalOverlays(
-  ctx: CanvasRenderingContext2D,
-  config: Partial<StatsConfig>
-): void {
-  if (!config.showGlobalStats) return;
-  
-  // Get the actual canvas dimensions
-  const canvasWidth = ctx.canvas.width;
-  const canvasHeight = ctx.canvas.height;
-  
-  // Replace lines 506-514 with:
-  // Use canvas dimensions directly - they should always match video natural size
-  // The scaling logic will handle the display size differences
-  const effectiveWidth = canvasWidth;
-  const effectiveHeight = canvasHeight;
-  
-  const safeZone = config.safeZoneEnabled 
-    ? calculateSafeZone(effectiveWidth, effectiveHeight)
-    : {
-        top: 20,
-        bottom: effectiveHeight - 20,
-        left: 20,
-        right: effectiveWidth - 20,
-        centerX: effectiveWidth / 2,
-        centerY: effectiveHeight / 2,
-        safeWidth: effectiveWidth - 40,
-        safeHeight: effectiveHeight - 40
-      };
-  
-  // Calculate scale factor for consistent sizing across all elements
-  const referenceWidth = 400;
-  const referenceHeight = 711;
-  const scaleFactor = Math.min(effectiveWidth / referenceWidth, effectiveHeight / referenceHeight);
-  
-  ctx.save();
-  
-  // Combined exercise info with customizable styling
-  if (config.exerciseTitle || (config.muscleGroups && config.muscleGroups.length > 0)) {
-    const titleText = config.exerciseTitle || '';
-    const muscleText = (config.muscleGroups && config.muscleGroups.length > 0) 
-      ? `Target: ${config.muscleGroups.join(', ')}` 
-      : '';
-    
-    // Use the scale factor calculated at the top of the function
-    
-    // Get styling from config and apply scaling
-    const baseFontSize = config.fontSize || 48;
-    const scaledFontSize = Math.round(baseFontSize * scaleFactor);
-    const titleFontSize = scaledFontSize;
-    const muscleFontSize = Math.round(scaledFontSize * 0.6); // Muscle groups 60% of title size
-    const textColor = config.textColor || '#ffffff';
-    const backgroundColor = config.backgroundColor || '#000000';
-    const backgroundOpacity = config.backgroundOpacity || 0.8;
-    const padding = Math.round(scaledFontSize * 0.8); // Even more padding
-    const borderRadius = Math.round(scaledFontSize * 0.25);
-    const lineSpacing = Math.round(scaledFontSize * 0.6); // Even more spacing between title and muscle groups
-    
-    ctx.textAlign = 'center';
-    
-    // Measure text dimensions
-    ctx.font = `100 ${titleFontSize}px 'Roboto', sans-serif`; // Thin Roboto font
-    const titleMetrics = titleText ? ctx.measureText(titleText) : { width: 0 };
-    
-    ctx.font = `${muscleFontSize}px 'Roboto', sans-serif`;
-    const muscleMetrics = muscleText ? ctx.measureText(muscleText) : { width: 0 };
-    
-    // Calculate container dimensions with bounds checking
-    const maxWidth = Math.max(titleMetrics.width, muscleMetrics.width);
-    const containerWidth = Math.min(maxWidth + padding * 2, effectiveWidth - 40); // Ensure it fits within canvas
-    const totalTextHeight = (titleText ? titleFontSize : 0) + 
-                           (muscleText ? muscleFontSize : 0) + 
-                           (titleText && muscleText ? lineSpacing : 0);
-    const containerHeight = totalTextHeight + padding * 2.5;
-    
-    // Position container - ensure it stays within canvas bounds
-    const containerX = Math.max(20, Math.min(effectiveWidth - containerWidth - 20, effectiveWidth / 2 - containerWidth / 2));
-    const containerY = Math.max(20, Math.min(effectiveHeight - containerHeight - 20, safeZone.top + 20));
-    
-    // Draw rounded background with custom color and opacity
-    const r = parseInt(backgroundColor.slice(1, 3), 16);
-    const g = parseInt(backgroundColor.slice(3, 5), 16);
-    const b = parseInt(backgroundColor.slice(5, 7), 16);
-    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${backgroundOpacity})`;
-    
-    ctx.beginPath();
-    ctx.roundRect(containerX, containerY, containerWidth, containerHeight, borderRadius);
-    ctx.fill();
-    
-    // Draw text content
-    ctx.fillStyle = textColor;
-    let currentY = containerY + padding;
-    
-    // Draw title
-    if (titleText) {
-      ctx.font = `100 ${titleFontSize}px 'Roboto', sans-serif`; // Thin Roboto font
-      currentY += titleFontSize;
-      ctx.fillText(titleText, effectiveWidth / 2, currentY);
-      currentY += lineSpacing;
-    }
-    
-    // Draw muscle groups
-    if (muscleText) {
-      ctx.font = `${muscleFontSize}px 'Roboto', sans-serif`;
-      currentY += muscleFontSize;
-      ctx.fillText(muscleText, effectiveWidth / 2, currentY);
-    }
-  }
-  
-  // App logo - always bottom right with white container
-  if (config.showLogo && logoLoaded && logoImage) {
-    // Scale logo size using the same scale factor as text for consistency
-    const baseLogoSize = 32;
-    const basePadding = 12;
-    const scaledLogoSize = Math.round(baseLogoSize * scaleFactor);
-    const scaledPadding = Math.round(basePadding * scaleFactor);
-    const containerSize = scaledLogoSize + scaledPadding * 2;
-    const edgePadding = Math.round(16 * scaleFactor);
-    const logoX = safeZone.right - containerSize - edgePadding; // Add some padding from edge
-    const logoY = safeZone.bottom - containerSize - edgePadding; // Add some padding from edge
-    
-    // Draw white container with rounded corners
-    ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    const borderRadius = Math.round(12 * scaleFactor);
-    ctx.beginPath();
-    ctx.roundRect(logoX, logoY, containerSize, containerSize, borderRadius);
-    ctx.fill();
-    
-    // Draw the logo image centered in the container
-    const logoOffsetX = logoX + scaledPadding;
-    const logoOffsetY = logoY + scaledPadding;
-    ctx.drawImage(logoImage, logoOffsetX, logoOffsetY, scaledLogoSize, scaledLogoSize);
-    ctx.restore();
   }
   
   ctx.restore();
@@ -1568,7 +1332,4 @@ export function renderStats(
 
   renderMetricChips(ctx, poses, romData, config);
   renderMobilityGeometry(ctx, poses, config, currentFrameIndex);
-  
-  // Render global overlays
-  renderGlobalOverlays(ctx, config);
 } 

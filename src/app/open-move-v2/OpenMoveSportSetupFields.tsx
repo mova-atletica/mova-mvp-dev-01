@@ -121,10 +121,64 @@ function PopoverMenuItem({
   );
 }
 
+const tipClass = "text-[10px] leading-snug text-[color:var(--muted)]";
+
+/** Exercise filming tip — shown under Upload in the embedded mini-app rail. */
+export function OpenMoveSportSetupTip({
+  sportAnalysisKind,
+}: {
+  sportAnalysisKind: SportAnalysisKind;
+}) {
+  if (sportAnalysisKind === "cycling") {
+    return (
+      <p className={tipClass}>
+        Film from the side. We analyze <strong className="text-[color:var(--foreground)]">both</strong>{" "}
+        bottom-of-stroke (trough) and top-of-stroke (peak) from the selected knee.
+      </p>
+    );
+  }
+  if (sportAnalysisKind === "pullups") {
+    return (
+      <p className={tipClass}>
+        Keep your arms fully visible. We combine{" "}
+        <strong className="text-[color:var(--foreground)]">left and right</strong> elbow angles to count
+        reps.
+      </p>
+    );
+  }
+  if (sportAnalysisKind === "plank") {
+    return (
+      <p className={tipClass}>
+        Turn so the <strong className="text-[color:var(--foreground)]">selected side</strong> faces the
+        camera.
+      </p>
+    );
+  }
+  if (sportAnalysisKind === "squat") {
+    return (
+      <p className={tipClass}>
+        Side-view squat: the selected knee drives rep count and depth.
+      </p>
+    );
+  }
+  return (
+    <p className={tipClass}>
+      Side-view clip. Flexibility metrics use the selected focus areas.
+    </p>
+  );
+}
+
+/** True when the sport needs side/leg/focus controls before Analyze. */
+export function sportHasSetupControls(sportAnalysisKind: SportAnalysisKind): boolean {
+  return sportAnalysisKind !== "pullups";
+}
+
 export interface OpenMoveSportSetupFieldsProps {
   sportAnalysisKind: SportAnalysisKind;
   /** Native selects in modal — avoids Radix Dialog + portaled Popover conflicts. */
   embedded?: boolean;
+  /** Skip tip copy (tip is rendered separately under Upload in embedded mini-apps). */
+  hideTip?: boolean;
   cyclingLeg: CyclingLeg;
   cyclingKneeMenuOpen: boolean;
   onCyclingKneeMenuOpenChange: (open: boolean) => void;
@@ -148,6 +202,7 @@ export interface OpenMoveSportSetupFieldsProps {
 export default function OpenMoveSportSetupFields({
   sportAnalysisKind,
   embedded = false,
+  hideTip = false,
   cyclingLeg,
   cyclingKneeMenuOpen,
   onCyclingKneeMenuOpenChange,
@@ -167,6 +222,8 @@ export default function OpenMoveSportSetupFields({
   poseFlexibilityFocusAreas,
   onTogglePoseFlexibilityFocusArea,
 }: OpenMoveSportSetupFieldsProps) {
+  const tip = hideTip ? null : <OpenMoveSportSetupTip sportAnalysisKind={sportAnalysisKind} />;
+
   if (sportAnalysisKind === "cycling") {
     return (
       <>
@@ -206,21 +263,13 @@ export default function OpenMoveSportSetupFields({
             </PopoverMenuItem>
           </PopoverSideSelect>
         )}
-        <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-          Film from the side. We analyze <strong className="text-[color:var(--foreground)]">both</strong>{" "}
-          bottom-of-stroke (trough) and top-of-stroke (peak) from the selected knee.
-        </p>
+        {tip}
       </>
     );
   }
 
   if (sportAnalysisKind === "pullups") {
-    return (
-      <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-        Keep your arms fully visible. We combine <strong className="text-[color:var(--foreground)]">left and right</strong>{" "}
-        elbow angles to count reps.
-      </p>
-    );
+    return tip;
   }
 
   if (sportAnalysisKind === "plank") {
@@ -262,9 +311,7 @@ export default function OpenMoveSportSetupFields({
             </PopoverMenuItem>
           </PopoverSideSelect>
         )}
-        <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-          Turn so the <strong className="text-[color:var(--foreground)]">selected side</strong> faces the camera.
-        </p>
+        {tip}
       </>
     );
   }
@@ -308,9 +355,7 @@ export default function OpenMoveSportSetupFields({
             </PopoverMenuItem>
           </PopoverSideSelect>
         )}
-        <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-          Side-view squat: the selected knee drives rep count and depth.
-        </p>
+        {tip}
       </>
     );
   }
@@ -381,9 +426,7 @@ export default function OpenMoveSportSetupFields({
           })}
         </div>
       </div>
-      <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-        Side-view clip. Flexibility metrics use the selected focus areas.
-      </p>
+      {tip}
     </>
   );
 }

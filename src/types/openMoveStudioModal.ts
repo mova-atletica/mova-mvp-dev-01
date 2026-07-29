@@ -10,6 +10,12 @@ export type OpenMoveStudioModalTarget =
       kind: SportAnalysisKind;
       analysisTitle: string;
       setupHint: string;
+    }
+  | {
+      /** Account Activity → embedded Studio with saved video/analysis. */
+      type: "hydrate";
+      activityId: string;
+      title?: string;
     };
 
 export function openMoveModalTargetFromMiniApp(app: MiniApp): OpenMoveStudioModalTarget | null {
@@ -30,5 +36,6 @@ export function openMoveModalTargetFromMiniApp(app: MiniApp): OpenMoveStudioModa
 export function openMoveModalTitle(target: OpenMoveStudioModalTarget | null): string {
   if (!target) return "Open Movement Viz";
   if (target.type === "studio") return "Open Movement Viz";
+  if (target.type === "hydrate") return target.title?.trim() || "Open Movement Viz";
   return target.analysisTitle;
 }

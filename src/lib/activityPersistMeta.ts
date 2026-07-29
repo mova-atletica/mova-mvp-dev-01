@@ -11,7 +11,10 @@ export interface ActivityPersistAnalysisMeta {
   sportAnalysisKind?: SportAnalysisKind | null;
   /** Matching sport analysis result object (plank / squat / pullups / …). */
   sportAnalysis?: unknown | null;
+  /** Technical source label (filename / Live recording) — stored as subtitle. */
   sessionLabel?: string | null;
+  /** User-facing session name — stored as activity title for Open Movement Viz. */
+  sessionTitle?: string | null;
 }
 
 export type QuickAnalysisCompleteHandler = (

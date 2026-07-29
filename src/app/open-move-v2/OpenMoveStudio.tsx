@@ -63,12 +63,18 @@ import AppMegaMenu from "../../components/AppMegaMenu";
 import { buildLeaderboardScorePayload } from "../../lib/leaderboardScore";
 import { ProgramModalCloseButton } from "../../components/exercise-studio/ExerciseStudioProgramControls";
 import { openMoveSessionHasActiveWork } from "../../lib/openMoveSession";
+import { defaultOpenMoveSessionTitle } from "../../lib/openMoveSessionTitle";
 import {
   ARCHIVE_RAIL_WIDTH_COLLAPSED,
   archiveCollapsedRailControlClass,
 } from "../../components/archive/archiveRailTheme";
-import OpenMoveSportSetupFields from "./OpenMoveSportSetupFields";
+import OpenMoveSportSetupFields, {
+  OpenMoveSportSetupTip,
+  sportHasSetupControls,
+} from "./OpenMoveSportSetupFields";
 import { EmbeddedModalPopoverProvider } from "../../contexts/EmbeddedModalPopoverContext";
+import { useAccount } from "../../contexts/MockAuthContext";
+import type { LeaderboardScorePayload } from "../../types/account";
 import {
   getSportAnalysisLabel,
   type OpenMoveStudioProps,
@@ -345,34 +351,77 @@ export default function OpenMoveStudio({
   analysisSlug,
   onQuickAnalysisComplete,
   onStudioSessionPersist,
+  initialHydration = null,
 }: OpenMoveStudioProps = {}) {
   const isQuickAnalysis = mode === "quickAnalysis";
+  const isHydrated = Boolean(initialHydration);
   const embeddedQuickAnalysis = embedded && isQuickAnalysis;
   const portalLayers = openMovePortalLayers(embedded);
-  const skipFeaturedSample = embedded && !isQuickAnalysis;
+  const skipFeaturedSample = (embedded && !isQuickAnalysis) || isHydrated;
   const deferRailUntilVideo = skipFeaturedSample || embeddedQuickAnalysis;
   const [session, setSession] = useState<SessionState>(() => {
+    if (initialHydration) {
+      return {
+        status: "ready",
+        videoUrl: initialHydration.videoUrl,
+        videoSources: null,
+        poses: initialHydration.poses,
+        angles: initialHydration.angles,
+        frameIntervalSec: initialHydration.frameIntervalSec,
+        sessionLabel: initialHydration.sessionLabel,
+        source: "upload",
+      };
+    }
     if (isQuickAnalysis) return idleSession;
     if (skipFeaturedSample) return embeddedStudioIdleSession;
     return initialSession;
   });
   const sessionVideoUrlRef = useRef<string | null>(session.videoUrl);
   sessionVideoUrlRef.current = session.videoUrl;
-  const studioPersistKeyRef = useRef<string | null>(null);
+  const studioPersistKeyRef = useRef<string | null>(
+    initialHydration
+      ? `${initialHydration.videoUrl}:${initialHydration.poses.length}:${initialHydration.frameIntervalSec}`
+      : null
+  );
   const railVisible = !deferRailUntilVideo || session.status !== "idle";
   /** MVP sport analysis (cleared when a new clip is processed). */
-  const [cyclingAnalysisResult, setCyclingAnalysisResult] = useState<CyclingDualAnalysisResult | null>(null);
+  const [cyclingAnalysisResult, setCyclingAnalysisResult] = useState<CyclingDualAnalysisResult | null>(
+    () =>
+      initialHydration?.sportAnalysisKind === "cycling"
+        ? (initialHydration.sportAnalysis as CyclingDualAnalysisResult | null)
+        : null
+  );
   const [cyclingAnalysisError, setCyclingAnalysisError] = useState<string | null>(null);
-  const [pullUpsAnalysisResult, setPullUpsAnalysisResult] = useState<PullUpsAnalysisResult | null>(null);
+  const [pullUpsAnalysisResult, setPullUpsAnalysisResult] = useState<PullUpsAnalysisResult | null>(
+    () =>
+      initialHydration?.sportAnalysisKind === "pullups"
+        ? (initialHydration.sportAnalysis as PullUpsAnalysisResult | null)
+        : null
+  );
   const [pullUpsAnalysisError, setPullUpsAnalysisError] = useState<string | null>(null);
-  const [plankAnalysisResult, setPlankAnalysisResult] = useState<PlankAnalysisResult | null>(null);
+  const [plankAnalysisResult, setPlankAnalysisResult] = useState<PlankAnalysisResult | null>(() =>
+    initialHydration?.sportAnalysisKind === "plank"
+      ? (initialHydration.sportAnalysis as PlankAnalysisResult | null)
+      : null
+  );
   const [plankAnalysisError, setPlankAnalysisError] = useState<string | null>(null);
-  const [squatAnalysisResult, setSquatAnalysisResult] = useState<SquatAnalysisResult | null>(null);
+  const [squatAnalysisResult, setSquatAnalysisResult] = useState<SquatAnalysisResult | null>(() =>
+    initialHydration?.sportAnalysisKind === "squat"
+      ? (initialHydration.sportAnalysis as SquatAnalysisResult | null)
+      : null
+  );
   const [squatAnalysisError, setSquatAnalysisError] = useState<string | null>(null);
   const [poseFlexibilityAnalysisResult, setPoseFlexibilityAnalysisResult] =
-    useState<PoseFlexibilityAnalysisResult | null>(null);
+    useState<PoseFlexibilityAnalysisResult | null>(() =>
+      initialHydration?.sportAnalysisKind === "poseFlexibility"
+        ? (initialHydration.sportAnalysis as PoseFlexibilityAnalysisResult | null)
+        : null
+    );
   const [poseFlexibilityAnalysisError, setPoseFlexibilityAnalysisError] = useState<string | null>(null);
-  const sportAnalysisKind: SportAnalysisKind = isQuickAnalysis ? initialSport : "cycling";
+  const hydrateSportKind = initialHydration?.sportAnalysisKind ?? null;
+  const sportAnalysisKind: SportAnalysisKind = isQuickAnalysis
+    ? initialSport
+    : hydrateSportKind ?? "cycling";
   const [cyclingLeg, setCyclingLeg] = useState<CyclingLeg>("left");
   const [cyclingKneeMenuOpen, setCyclingKneeMenuOpen] = useState(false);
   const [plankFacingSide, setPlankFacingSide] = useState<PlankFacingSide>("left");
@@ -385,9 +434,33 @@ export default function OpenMoveStudio({
     "hips",
     "torso",
   ]);
-  const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [hasAnalyzed, setHasAnalyzed] = useState(() => isHydrated);
   const [lastAnalyzedSetup, setLastAnalyzedSetup] = useState<AnalyzedSetupSnapshot | null>(null);
-  const [panelOpen, setPanelOpen] = useState(() => !deferRailUntilVideo);
+  const [panelOpen, setPanelOpen] = useState(() => !deferRailUntilVideo || isHydrated);
+  const [namePrompt, setNamePrompt] = useState<{
+    draft: string;
+    pendingKey: string;
+    pending: {
+      videoUrl: string | null;
+      angles: NonNullable<SessionState["angles"]>;
+      poses: any[];
+      frameIntervalSec: number;
+      sessionLabel: string | null;
+    };
+  } | null>(null);
+  const [savedSessionTitle, setSavedSessionTitle] = useState<string | null>(
+    () => initialHydration?.headerTitle ?? null
+  );
+  /** Mini-app score ready to post from the left rail (replaces auto modal). */
+  const [leaderboardScore, setLeaderboardScore] = useState<LeaderboardScorePayload | null>(null);
+  const [leaderboardPosted, setLeaderboardPosted] = useState(false);
+  const {
+    isAuthenticated,
+    canPostToLeaderboard,
+    submitLeaderboardScore,
+    openSignIn,
+    openOnboarding,
+  } = useAccount();
   const [isDesktop, setIsDesktop] = useState(false);
   const [viewportResolved, setViewportResolved] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -633,6 +706,7 @@ export default function OpenMoveStudio({
   ]);
 
   useEffect(() => {
+    if (isHydrated) return;
     let cancelled = false;
     (async () => {
       try {
@@ -648,7 +722,7 @@ export default function OpenMoveStudio({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isHydrated]);
 
   const onAnalyticsDrawerWidthTransitionEnd = useCallback(
     (e: React.TransitionEvent<HTMLDivElement>) => {
@@ -692,7 +766,7 @@ export default function OpenMoveStudio({
   const showAnalyzeButton =
     embeddedQuickAnalysis &&
     sessionHasVideo &&
-    (!hasAnalyzed || setupChangedFromLastAnalyze);
+    !hasAnalyzed;
 
 
   const clearSportAnalysisResults = useCallback(() => {
@@ -706,6 +780,8 @@ export default function OpenMoveStudio({
     setSquatAnalysisError(null);
     setPoseFlexibilityAnalysisResult(null);
     setPoseFlexibilityAnalysisError(null);
+    setLeaderboardScore(null);
+    setLeaderboardPosted(false);
   }, []);
 
   const applySportAnalysisFromData = useCallback(
@@ -715,15 +791,24 @@ export default function OpenMoveStudio({
       frameIntervalSec: number,
       setup: AnalyzedSetupSnapshot
     ) => {
+      setLeaderboardScore(null);
+      setLeaderboardPosted(false);
+
       const emitQuickComplete = (
         kind: SportAnalysisKind,
         sportAnalysis: unknown,
         scoreBuilder: () => ReturnType<typeof buildLeaderboardScorePayload>
       ) => {
-        if (!isQuickAnalysis || !analysisSlug || !onQuickAnalysisComplete) return;
+        if (!isQuickAnalysis || !analysisSlug) return;
         const payload = scoreBuilder();
-        if (!payload) return;
-        onQuickAnalysisComplete(payload, {
+        if (!payload) {
+          setLeaderboardScore(null);
+          setLeaderboardPosted(false);
+          return;
+        }
+        setLeaderboardScore(payload);
+        setLeaderboardPosted(false);
+        onQuickAnalysisComplete?.(payload, {
           videoUrl: sessionVideoUrlRef.current,
           angles,
           poses,
@@ -838,6 +923,28 @@ export default function OpenMoveStudio({
     [sportAnalysisKind, isQuickAnalysis, analysisSlug, onQuickAnalysisComplete]
   );
 
+  const postLeaderboardFromRail = useCallback(() => {
+    if (!leaderboardScore || leaderboardPosted) return;
+    if (!isAuthenticated) {
+      openSignIn();
+      return;
+    }
+    if (!canPostToLeaderboard) {
+      openOnboarding();
+      return;
+    }
+    submitLeaderboardScore(leaderboardScore);
+    setLeaderboardPosted(true);
+  }, [
+    leaderboardScore,
+    leaderboardPosted,
+    isAuthenticated,
+    canPostToLeaderboard,
+    openSignIn,
+    openOnboarding,
+    submitLeaderboardScore,
+  ]);
+
   const persistStudioSessionIfNeeded = useCallback(
     (
       angles: NonNullable<SessionState["angles"]>,
@@ -849,17 +956,49 @@ export default function OpenMoveStudio({
       if (isQuickAnalysis || !onStudioSessionPersist) return;
       const key = `${videoUrl ?? ""}:${poses.length}:${frameIntervalSec}`;
       if (studioPersistKeyRef.current === key) return;
-      studioPersistKeyRef.current = key;
-      onStudioSessionPersist({
-        videoUrl,
-        angles,
-        poses,
-        frameIntervalSec,
-        sessionLabel,
+      setNamePrompt({
+        draft: defaultOpenMoveSessionTitle(),
+        pendingKey: key,
+        pending: {
+          videoUrl,
+          angles,
+          poses,
+          frameIntervalSec,
+          sessionLabel,
+        },
       });
+      setPanelOpen(true);
     },
     [isQuickAnalysis, onStudioSessionPersist]
   );
+
+  const dismissNamePrompt = useCallback(() => {
+    setNamePrompt((current) => {
+      if (!current || !onStudioSessionPersist) return null;
+      studioPersistKeyRef.current = current.pendingKey;
+      const title = defaultOpenMoveSessionTitle();
+      onStudioSessionPersist({
+        ...current.pending,
+        sessionTitle: title,
+      });
+      setSavedSessionTitle(title);
+      return null;
+    });
+  }, [onStudioSessionPersist]);
+
+  const confirmNamePrompt = useCallback(() => {
+    setNamePrompt((current) => {
+      if (!current || !onStudioSessionPersist) return null;
+      studioPersistKeyRef.current = current.pendingKey;
+      const title = current.draft.trim() || defaultOpenMoveSessionTitle();
+      onStudioSessionPersist({
+        ...current.pending,
+        sessionTitle: title,
+      });
+      setSavedSessionTitle(title);
+      return null;
+    });
+  }, [onStudioSessionPersist]);
 
   const attachVideoClip = useCallback(
     (videoUrl: string, label: string, source: SessionState["source"]) => {
@@ -867,6 +1006,8 @@ export default function OpenMoveStudio({
       setHasAnalyzed(false);
       setLastAnalyzedSetup(null);
       studioPersistKeyRef.current = null;
+      setSavedSessionTitle(null);
+      setNamePrompt(null);
       setSession({
         status: "clip_ready",
         videoUrl,
@@ -1006,6 +1147,8 @@ export default function OpenMoveStudio({
       setSquatAnalysisError(null);
       setPoseFlexibilityAnalysisResult(null);
       setPoseFlexibilityAnalysisError(null);
+      setSavedSessionTitle(null);
+      setNamePrompt(null);
       setSession({
         status: "ready",
         videoUrl,
@@ -1199,6 +1342,7 @@ export default function OpenMoveStudio({
   const sportSetupFields = (
     <OpenMoveSportSetupFields
       embedded={embedded}
+      hideTip={embeddedQuickAnalysis}
       sportAnalysisKind={sportAnalysisKind}
       cyclingLeg={cyclingLeg}
       cyclingKneeMenuOpen={cyclingKneeMenuOpen}
@@ -1308,14 +1452,21 @@ export default function OpenMoveStudio({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <h1 className="font-light uppercase tracking-wider text-[color:var(--muted-foreground)]" style={{ fontSize: "18px" }}>
-                {isQuickAnalysis ? analysisTitle ?? getSportAnalysisLabel(sportAnalysisKind) : "Open Movement Viz"}
+                {isHydrated
+                  ? initialHydration?.headerTitle || "Open Movement Viz"
+                  : savedSessionTitle
+                    ? savedSessionTitle
+                    : isQuickAnalysis
+                      ? analysisTitle ?? getSportAnalysisLabel(sportAnalysisKind)
+                      : "Open Movement Viz"}
               </h1>
               <p className="mt-0 text-xs font-normal leading-relaxed text-[color:var(--muted)]">
-                {embeddedQuickAnalysis ? (
-                  <>
-                    {setupHint ? `${setupHint}. ` : null}
-                    Upload or record a clip, then choose your setup and analyze.
-                  </>
+                {isHydrated ? (
+                  <>Add overlays and export this session.</>
+                ) : savedSessionTitle ? (
+                  <>Saved to Activity. Add overlays and export when ready.</>
+                ) : embeddedQuickAnalysis ? (
+                  <>Upload or record a clip, then analyze.</>
                 ) : isQuickAnalysis ? (
                   <>
                     {setupHint ? `${setupHint}. ` : null}
@@ -1354,12 +1505,64 @@ export default function OpenMoveStudio({
             </div>
           </div>
 
+          {namePrompt ? (
+            <div style={borderTopTheme} className="space-y-2 pt-2">
+              <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                Name this session
+              </p>
+              <p className="text-[10px] leading-snug text-[color:var(--muted)]">
+                Shown on your Account Activity list so you can find it later.
+              </p>
+              <input
+                type="text"
+                value={namePrompt.draft}
+                onChange={(event) =>
+                  setNamePrompt((current) =>
+                    current ? { ...current, draft: event.target.value } : current
+                  )
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    confirmNamePrompt();
+                  }
+                }}
+                autoFocus
+                className="w-full rounded-lg px-3 py-2 text-sm text-[color:var(--foreground)] outline-none"
+                style={{
+                  border: "1px solid var(--border-secondary)",
+                  backgroundColor: "var(--background)",
+                }}
+                aria-label="Session name"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={dismissNamePrompt}
+                  style={borderAllTheme}
+                  className="rounded-lg px-3 py-2 text-xs font-medium text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_8%,transparent)]"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmNamePrompt}
+                  className="rounded-lg px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                  style={{ background: "var(--accent,#3b82f6)" }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           {embeddedQuickAnalysis ? (
             <>
               <div style={borderTopTheme} className="space-y-2 pt-2">
                 <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                   1. Upload or record video
                 </p>
+                <OpenMoveSportSetupTip sportAnalysisKind={sportAnalysisKind} />
                 {uploadRecordButtons}
                 {session.sessionLabel ? (
                   <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
@@ -1368,7 +1571,7 @@ export default function OpenMoveStudio({
                   </p>
                 ) : null}
               </div>
-              {sessionHasVideo ? (
+              {sessionHasVideo && !hasAnalyzed && sportHasSetupControls(sportAnalysisKind) ? (
                 <div style={borderTopTheme} className="space-y-2 pt-2">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                     2. Setup
@@ -1396,7 +1599,48 @@ export default function OpenMoveStudio({
                     }
                     className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent,#3b82f6)] px-3 py-2.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                   >
-                    {hasAnalyzed && setupChangedFromLastAnalyze ? "Re-analyze" : "Analyze"}
+                    Analyze
+                  </button>
+                </div>
+              ) : null}
+              {leaderboardScore && hasAnalyzed ? (
+                <div style={borderTopTheme} className="space-y-2 pt-2">
+                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                    Post to leaderboard
+                  </p>
+                  <p className="text-[10px] leading-snug text-[color:var(--muted)]">
+                    {leaderboardScore.sportTitle}:{" "}
+                    <span className="font-medium text-[color:var(--foreground)]">
+                      {leaderboardScore.formattedScore}
+                    </span>{" "}
+                    ({leaderboardScore.metricLabel})
+                  </p>
+                  <button
+                    type="button"
+                    onClick={postLeaderboardFromRail}
+                    disabled={leaderboardPosted}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-medium transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60"
+                    style={
+                      leaderboardPosted
+                        ? {
+                            border: "1px solid var(--border-secondary)",
+                            color: "var(--muted-foreground)",
+                            backgroundColor: "transparent",
+                          }
+                        : {
+                            background: "var(--primary-button-bg)",
+                            color: "var(--primary-button-text)",
+                            border: "2px solid var(--primary-button-border)",
+                          }
+                    }
+                  >
+                    {leaderboardPosted
+                      ? "Posted to leaderboard"
+                      : !isAuthenticated
+                        ? "Sign in to post"
+                        : !canPostToLeaderboard
+                          ? "Complete profile"
+                          : "Post to leaderboard"}
                   </button>
                 </div>
               ) : null}
@@ -1412,18 +1656,20 @@ export default function OpenMoveStudio({
                 </div>
               ) : null}
 
-              <div style={borderTopTheme} className="space-y-2 pt-2">
-                <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                  {isQuickAnalysis ? "2. Upload or record video" : "1. Upload or record video"}
-                </p>
-                {uploadRecordButtons}
-                {session.sessionLabel ? (
-                  <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
-                    <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
-                    {session.sessionLabel}
+              {!isHydrated ? (
+                <div style={borderTopTheme} className="space-y-2 pt-2">
+                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                    {isQuickAnalysis ? "2. Upload or record video" : "1. Upload or record video"}
                   </p>
-                ) : null}
-              </div>
+                  {uploadRecordButtons}
+                  {session.sessionLabel ? (
+                    <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
+                      <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
+                      {session.sessionLabel}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </>
           )}
         </div>
@@ -1502,11 +1748,13 @@ export default function OpenMoveStudio({
               <p
                 className={`mb-0 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)] ${isQuickAnalysis && !embeddedQuickAnalysis ? "mt-6" : ""}`}
               >
-                {isQuickAnalysis
-                  ? embeddedQuickAnalysis
-                    ? "3. Movement Visualization"
-                    : "4. Movement Visualization"
-                  : "2. Movement Visualization"}
+                {isHydrated
+                  ? "1. Movement Visualization"
+                  : isQuickAnalysis
+                    ? embeddedQuickAnalysis
+                      ? "2. Movement Visualization"
+                      : "4. Movement Visualization"
+                    : "2. Movement Visualization"}
               </p>
               <StudioPanelChrome scrollContainer="passthrough" />
             </div>
@@ -1517,22 +1765,27 @@ export default function OpenMoveStudio({
     </div>
   );
 
-  const sportAnalysisPanelProps = isQuickAnalysis
-    ? {
-        enableSportAnalysisTab: true as const,
-        sportAnalysisKind,
-        cyclingAnalysisResult,
-        cyclingAnalysisError,
-        pullUpsAnalysisResult,
-        pullUpsAnalysisError,
-        plankAnalysisResult,
-        plankAnalysisError,
-        squatAnalysisResult,
-        squatAnalysisError,
-        poseFlexibilityAnalysisResult,
-        poseFlexibilityAnalysisError,
-      }
-    : { enableSportAnalysisTab: false as const };
+  const showHydratedSportTab = Boolean(
+    isHydrated && initialHydration?.sportAnalysis && hydrateSportKind
+  );
+
+  const sportAnalysisPanelProps =
+    isQuickAnalysis || showHydratedSportTab
+      ? {
+          enableSportAnalysisTab: true as const,
+          sportAnalysisKind,
+          cyclingAnalysisResult,
+          cyclingAnalysisError,
+          pullUpsAnalysisResult,
+          pullUpsAnalysisError,
+          plankAnalysisResult,
+          plankAnalysisError,
+          squatAnalysisResult,
+          squatAnalysisError,
+          poseFlexibilityAnalysisResult,
+          poseFlexibilityAnalysisError,
+        }
+      : { enableSportAnalysisTab: false as const };
 
   return (
     <EmbeddedModalPopoverProvider embeddedInModal={embedded}>
@@ -2101,6 +2354,7 @@ export default function OpenMoveStudio({
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
       </div>
     </div>
     </ConditionalEngineBridge>

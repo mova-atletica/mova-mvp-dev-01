@@ -1,10 +1,10 @@
 import type { SportAnalysisKind } from "../lib/sportAnalysis/pullUpsTypes";
-import type { LeaderboardScorePayload } from "./account";
 import type {
   ActivityPersistAnalysisMeta,
   QuickAnalysisCompleteHandler,
   StudioSessionPersistHandler,
 } from "../lib/activityPersistMeta";
+import type { OpenMoveActivityHydration } from "../lib/loadActivityHydration";
 
 /** `default` — motion visualization only (Open Movement Viz). `quickAnalysis` — locked sport analysis mini apps. */
 export type OpenMoveStudioMode = "default" | "quickAnalysis";
@@ -27,9 +27,19 @@ export interface OpenMoveStudioProps {
   onQuickAnalysisComplete?: QuickAnalysisCompleteHandler;
   /** Open Movement Viz: persist angles/poses when a clip finishes processing. */
   onStudioSessionPersist?: StudioSessionPersistHandler;
+  /**
+   * Account Activity hydrate — seed a ready session (video + poses + angles).
+   * Skips MoveNet warm-up; do not pass onStudioSessionPersist for this path.
+   */
+  initialHydration?: OpenMoveActivityHydration | null;
 }
 
-export type { ActivityPersistAnalysisMeta, QuickAnalysisCompleteHandler, StudioSessionPersistHandler };
+export type {
+  ActivityPersistAnalysisMeta,
+  QuickAnalysisCompleteHandler,
+  StudioSessionPersistHandler,
+  OpenMoveActivityHydration,
+};
 
 export function getSportAnalysisLabel(kind: SportAnalysisKind): string {
   switch (kind) {

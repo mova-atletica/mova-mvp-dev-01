@@ -16,6 +16,7 @@ import {
   uploadActivityVideo,
 } from "./activitySessions";
 import { encodeVideoBlobTo720p, fetchBlobFromUrl } from "./encodeVideo720p";
+import { defaultOpenMoveSessionTitle } from "./openMoveSessionTitle";
 
 async function attachPosesAndMaybeVideo(
   supabase: SupabaseClient,
@@ -126,10 +127,13 @@ export async function persistOpenMoveStudioActivitySession(
 ): Promise<{ activityId: string | null; error: string | null }> {
   const { userId, meta, hasProAccess } = opts;
   const label = meta.sessionLabel?.trim() || "Open Movement Viz session";
+  const title =
+    meta.sessionTitle?.trim() ||
+    defaultOpenMoveSessionTitle();
   const { data: activity, error } = await createActivitySession(supabase, {
     userId,
     kind: "studio",
-    title: "Open Movement Viz",
+    title,
     subtitle: label,
     tags: ["studio"],
     frameIntervalSec: meta.frameIntervalSec ?? null,

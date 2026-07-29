@@ -6,6 +6,12 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Loader2 } from "lucide-react";
 import type { OpenMoveStudioModalTarget } from "../../types/openMoveStudioModal";
 import { openMoveModalTitle } from "../../types/openMoveStudioModal";
+import type { QuickAnalysisCompleteHandler, StudioSessionPersistHandler } from "../../types/openMoveStudio";
+import {
+  loadActivityHydration,
+  type OpenMoveActivityHydration,
+} from "../../lib/loadActivityHydration";
+import { createClient } from "../../lib/supabase/client";
 
 const OpenMoveStudio = dynamic(() => import("../../app/open-move-v2/OpenMoveStudio"), {
   ssr: false,
@@ -29,8 +35,6 @@ function isEmbeddedModalPortaledLayer(target: EventTarget | null): boolean {
   );
 }
 
-import type { QuickAnalysisCompleteHandler, StudioSessionPersistHandler } from "../../types/openMoveStudio";
-
 interface OpenMoveStudioModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -48,12 +52,47 @@ export default function OpenMoveStudioModal({
 }: OpenMoveStudioModalProps) {
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [hydration, setHydration] = useState<OpenMoveActivityHydration | null>(null);
+  const [hydrateLoading, setHydrateLoading] = useState(false);
+  const [hydrateError, setHydrateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setHasActiveSession(false);
       setCloseConfirmOpen(false);
     }
+  }, [open, target]);
+
+  useEffect(() => {
+    if (!open || target?.type !== "hydrate") {
+      setHydration(null);
+      setHydrateLoading(false);
+      setHydrateError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setHydrateLoading(true);
+    setHydrateError(null);
+    setHydration(null);
+    const supabase = createClient();
+
+    void (async () => {
+      const { data, error } = await loadActivityHydration(supabase, target.activityId);
+      if (cancelled) return;
+      if (error || !data) {
+        setHydrateError(error ?? "Failed to load session");
+        setHydration(null);
+      } else {
+        setHydration(data);
+        setHydrateError(null);
+      }
+      setHydrateLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, target]);
 
   const requestClose = useCallback(() => {
@@ -113,6 +152,7 @@ export default function OpenMoveStudioModal({
 
   const modalTitle = openMoveModalTitle(target);
   const isAnalysis = target?.type === "analysis";
+  const isHydrate = target?.type === "hydrate";
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
@@ -135,7 +175,39 @@ export default function OpenMoveStudioModal({
         >
           <Dialog.Title className="sr-only">{modalTitle}</Dialog.Title>
 
-          {open && target ? (
+          {open && target && isHydrate ? (
+            hydrateLoading ? (
+              <div className="flex h-full min-h-0 flex-1 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-[color:var(--muted-foreground)]" />
+              </div>
+            ) : hydrateError || !hydration ? (
+              <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6">
+                <p className="max-w-sm text-center text-sm text-[color:var(--muted-foreground)]">
+                  {hydrateError ?? "Could not open this session."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  className="rounded-lg px-4 py-2 text-xs font-medium text-[color:var(--foreground)]"
+                  style={borderAllTheme}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <OpenMoveStudio
+                key={hydration.activityId}
+                embedded
+                embeddedCloseConfirmOpen={closeConfirmOpen}
+                onClose={requestClose}
+                onActiveSessionChange={handleActiveSessionChange}
+                mode="default"
+                initialHydration={hydration}
+              />
+            )
+          ) : null}
+
+          {open && target && !isHydrate ? (
             <OpenMoveStudio
               embedded
               embeddedCloseConfirmOpen={closeConfirmOpen}
@@ -183,7 +255,9 @@ export default function OpenMoveStudioModal({
                     id="open-move-close-confirm-desc"
                     className="mt-2 text-xs leading-relaxed text-[color:var(--muted-foreground)]"
                   >
-                    Your current clip and progress will be discarded.
+                    {isHydrate
+                      ? "You can reopen this session anytime from Activity."
+                      : "Your current clip and progress will be discarded."}
                   </p>
                   <div className="mt-8 flex justify-end gap-3">
                     <button

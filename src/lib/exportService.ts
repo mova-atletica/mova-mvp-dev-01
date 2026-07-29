@@ -252,7 +252,6 @@ async function renderEffectsToCanvas(
         case 'range-of-motion':
         case 'metrics-chips':
         case 'mobility-geometry':
-        case 'exercise-details':
           renderStats(
             ctx,
             video,
@@ -290,19 +289,6 @@ async function renderEffectsToCanvas(
       
       // Render muybridge with effects applied to each frame
       await renderMuybridgeFromCanvas(ctx, video, poses, muybridgeEffect.config, video.currentTime, true, effectRenderer, config.videoVisibility);
-      
-      // Render exercise-details once over the entire canvas (not in individual tiles)
-      const exerciseDetailsEffect = activeEffects.find(e => e.effect.id === 'exercise-details' && e.enabled);
-      if (exerciseDetailsEffect) {
-        renderStats(
-          ctx,
-          video,
-          poses,
-          { ...exerciseDetailsEffect.config, ...sharedStatsSnapshot, isExport: true },
-          video.currentTime,
-          true
-        ); // isExport = true
-      }
     }
   
   return canvas;
@@ -486,20 +472,6 @@ async function exportAsVideo(
           effectRenderer,
           config.videoVisibility
         );
-
-        const exerciseDetailsEffect = activeEffects.find(
-          (e) => e.effect.id === 'exercise-details' && e.enabled
-        );
-        if (exerciseDetailsEffect) {
-          renderStats(
-            ctx,
-            video,
-            poses,
-            { ...exerciseDetailsEffect.config, ...sharedStatsSnapshot, isExport: true },
-            frameTime,
-            true
-          );
-        }
       };
       
       const renderFrame = async () => {
@@ -675,7 +647,6 @@ async function exportAsVideo(
               case 'range-of-motion':
               case 'metrics-chips':
               case 'mobility-geometry':
-              case 'exercise-details':
                 renderStats(
                   ctx,
                   video,

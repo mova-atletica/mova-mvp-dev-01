@@ -353,7 +353,6 @@ export default function AssetGenerationModal({
         angleSize: 18,
         showROM: false,
         romJoints: [],
-        showGlobalStats: false,
         safeZoneEnabled: true,
         labelBg: 'glass',
         labelBgColor: '#ffffff',
@@ -369,7 +368,6 @@ export default function AssetGenerationModal({
         romDisplayStyle: 'min_max',
         romColor: '#ff6b35',
         angleSize: 16,
-        showGlobalStats: false,
         safeZoneEnabled: false,
         labelBg: 'glass',
         labelBgColor: '#ffffff',
@@ -646,7 +644,7 @@ export default function AssetGenerationModal({
                   }
                 }
                 
-                // Then apply stats effects last (foreground effects) - but exclude exercise-details from tiles
+                // Then apply stats effects last (foreground effects)
                 for (const effect of activeEffects) {
                   if (!effect.enabled || effect.effect.id === 'muybridge') continue;
                   
@@ -667,12 +665,6 @@ export default function AssetGenerationModal({
               
               // Render muybridge with effects applied to each frame (now synchronous)
               effectModulesRef.current.renderMuybridgeFromCanvas(ctx, video, poses, muybridgeEffect.config, currentTime, false, effectRenderer, videoVisibility);
-              
-              // Render exercise-details once over the entire canvas (not in individual tiles)
-              const exerciseDetailsEffect = activeEffects.find(e => e.effect.id === 'exercise-details' && e.enabled);
-              if (exerciseDetailsEffect && effectModulesRef.current.renderStats) {
-                effectModulesRef.current.renderStats(ctx, video, poses, exerciseDetailsEffect.config, currentTime);
-              }
             } catch (error) {
               console.warn('Failed to render muybridge effect:', error);
             }

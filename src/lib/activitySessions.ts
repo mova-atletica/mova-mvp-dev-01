@@ -223,6 +223,23 @@ export async function updateActivitySessionAnalysis(
   return { error: error?.message ?? null };
 }
 
+export async function updateActivitySessionTitle(
+  supabase: SupabaseClient,
+  sessionId: string,
+  title: string
+): Promise<{ error: string | null }> {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    return { error: "Title is required" };
+  }
+  const { error } = await supabase
+    .from("activity_sessions")
+    .update({ title: trimmed })
+    .eq("id", sessionId);
+
+  return { error: error?.message ?? null };
+}
+
 export function activityVideoObjectPath(
   userId: string,
   sessionId: string,

@@ -28,7 +28,6 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
   useMockTierQueryParam();
   const router = useRouter();
   const {
-    queueLeaderboardSave,
     requestStudioAccess,
     isAuthenticated,
     profile,
@@ -66,8 +65,7 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
 
   const handleQuickAnalysisComplete = useCallback(
     (score: LeaderboardScorePayload, meta?: ActivityPersistAnalysisMeta) => {
-      queueLeaderboardSave(score);
-
+      // Leaderboard post is offered on the Studio left rail (not an auto modal).
       if (!isAuthenticated || !profile) return;
 
       const supabase = createClient();
@@ -80,7 +78,7 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
         if (error) console.error("Failed to save activity session", error);
       });
     },
-    [queueLeaderboardSave, isAuthenticated, profile, hasProAccess]
+    [isAuthenticated, profile, hasProAccess]
   );
 
   const handleStudioSessionPersist = useCallback(
