@@ -38,6 +38,11 @@ export default function AssetVideoPlayerStage({
   }
 
   const { videoRef, canvasRef, overlayRef, containerRef, setIsPlaying } = engine;
+  const primarySrc = videoSources?.length ? videoSources[0]?.src : videoUrl;
+  const needsCors =
+    Boolean(primarySrc) &&
+    !primarySrc.startsWith("blob:") &&
+    !primarySrc.startsWith("data:");
 
   return (
     <div
@@ -64,6 +69,9 @@ export default function AssetVideoPlayerStage({
     >
       <video
         ref={videoRef}
+        // Signed Storage URLs need this before src so canvas export can read pixels.
+        // Skip for blob:/data: (local analyze) — avoids unnecessary CORS mode.
+        crossOrigin={needsCors ? "anonymous" : undefined}
         src={videoSources?.length ? undefined : videoUrl}
         style={{
           display: "block",

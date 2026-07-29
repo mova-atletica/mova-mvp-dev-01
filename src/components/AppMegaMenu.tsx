@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as Popover from "@radix-ui/react-popover";
-import { Clapperboard, Home, LayoutDashboard, Lock, MoreVertical, User } from "lucide-react";
+import { Clapperboard, Home, Lock, MoreVertical, User } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAccount } from "../contexts/MockAuthContext";
 import { EffectSelectedCheckIcon } from "../app/motion-explore/EffectSelectedCheckIcon";
@@ -86,19 +86,13 @@ export default function AppMegaMenu({
 }: AppMegaMenuProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, profile, requestStudioAccess, openSignIn, hasCoachAccess } =
-    useAccount();
+  const { isAuthenticated, profile, openSignIn, hasCoachAccess } = useAccount();
   const isArchiveHome = pathname === "/";
-  const isStudioHome =
-    pathname === "/open-move-v2" || pathname.startsWith("/open-move-v2/");
   const isCoachStudioHome =
     pathname === "/coach-studio" || pathname.startsWith("/coach-studio/");
 
   const archiveItemClass = `flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs ${menuTextClass} ${
     isArchiveHome ? "bg-[color:var(--mega-menu-active-bg)]" : menuItemHoverClass
-  }`;
-  const studioItemClass = `mt-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs ${menuTextClass} ${
-    isStudioHome ? "bg-[color:var(--mega-menu-active-bg)]" : menuItemHoverClass
   }`;
   const coachStudioItemClass = hasCoachAccess
     ? `mt-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left font-normal text-xs ${menuTextClass} ${
@@ -155,19 +149,6 @@ export default function AppMegaMenu({
               </span>
             ) : null}
           </Link>
-          <button
-            type="button"
-            onClick={() => requestStudioAccess(() => router.push("/open-move-v2"))}
-            className={studioItemClass}
-          >
-            <LayoutDashboard className="h-3 w-3" />
-            <span>Open Movement Viz</span>
-            {isStudioHome ? (
-              <span className="ml-auto flex shrink-0 items-center justify-center text-[var(--accent,#3b82f6)]">
-                <EffectSelectedCheckIcon className="scale-[0.85]" />
-              </span>
-            ) : null}
-          </button>
           {hasCoachAccess ? (
             <button
               type="button"

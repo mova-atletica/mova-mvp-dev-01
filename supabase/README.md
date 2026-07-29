@@ -60,7 +60,7 @@ If you see `Could not find auth user for tresbradley`, check **Authentication â†
 ## Notes
 
 - Free users still get **metrics + analysis JSON** activity rows; **video** upload is blocked by Storage RLS unless `tier` is `pro` or `partner`. Poses JSON upload is allowed for all authenticated users.
-- Mini apps: no duration cap; Pro video is re-encoded toward **720p ~1.5 Mbps** when practical.
-- Open Movement Viz / Coach Studio: existing **30s** caps; no extra compress in this pass.
+- Mini apps: no duration cap; Pro Activity video is stored as the **original** clip (no 720p re-encode) so pose overlays stay aligned on reopen.
+- Open Movement Viz / Coach Studio: existing **30s** caps.
 - Re-running the seed deletes prior `is_seed` rows for that user / public LB seeds, then re-inserts.
 - Seed / mock rows without `angles` + sport analysis are intentionally non-clickable.

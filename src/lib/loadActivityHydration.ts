@@ -18,6 +18,7 @@ export interface OpenMoveActivityHydration {
   headerTitle: string;
   sportAnalysisKind: SportAnalysisKind | null;
   sportAnalysis: unknown | null;
+  visualConfig?: import("./visualOverlayPreset").VisualOverlayPreset | null;
 }
 
 function formatHydrationHeaderTitle(
@@ -99,6 +100,7 @@ export async function loadActivityHydration(
       headerTitle: formatHydrationHeaderTitle(activity.title, activity.metricValue),
       sportAnalysisKind: asSportKind(activity.sportAnalysisKind ?? activity.sportSlug),
       sportAnalysis: activity.sportAnalysis ?? null,
+      visualConfig: activity.visualConfig ?? null,
     },
     error: null,
   };

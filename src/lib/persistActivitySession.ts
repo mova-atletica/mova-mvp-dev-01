@@ -15,8 +15,17 @@ import {
   uploadActivityPoses,
   uploadActivityVideo,
 } from "./activitySessions";
-import { encodeVideoBlobTo720p, fetchBlobFromUrl } from "./encodeVideo720p";
+import { fetchBlobFromUrl, getVideoBlobDurationMs } from "./encodeVideo720p";
 import { defaultOpenMoveSessionTitle } from "./openMoveSessionTitle";
+
+function extensionForVideoBlob(blob: Blob, sourceUrl: string): string {
+  const type = blob.type || "";
+  if (type.includes("mp4") || type.includes("quicktime")) return "mp4";
+  if (type.includes("webm")) return "webm";
+  const path = sourceUrl.split("?")[0]?.toLowerCase() ?? "";
+  if (path.endsWith(".mp4") || path.endsWith(".mov")) return "mp4";
+  return "webm";
+}
 
 async function attachPosesAndMaybeVideo(
   supabase: SupabaseClient,
@@ -46,18 +55,20 @@ async function attachPosesAndMaybeVideo(
     }
   }
 
+  // Free: poses + angles only. Pro: store the original clip (no 720p re-encode)
+  // so Activity reopen keeps pose/video resolution aligned.
   if (!hasProAccess || !meta.videoUrl) return;
 
   try {
     const raw = await fetchBlobFromUrl(meta.videoUrl);
     if (!raw) return;
-    const encoded = await encodeVideoBlobTo720p(raw);
-    const contentType = encoded.blob.type || "video/webm";
-    const extension = contentType.includes("mp4") ? "mp4" : "webm";
+    const contentType = raw.type || "video/webm";
+    const extension = extensionForVideoBlob(raw, meta.videoUrl);
+    const durationMs = await getVideoBlobDurationMs(raw);
     const { path, error: uploadError } = await uploadActivityVideo(supabase, {
       userId,
       sessionId,
-      file: encoded.blob,
+      file: raw,
       contentType,
       extension,
     });
@@ -67,7 +78,7 @@ async function attachPosesAndMaybeVideo(
     }
     await updateActivitySessionVideo(supabase, sessionId, {
       videoPath: path,
-      videoDurationMs: encoded.durationMs || null,
+      videoDurationMs: durationMs,
     });
   } catch (err) {
     console.error("Pro video save failed", err);
@@ -99,6 +110,7 @@ export async function persistMiniAppActivitySession(
     frameIntervalSec: meta?.frameIntervalSec ?? null,
     angles: meta?.angles ?? null,
     sportAnalysis: meta?.sportAnalysis ?? null,
+    visualConfig: meta?.visualConfig ?? null,
   });
 
   if (error || !activity) {
@@ -138,6 +150,7 @@ export async function persistOpenMoveStudioActivitySession(
     tags: ["studio"],
     frameIntervalSec: meta.frameIntervalSec ?? null,
     angles: meta.angles ?? null,
+    visualConfig: meta.visualConfig ?? null,
   });
 
   if (error || !activity) {

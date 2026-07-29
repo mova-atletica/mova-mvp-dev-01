@@ -5,6 +5,8 @@ import type {
   AccountActivityKind,
   SessionMovementMetrics,
 } from "../types/accountActivity";
+import type { VisualOverlayPreset } from "./visualOverlayPreset";
+import { parseVisualOverlayPreset } from "./visualOverlayPreset";
 
 export const ACTIVITY_SESSIONS_BUCKET = "activity-sessions";
 
@@ -26,6 +28,7 @@ export interface ActivitySessionRow {
   frame_interval_sec: number | null;
   angles: OpenMoveAngleSeries | null;
   sport_analysis: unknown | null;
+  visual_config: VisualOverlayPreset | null;
   poses_path: string | null;
   coach_session_id: string | null;
   is_seed: boolean;
@@ -35,7 +38,7 @@ export interface ActivitySessionRow {
 }
 
 export const ACTIVITY_SESSION_SELECT =
-  "id, user_id, kind, title, subtitle, sport_slug, tags, metric_label, metric_value_text, metric_numeric, metrics, video_path, video_duration_ms, sport_analysis_kind, frame_interval_sec, angles, sport_analysis, poses_path, coach_session_id, is_seed, occurred_at, created_at, updated_at";
+  "id, user_id, kind, title, subtitle, sport_slug, tags, metric_label, metric_value_text, metric_numeric, metrics, video_path, video_duration_ms, sport_analysis_kind, frame_interval_sec, angles, sport_analysis, visual_config, poses_path, coach_session_id, is_seed, occurred_at, created_at, updated_at";
 
 function hasReplayPayload(row: ActivitySessionRow): boolean {
   if (row.coach_session_id) return true;
@@ -71,6 +74,7 @@ export function mapActivitySessionRow(row: ActivitySessionRow): AccountActivityI
     isSeed: row.is_seed,
     angles: row.angles,
     sportAnalysis: row.sport_analysis,
+    visualConfig: parseVisualOverlayPreset(row.visual_config),
   };
 }
 
@@ -91,6 +95,7 @@ export interface CreateActivitySessionInput {
   frameIntervalSec?: number | null;
   angles?: OpenMoveAngleSeries | null;
   sportAnalysis?: unknown | null;
+  visualConfig?: VisualOverlayPreset | null;
   posesPath?: string | null;
   coachSessionId?: string | null;
   occurredAt?: string;
@@ -164,6 +169,7 @@ export async function createActivitySession(
     frame_interval_sec: input.frameIntervalSec ?? null,
     angles: input.angles ?? null,
     sport_analysis: input.sportAnalysis ?? null,
+    visual_config: input.visualConfig ?? null,
     poses_path: input.posesPath ?? null,
     coach_session_id: input.coachSessionId ?? null,
     is_seed: input.isSeed ?? false,
@@ -218,6 +224,19 @@ export async function updateActivitySessionAnalysis(
       frame_interval_sec: opts.frameIntervalSec ?? null,
       poses_path: opts.posesPath ?? null,
     })
+    .eq("id", sessionId);
+
+  return { error: error?.message ?? null };
+}
+
+export async function updateActivitySessionVisualConfig(
+  supabase: SupabaseClient,
+  sessionId: string,
+  visualConfig: VisualOverlayPreset | null
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from("activity_sessions")
+    .update({ visual_config: visualConfig })
     .eq("id", sessionId);
 
   return { error: error?.message ?? null };

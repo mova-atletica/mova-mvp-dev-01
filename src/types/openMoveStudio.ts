@@ -3,6 +3,7 @@ import type {
   ActivityPersistAnalysisMeta,
   QuickAnalysisCompleteHandler,
   StudioSessionPersistHandler,
+  StudioSessionPersistResult,
 } from "../lib/activityPersistMeta";
 import type { OpenMoveActivityHydration } from "../lib/loadActivityHydration";
 
@@ -38,6 +39,7 @@ export type {
   ActivityPersistAnalysisMeta,
   QuickAnalysisCompleteHandler,
   StudioSessionPersistHandler,
+  StudioSessionPersistResult,
   OpenMoveActivityHydration,
 };
 

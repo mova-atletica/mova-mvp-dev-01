@@ -82,16 +82,20 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
   );
 
   const handleStudioSessionPersist = useCallback(
-    (meta: ActivityPersistAnalysisMeta) => {
-      if (!isAuthenticated || !profile) return;
+    async (meta: ActivityPersistAnalysisMeta) => {
+      if (!isAuthenticated || !profile) {
+        return { activityId: null, error: "Not signed in" };
+      }
       const supabase = createClient();
-      void persistOpenMoveStudioActivitySession(supabase, {
+      const result = await persistOpenMoveStudioActivitySession(supabase, {
         userId: profile.id,
         meta,
         hasProAccess,
-      }).then(({ error }) => {
-        if (error) console.error("Failed to save Open Movement Viz session", error);
       });
+      if (result.error) {
+        console.error("Failed to save Open Movement Viz session", result.error);
+      }
+      return result;
     },
     [isAuthenticated, profile, hasProAccess]
   );

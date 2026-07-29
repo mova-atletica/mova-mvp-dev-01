@@ -79,6 +79,12 @@ import {
   getSportAnalysisLabel,
   type OpenMoveStudioProps,
 } from "../../types/openMoveStudio";
+import type { VisualOverlayPreset } from "../../lib/visualOverlayPreset";
+import {
+  defaultOpenMoveVisualOverlayPreset,
+  hydrateVisualOverlayPreset,
+} from "../../lib/visualOverlayPreset";
+import { VisualOverlayConfigActions } from "../motion-explore/VisualOverlayConfigActions";
 
 /** Inline theme borders — `var(--border)` from ThemeContext; avoids Tailwind v4 not emitting `.border-border-theme`. */
 const borderRightTheme = { borderRight: "1px solid var(--border)" } as const;
@@ -207,11 +213,13 @@ function AssetVideoSessionBridge({
   session,
   sportAnalysisKind,
   sportMetricsSnapshot,
+  initialVisualConfig = null,
   children,
 }: {
   session: SessionState & { status: "ready"; videoUrl: string };
   sportAnalysisKind: SportAnalysisKind;
   sportMetricsSnapshot: SportMetricsSnapshot | null;
+  initialVisualConfig?: VisualOverlayPreset | null;
   children: React.ReactNode;
 }) {
   const engine = useAssetVideoEngine({
@@ -221,6 +229,16 @@ function AssetVideoSessionBridge({
     sportAnalysisKind,
     sportMetricsSnapshot,
   });
+  const hydratedVisualRef = useRef(false);
+
+  useEffect(() => {
+    if (hydratedVisualRef.current || !initialVisualConfig) return;
+    const effects = hydrateVisualOverlayPreset(initialVisualConfig);
+    if (effects.length === 0) return;
+    hydratedVisualRef.current = true;
+    engine.setActiveEffects(effects);
+  }, [engine, initialVisualConfig]);
+
   return <AssetVideoEngineProvider engine={engine}>{children}</AssetVideoEngineProvider>;
 }
 
@@ -230,12 +248,14 @@ function ConditionalEngineBridge({
   sportAnalysisKind,
   sportMetricsSnapshot,
   showVideoEngine,
+  initialVisualConfig = null,
   children,
 }: {
   session: SessionState;
   sportAnalysisKind: SportAnalysisKind;
   sportMetricsSnapshot: SportMetricsSnapshot | null;
   showVideoEngine: boolean;
+  initialVisualConfig?: VisualOverlayPreset | null;
   children: React.ReactNode;
 }) {
   if (
@@ -249,6 +269,7 @@ function ConditionalEngineBridge({
         session={session as SessionState & { status: "ready"; videoUrl: string }}
         sportAnalysisKind={sportAnalysisKind}
         sportMetricsSnapshot={sportMetricsSnapshot}
+        initialVisualConfig={initialVisualConfig}
       >
         {children}
       </AssetVideoSessionBridge>
@@ -448,8 +469,16 @@ export default function OpenMoveStudio({
       sessionLabel: string | null;
     };
   } | null>(null);
+  const namePromptRef = useRef(namePrompt);
+  namePromptRef.current = namePrompt;
   const [savedSessionTitle, setSavedSessionTitle] = useState<string | null>(
     () => initialHydration?.headerTitle ?? null
+  );
+  const [savedActivityId, setSavedActivityId] = useState<string | null>(
+    () => initialHydration?.activityId ?? null
+  );
+  const visualConfigRef = useRef<VisualOverlayPreset | null>(
+    initialHydration?.visualConfig ?? null
   );
   /** Mini-app score ready to post from the left rail (replaces auto modal). */
   const [leaderboardScore, setLeaderboardScore] = useState<LeaderboardScorePayload | null>(null);
@@ -815,6 +844,7 @@ export default function OpenMoveStudio({
           frameIntervalSec,
           sportAnalysisKind: kind,
           sportAnalysis,
+          visualConfig: visualConfigRef.current ?? defaultOpenMoveVisualOverlayPreset(),
         });
       };
 
@@ -972,33 +1002,43 @@ export default function OpenMoveStudio({
     [isQuickAnalysis, onStudioSessionPersist]
   );
 
-  const dismissNamePrompt = useCallback(() => {
-    setNamePrompt((current) => {
-      if (!current || !onStudioSessionPersist) return null;
+  const commitNamePrompt = useCallback(
+    (title: string) => {
+      const current = namePromptRef.current;
+      if (!current || !onStudioSessionPersist) {
+        setNamePrompt(null);
+        return;
+      }
+      // Guard double-submit / Strict Mode duplicate creates.
+      if (studioPersistKeyRef.current === current.pendingKey) {
+        setNamePrompt(null);
+        return;
+      }
       studioPersistKeyRef.current = current.pendingKey;
-      const title = defaultOpenMoveSessionTitle();
-      onStudioSessionPersist({
+      setNamePrompt(null);
+      setSavedSessionTitle(title);
+      const result = onStudioSessionPersist({
         ...current.pending,
         sessionTitle: title,
+        visualConfig: visualConfigRef.current ?? defaultOpenMoveVisualOverlayPreset(),
       });
-      setSavedSessionTitle(title);
-      return null;
-    });
-  }, [onStudioSessionPersist]);
+      void Promise.resolve(result).then((res) => {
+        if (res && "activityId" in res && res.activityId) {
+          setSavedActivityId(res.activityId);
+        }
+      });
+    },
+    [onStudioSessionPersist]
+  );
+
+  const dismissNamePrompt = useCallback(() => {
+    commitNamePrompt(defaultOpenMoveSessionTitle());
+  }, [commitNamePrompt]);
 
   const confirmNamePrompt = useCallback(() => {
-    setNamePrompt((current) => {
-      if (!current || !onStudioSessionPersist) return null;
-      studioPersistKeyRef.current = current.pendingKey;
-      const title = current.draft.trim() || defaultOpenMoveSessionTitle();
-      onStudioSessionPersist({
-        ...current.pending,
-        sessionTitle: title,
-      });
-      setSavedSessionTitle(title);
-      return null;
-    });
-  }, [onStudioSessionPersist]);
+    const draft = namePromptRef.current?.draft.trim();
+    commitNamePrompt(draft || defaultOpenMoveSessionTitle());
+  }, [commitNamePrompt]);
 
   const attachVideoClip = useCallback(
     (videoUrl: string, label: string, source: SessionState["source"]) => {
@@ -1007,6 +1047,8 @@ export default function OpenMoveStudio({
       setLastAnalyzedSetup(null);
       studioPersistKeyRef.current = null;
       setSavedSessionTitle(null);
+      setSavedActivityId(null);
+      visualConfigRef.current = null;
       setNamePrompt(null);
       setSession({
         status: "clip_ready",
@@ -1745,17 +1787,23 @@ export default function OpenMoveStudio({
                   ) : null}
                 </div>
               ) : null}
-              <p
-                className={`mb-0 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)] ${isQuickAnalysis && !embeddedQuickAnalysis ? "mt-6" : ""}`}
+              <div
+                className={`mb-0 flex items-start justify-between gap-2 ${isQuickAnalysis && !embeddedQuickAnalysis ? "mt-6" : ""}`}
               >
-                {isHydrated
-                  ? "1. Movement Visualization"
-                  : isQuickAnalysis
-                    ? embeddedQuickAnalysis
-                      ? "2. Movement Visualization"
-                      : "4. Movement Visualization"
-                    : "2. Movement Visualization"}
-              </p>
+                <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                  {isHydrated
+                    ? "1. Movement Visualization"
+                    : isQuickAnalysis
+                      ? embeddedQuickAnalysis
+                        ? "2. Movement Visualization"
+                        : "4. Movement Visualization"
+                      : "2. Movement Visualization"}
+                </p>
+                <VisualOverlayConfigActions
+                  activityId={savedActivityId}
+                  visualConfigRef={visualConfigRef}
+                />
+              </div>
               <StudioPanelChrome scrollContainer="passthrough" />
             </div>
             <StudioRailExportFooter />
@@ -1794,6 +1842,7 @@ export default function OpenMoveStudio({
       sportAnalysisKind={sportAnalysisKind}
       sportMetricsSnapshot={overlaySportMetricsSnapshot}
       showVideoEngine={showVideoEngine}
+      initialVisualConfig={initialHydration?.visualConfig ?? null}
     >
     <div
       ref={setStudioRootRef}

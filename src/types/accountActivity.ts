@@ -42,4 +42,6 @@ export interface AccountActivityItem {
   /** Inline angles when loaded for detail modal (optional on list) */
   angles?: import("../lib/openMoveAngleSeries").OpenMoveAngleSeries | null;
   sportAnalysis?: unknown | null;
+  /** Open Move overlay preset when loaded */
+  visualConfig?: import("../lib/visualOverlayPreset").VisualOverlayPreset | null;
 }

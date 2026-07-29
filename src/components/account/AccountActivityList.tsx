@@ -398,11 +398,11 @@ function ActivityCard({
                     onClick={onActivate}
                     className="min-w-0 flex-1 cursor-pointer text-left"
                   >
-                    <ActivityCardBody item={item} clickable />
+                    <ActivityCardBody item={item} />
                   </button>
                 ) : (
                   <div className="min-w-0 flex-1">
-                    <ActivityCardBody item={item} clickable={false} />
+                    <ActivityCardBody item={item} />
                   </div>
                 )}
                 {canRename ? (
@@ -425,13 +425,7 @@ function ActivityCard({
   );
 }
 
-function ActivityCardBody({
-  item,
-  clickable,
-}: {
-  item: AccountActivityItem;
-  clickable: boolean;
-}) {
+function ActivityCardBody({ item }: { item: AccountActivityItem }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
@@ -451,9 +445,6 @@ function ActivityCardBody({
             · {item.metricLabel}:{" "}
             <span className="font-medium text-[color:var(--foreground)]">{item.metricValue}</span>
           </span>
-        ) : null}
-        {clickable ? (
-          <span className="font-medium text-[color:var(--primary)]">· Open</span>
         ) : null}
       </div>
     </>
