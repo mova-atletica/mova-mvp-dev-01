@@ -19,7 +19,8 @@ export function useAccountActivityFeed(): {
 } {
   const { isAuthenticated, profile } = useAccount();
   const [items, setItems] = useState<AccountActivityItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  /** True until the first authenticated fetch settles (avoids empty-state flash). */
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 

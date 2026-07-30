@@ -2,7 +2,46 @@
  * Derives per-frame joint angle arrays from MoveNet pose frames.
  * Matches Open Move Studio processing so MotionAnalysisPanel charts stay consistent.
  */
-import { getAngleWithConfidence } from './analysisUtils';
+import {
+  POSE_CONF_MIN,
+  getAngleWithConfidence,
+  getTrunkAngleWithConfidence,
+} from './analysisUtils';
+
+type Keypoint = { x: number; y: number; score?: number };
+
+/** Angle only when the contributing keypoints were tracked confidently. */
+function gatedAngle(res: { angle: number; confidence: number }): number | null {
+  if (res.confidence < POSE_CONF_MIN) return null;
+  return Number.isFinite(res.angle) ? res.angle : null;
+}
+
+/**
+ * Trunk lean measured from the shoulder and hip midpoints, where 180° is an
+ * upright torso. Each midpoint is scored by its weaker endpoint so a single
+ * occluded shoulder or hip drops the frame rather than skewing the line.
+ */
+function trunkAngle(kp: Keypoint[]): { angle: number; confidence: number } {
+  const leftShoulder = kp[5];
+  const rightShoulder = kp[6];
+  const leftHip = kp[11];
+  const rightHip = kp[12];
+  if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) {
+    return { angle: 0, confidence: 0 };
+  }
+  return getTrunkAngleWithConfidence(
+    {
+      x: (leftShoulder.x + rightShoulder.x) / 2,
+      y: (leftShoulder.y + rightShoulder.y) / 2,
+      score: Math.min(leftShoulder.score ?? 0, rightShoulder.score ?? 0),
+    },
+    {
+      x: (leftHip.x + rightHip.x) / 2,
+      y: (leftHip.y + rightHip.y) / 2,
+      score: Math.min(leftHip.score ?? 0, rightHip.score ?? 0),
+    }
+  );
+}
 
 export type OpenMoveAngleSeries = {
   leftKneeAngles: (number | null)[];
@@ -49,26 +88,16 @@ export function computeAngleSeriesFromOpenMovePoses(poses: any[]): OpenMoveAngle
 
     const kp = pose.keypoints;
 
-    const leftKneeAngle = getAngleWithConfidence(kp[11], kp[13], kp[15]).angle;
-    const rightKneeAngle = getAngleWithConfidence(kp[12], kp[14], kp[16]).angle;
+    out.leftKneeAngles.push(gatedAngle(getAngleWithConfidence(kp[11], kp[13], kp[15])));
+    out.rightKneeAngles.push(gatedAngle(getAngleWithConfidence(kp[12], kp[14], kp[16])));
     // Hip flexion at hip: shoulder–hip–knee (same convention as PracticeTab / results reference angles).
-    const leftHipAngle = getAngleWithConfidence(kp[5], kp[11], kp[13]).angle;
-    const rightHipAngle = getAngleWithConfidence(kp[6], kp[12], kp[14]).angle;
-    const leftElbowAngle = getAngleWithConfidence(kp[5], kp[7], kp[9]).angle;
-    const rightElbowAngle = getAngleWithConfidence(kp[6], kp[8], kp[10]).angle;
-    const leftShoulderAbdAngle = getAngleWithConfidence(kp[11], kp[5], kp[7]).angle;
-    const rightShoulderAbdAngle = getAngleWithConfidence(kp[12], kp[6], kp[8]).angle;
-    const trunkAngle = getAngleWithConfidence(kp[11], kp[12], kp[23]).angle;
-
-    out.leftKneeAngles.push(leftKneeAngle);
-    out.rightKneeAngles.push(rightKneeAngle);
-    out.leftHipAngles.push(leftHipAngle);
-    out.rightHipAngles.push(rightHipAngle);
-    out.leftElbowAngles.push(leftElbowAngle);
-    out.rightElbowAngles.push(rightElbowAngle);
-    out.leftShoulderAbdAngles.push(leftShoulderAbdAngle);
-    out.rightShoulderAbdAngles.push(rightShoulderAbdAngle);
-    out.trunkAngles.push(trunkAngle);
+    out.leftHipAngles.push(gatedAngle(getAngleWithConfidence(kp[5], kp[11], kp[13])));
+    out.rightHipAngles.push(gatedAngle(getAngleWithConfidence(kp[6], kp[12], kp[14])));
+    out.leftElbowAngles.push(gatedAngle(getAngleWithConfidence(kp[5], kp[7], kp[9])));
+    out.rightElbowAngles.push(gatedAngle(getAngleWithConfidence(kp[6], kp[8], kp[10])));
+    out.leftShoulderAbdAngles.push(gatedAngle(getAngleWithConfidence(kp[11], kp[5], kp[7])));
+    out.rightShoulderAbdAngles.push(gatedAngle(getAngleWithConfidence(kp[12], kp[6], kp[8])));
+    out.trunkAngles.push(gatedAngle(trunkAngle(kp)));
   }
 
   return out;

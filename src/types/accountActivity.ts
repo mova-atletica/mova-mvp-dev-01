@@ -1,21 +1,17 @@
 export type AccountActivityKind = "studio" | "mini-app" | "program" | "coach";
 
-export type BodyRegion = "lower" | "upper" | "core";
+/** Joints derivable from `OpenMoveAngleSeries` — no ankle series exists. */
+export type MovementJoint = "knee" | "hip" | "shoulder" | "spine" | "elbow";
 
-export type MovementJoint = "knee" | "hip" | "shoulder" | "spine" | "ankle" | "elbow";
-
+/** Measured from a session's tracked joint angles — see `deriveSessionMovementMetrics`. */
 export interface SessionMovementMetrics {
-  /** 0–100 overall form / pattern match */
-  formScore: number;
-  /** Average ROM across primary joints (degrees) */
+  /** Mean ROM across tracked joints (degrees) */
   avgRomDegrees: number;
-  /** Peak ROM in session (degrees) */
+  /** Largest single-joint ROM in the session (degrees) */
   peakRomDegrees: number;
-  /** 0–100 left/right balance */
-  symmetryScore: number;
-  /** Relative emphasis per body region (should sum ~1) */
-  bodyFocus: Record<BodyRegion, number>;
-  /** Peak or avg ROM per joint when tracked */
+  /** 0–100 left/right balance; null when no paired joint was tracked */
+  symmetryScore: number | null;
+  /** Peak ROM per joint; omits joints without usable tracking */
   jointRom: Partial<Record<MovementJoint, number>>;
 }
 

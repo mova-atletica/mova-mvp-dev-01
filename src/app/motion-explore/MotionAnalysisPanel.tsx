@@ -27,8 +27,10 @@ import type {
 import InfoTooltip from "../../components/InfoTooltip";
 import {
   DISPLAY_ANGLE_SMOOTH_PRESET,
+  hasMeasuredSamples,
   smoothOpenMoveAngleSeries,
 } from "../../lib/angleSeriesSmoothing";
+import { angleSeriesStats, pairSymmetryScore } from "../../lib/sessionMovementMetrics";
 import { useOptionalAssetVideoEngine } from "./assetVideoEngineContext";
 
 interface MotionAnalysisPanelProps {
@@ -242,37 +244,36 @@ export default function MotionAnalysisPanel({
     const totalFrames = poses.length;
     const validFrames = poses.filter(pose => pose && pose.keypoints && pose.keypoints.length > 0).length;
     
-    // Calculate range of motion for each joint
-    const calculateROM = (angleArray: number[]) => {
-      const validAngles = angleArray.filter((angle) => Number.isFinite(angle));
-      if (validAngles.length === 0) return { min: 0, max: 0, range: 0, avg: 0 };
-      
-      const min = Math.min(...validAngles);
-      const max = Math.max(...validAngles);
-      const range = max - min;
-      const avg = validAngles.reduce((sum, angle) => sum + angle, 0) / validAngles.length;
-      
-      return { min, max, range, avg };
-    };
+    /**
+     * Null for joints the detector never resolved confidently. Smoothing holds
+     * edges and zero-fills an untracked series, so the raw series decides
+     * whether a joint is reportable at all.
+     */
+    const calculateROM = (raw: (number | null)[], display: number[]) =>
+      hasMeasuredSamples(raw) ? angleSeriesStats(display) : null;
 
     const jointStats = {
-      leftKnee: calculateROM(displayAngles.leftKneeAngles),
-      rightKnee: calculateROM(displayAngles.rightKneeAngles),
-      leftHip: calculateROM(displayAngles.leftHipAngles),
-      rightHip: calculateROM(displayAngles.rightHipAngles),
-      leftElbow: calculateROM(displayAngles.leftElbowAngles),
-      rightElbow: calculateROM(displayAngles.rightElbowAngles),
-      leftShoulder: calculateROM(displayAngles.leftShoulderAbdAngles),
-      rightShoulder: calculateROM(displayAngles.rightShoulderAbdAngles),
-      trunk: calculateROM(displayAngles.trunkAngles),
+      leftKnee: calculateROM(angles.leftKneeAngles, displayAngles.leftKneeAngles),
+      rightKnee: calculateROM(angles.rightKneeAngles, displayAngles.rightKneeAngles),
+      leftHip: calculateROM(angles.leftHipAngles, displayAngles.leftHipAngles),
+      rightHip: calculateROM(angles.rightHipAngles, displayAngles.rightHipAngles),
+      leftElbow: calculateROM(angles.leftElbowAngles, displayAngles.leftElbowAngles),
+      rightElbow: calculateROM(angles.rightElbowAngles, displayAngles.rightElbowAngles),
+      leftShoulder: calculateROM(
+        angles.leftShoulderAbdAngles,
+        displayAngles.leftShoulderAbdAngles
+      ),
+      rightShoulder: calculateROM(
+        angles.rightShoulderAbdAngles,
+        displayAngles.rightShoulderAbdAngles
+      ),
+      trunk: calculateROM(angles.trunkAngles, displayAngles.trunkAngles),
     };
 
-    // Calculate symmetry (left vs right)
-    const calculateSymmetry = (left: any, right: any) => {
-      if (left.avg === 0 || right.avg === 0) return 0;
-      const diff = Math.abs(left.avg - right.avg);
-      return Math.max(0, 100 - (diff / Math.max(left.avg, right.avg)) * 100);
-    };
+    const calculateSymmetry = (
+      left: { avg: number } | null,
+      right: { avg: number } | null
+    ) => (left && right ? pairSymmetryScore(left.avg, right.avg) : null);
 
     const symmetry = {
       knee: calculateSymmetry(jointStats.leftKnee, jointStats.rightKnee),
@@ -288,22 +289,36 @@ export default function MotionAnalysisPanel({
       jointStats,
       symmetry
     };
-  }, [poses, displayAngles]);
+  }, [poses, angles, displayAngles]);
 
-  // Prepare chart data for joint angles over time (display-smoothed, continuous lines)
+  /**
+   * Display-smoothed, continuous lines. Untracked joints stay null so an
+   * occluded limb draws nothing instead of a flat zero-filled line.
+   */
   const chartData = useMemo(() => {
+    const plotted = (raw: (number | null)[], display: number[], index: number) =>
+      hasMeasuredSamples(raw) ? display[index] : null;
+
     return poses.map((_, index) => ({
       frame: index,
-      leftKnee: displayAngles.leftKneeAngles[index],
-      rightKnee: displayAngles.rightKneeAngles[index],
-      leftHip: displayAngles.leftHipAngles[index],
-      rightHip: displayAngles.rightHipAngles[index],
-      leftElbow: displayAngles.leftElbowAngles[index],
-      rightElbow: displayAngles.rightElbowAngles[index],
-      leftShoulder: displayAngles.leftShoulderAbdAngles[index],
-      rightShoulder: displayAngles.rightShoulderAbdAngles[index],
+      leftKnee: plotted(angles.leftKneeAngles, displayAngles.leftKneeAngles, index),
+      rightKnee: plotted(angles.rightKneeAngles, displayAngles.rightKneeAngles, index),
+      leftHip: plotted(angles.leftHipAngles, displayAngles.leftHipAngles, index),
+      rightHip: plotted(angles.rightHipAngles, displayAngles.rightHipAngles, index),
+      leftElbow: plotted(angles.leftElbowAngles, displayAngles.leftElbowAngles, index),
+      rightElbow: plotted(angles.rightElbowAngles, displayAngles.rightElbowAngles, index),
+      leftShoulder: plotted(
+        angles.leftShoulderAbdAngles,
+        displayAngles.leftShoulderAbdAngles,
+        index
+      ),
+      rightShoulder: plotted(
+        angles.rightShoulderAbdAngles,
+        displayAngles.rightShoulderAbdAngles,
+        index
+      ),
     }));
-  }, [poses, displayAngles]);
+  }, [poses, angles, displayAngles]);
 
   /** Stable X tick values — depends only on series length so ticks are not recomputed every playhead step. */
   const jointChartXAxisTicks = useMemo(() => {
@@ -318,16 +333,20 @@ export default function MotionAnalysisPanel({
     return ticks;
   }, [chartData.length]);
 
-  // Prepare ROM data for bar chart
+  // ROM bars, omitting joints that were never tracked confidently.
   const romData = useMemo(() => {
-    return [
-      { joint: 'Left Knee', range: stats.jointStats.leftKnee.range, avg: stats.jointStats.leftKnee.avg },
-      { joint: 'Right Knee', range: stats.jointStats.rightKnee.range, avg: stats.jointStats.rightKnee.avg },
-      { joint: 'Left Hip', range: stats.jointStats.leftHip.range, avg: stats.jointStats.leftHip.avg },
-      { joint: 'Right Hip', range: stats.jointStats.rightHip.range, avg: stats.jointStats.rightHip.avg },
-      { joint: 'Left Elbow', range: stats.jointStats.leftElbow.range, avg: stats.jointStats.leftElbow.avg },
-      { joint: 'Right Elbow', range: stats.jointStats.rightElbow.range, avg: stats.jointStats.rightElbow.avg },
-    ];
+    const bars: { joint: string; range: number; avg: number }[] = [];
+    const add = (joint: string, data: { range: number; avg: number } | null) => {
+      if (data) bars.push({ joint, range: data.range, avg: data.avg });
+    };
+
+    add('Left Knee', stats.jointStats.leftKnee);
+    add('Right Knee', stats.jointStats.rightKnee);
+    add('Left Hip', stats.jointStats.leftHip);
+    add('Right Hip', stats.jointStats.rightHip);
+    add('Left Elbow', stats.jointStats.leftElbow);
+    add('Right Elbow', stats.jointStats.rightElbow);
+    return bars;
   }, [stats.jointStats]);
 
   // Memoize the chart mouse handlers to prevent unnecessary re-renders
@@ -1352,20 +1371,26 @@ export default function MotionAnalysisPanel({
               <span className="text-sm capitalize" style={{ color: "var(--foreground)" }}>
                 {joint}
               </span>
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-20 rounded-full h-2"
-                  style={{ backgroundColor: "color-mix(in srgb, var(--border) 65%, transparent)" }}
-                >
-                  <div
-                    className="h-2 rounded-full bg-blue-500"
-                    style={{ width: `${score}%` }}
-                  />
-                </div>
-                <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
-                  {score.toFixed(1)}%
+              {score == null ? (
+                <span className="text-sm" style={{ color: "var(--muted)" }}>
+                  Not tracked on both sides
                 </span>
-              </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-20 rounded-full h-2"
+                    style={{ backgroundColor: "color-mix(in srgb, var(--border) 65%, transparent)" }}
+                  >
+                    <div
+                      className="h-2 rounded-full bg-blue-500"
+                      style={{ width: `${score}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                    {score.toFixed(1)}%
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1607,15 +1632,21 @@ export default function MotionAnalysisPanel({
                 >
                   {joint.replace(/([A-Z])/g, " $1")}
                 </div>
-                <div
-                  className="grid grid-cols-2 gap-2 text-sm"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <div>Min: {data.min.toFixed(0)}°</div>
-                  <div>Max: {data.max.toFixed(0)}°</div>
-                  <div>Range: {data.range.toFixed(0)}°</div>
-                  <div>Avg: {data.avg.toFixed(0)}°</div>
-                </div>
+                {data ? (
+                  <div
+                    className="grid grid-cols-2 gap-2 text-sm"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    <div>Min: {data.min.toFixed(0)}°</div>
+                    <div>Max: {data.max.toFixed(0)}°</div>
+                    <div>Range: {data.range.toFixed(0)}°</div>
+                    <div>Avg: {data.avg.toFixed(0)}°</div>
+                  </div>
+                ) : (
+                  <div className="text-sm" style={{ color: "var(--muted)" }}>
+                    Not tracked in this clip
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -1,7 +1,6 @@
 import type {
   AccountActivityItem,
   AccountActivityKind,
-  BodyRegion,
   MovementJoint,
 } from "../types/accountActivity";
 
@@ -27,15 +26,8 @@ export interface ActivityMixSlice {
   count: number;
 }
 
-export interface BodyFocusSlice {
-  region: BodyRegion;
-  label: string;
-  value: number;
-}
-
 export interface MovementTrendPoint {
   weekLabel: string;
-  formScore: number | null;
   avgRom: number | null;
   symmetry: number | null;
   sessions: number;
@@ -48,7 +40,6 @@ export interface JointRomAverage {
 }
 
 export interface MovementSummaryStats {
-  avgFormScore: number;
   avgRom: number;
   avgSymmetry: number;
   sessionsWithMetrics: number;
@@ -56,18 +47,11 @@ export interface MovementSummaryStats {
 
 const GENERIC_TAGS = new Set(["studio", "program", "export-ready", "coach-studio"]);
 
-const BODY_REGION_LABELS: Record<BodyRegion, string> = {
-  lower: "Lower body",
-  upper: "Upper body",
-  core: "Core",
-};
-
 const JOINT_LABELS: Record<MovementJoint, string> = {
   knee: "Knee",
   hip: "Hip",
   shoulder: "Shoulder",
   spine: "Spine",
-  ankle: "Ankle",
   elbow: "Elbow",
 };
 
@@ -314,47 +298,28 @@ export function countRecentSessions(items: AccountActivityItem[], days = 30): nu
   return items.filter((item) => new Date(item.occurredAt).getTime() >= cutoff).length;
 }
 
+function meanOrZero(values: number[]): number {
+  if (values.length === 0) return 0;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+/** Sessions without a tracked pair have no symmetry score and are skipped. */
+function symmetryValues(items: AccountActivityItem[]): number[] {
+  return items
+    .map((item) => item.metrics?.symmetryScore)
+    .filter((value): value is number => typeof value === "number");
+}
+
 export function summarizeMovementStats(items: AccountActivityItem[]): MovementSummaryStats {
   const measured = itemsWithMetrics(items);
   if (measured.length === 0) {
-    return { avgFormScore: 0, avgRom: 0, avgSymmetry: 0, sessionsWithMetrics: 0 };
+    return { avgRom: 0, avgSymmetry: 0, sessionsWithMetrics: 0 };
   }
-  const totals = measured.reduce(
-    (acc, item) => {
-      const m = item.metrics!;
-      acc.form += m.formScore;
-      acc.rom += m.avgRomDegrees;
-      acc.symmetry += m.symmetryScore;
-      return acc;
-    },
-    { form: 0, rom: 0, symmetry: 0 }
-  );
-  const n = measured.length;
   return {
-    avgFormScore: Math.round(totals.form / n),
-    avgRom: Math.round(totals.rom / n),
-    avgSymmetry: Math.round(totals.symmetry / n),
-    sessionsWithMetrics: n,
+    avgRom: meanOrZero(measured.map((item) => item.metrics!.avgRomDegrees)),
+    avgSymmetry: meanOrZero(symmetryValues(measured)),
+    sessionsWithMetrics: measured.length,
   };
-}
-
-export function aggregateBodyFocus(items: AccountActivityItem[]): BodyFocusSlice[] {
-  const measured = itemsWithMetrics(items);
-  const totals: Record<BodyRegion, number> = { lower: 0, upper: 0, core: 0 };
-
-  for (const item of measured) {
-    const focus = item.metrics!.bodyFocus;
-    totals.lower += focus.lower;
-    totals.upper += focus.upper;
-    totals.core += focus.core;
-  }
-
-  const sum = totals.lower + totals.upper + totals.core || 1;
-  return (Object.keys(totals) as BodyRegion[]).map((region) => ({
-    region,
-    label: BODY_REGION_LABELS[region],
-    value: Math.round((totals[region] / sum) * 100),
-  }));
 }
 
 export function aggregateMovementTrends(
@@ -380,31 +345,19 @@ export function aggregateMovementTrends(
     if (weekItems.length === 0) {
       return {
         weekLabel: bucket.weekLabel,
-        formScore: null,
         avgRom: null,
         symmetry: null,
         sessions: 0,
       };
     }
 
-    const n = weekItems.length;
-    const sums = weekItems.reduce(
-      (acc, item) => {
-        const m = item.metrics!;
-        acc.form += m.formScore;
-        acc.rom += m.avgRomDegrees;
-        acc.symmetry += m.symmetryScore;
-        return acc;
-      },
-      { form: 0, rom: 0, symmetry: 0 }
-    );
+    const symmetry = symmetryValues(weekItems);
 
     return {
       weekLabel: bucket.weekLabel,
-      formScore: Math.round(sums.form / n),
-      avgRom: Math.round(sums.rom / n),
-      symmetry: Math.round(sums.symmetry / n),
-      sessions: n,
+      avgRom: meanOrZero(weekItems.map((item) => item.metrics!.avgRomDegrees)),
+      symmetry: symmetry.length > 0 ? meanOrZero(symmetry) : null,
+      sessions: weekItems.length,
     };
   });
 }
@@ -415,6 +368,8 @@ export function aggregateJointRom(items: AccountActivityItem[]): JointRomAverage
 
   for (const item of measured) {
     for (const [joint, degrees] of Object.entries(item.metrics!.jointRom)) {
+      // Older rows may carry joints we no longer derive (e.g. ankle).
+      if (!(joint in JOINT_LABELS) || typeof degrees !== "number") continue;
       const key = joint as MovementJoint;
       const prev = totals.get(key) ?? { sum: 0, count: 0 };
       totals.set(key, { sum: prev.sum + degrees, count: prev.count + 1 });

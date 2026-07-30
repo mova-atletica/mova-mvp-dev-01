@@ -20,6 +20,8 @@ export interface OpenMoveStudioProps {
   onClose?: () => void;
   /** Fired when session has work that would be lost on close. */
   onActiveSessionChange?: (active: boolean) => void;
+  /** Mini-app analysis finished but has not been saved to Activity yet. */
+  onUnsavedAnalysisChange?: (unsaved: boolean) => void;
   /** Parent close-confirm overlay is open — collapse mobile rail so confirm receives clicks. */
   embeddedCloseConfirmOpen?: boolean;
   /** Quick analysis slug for leaderboard payloads (embedded modal). */

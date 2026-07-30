@@ -32,6 +32,15 @@ function isValid(v: number | null | undefined): v is number {
   return v != null && Number.isFinite(v);
 }
 
+/**
+ * True when a joint was tracked at all. Smoothing holds edges and zero-fills a
+ * fully untracked series, so callers must check this before charting a joint or
+ * an occluded limb reads as a real flat 0°.
+ */
+export function hasMeasuredSamples(series: readonly (number | null)[] | undefined): boolean {
+  return Boolean(series?.some(isValid));
+}
+
 /** Linear fill for runs of null/NaN up to maxGap frames between valid samples. */
 function interpolateShortGaps(arr: (number | null)[], maxGap: number): (number | null)[] {
   const n = arr.length;

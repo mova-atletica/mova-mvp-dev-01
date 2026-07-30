@@ -149,15 +149,19 @@ export function OpenMoveSportSetupTip({
   if (sportAnalysisKind === "plank") {
     return (
       <p className={tipClass}>
-        Turn so the <strong className="text-[color:var(--foreground)]">selected side</strong> faces the
-        camera.
+        Pick the side of your body that is{" "}
+        <strong className="text-[color:var(--foreground)]">nearer the camera</strong> in your clip —
+        your own left or right, not the screen&apos;s. We measure hip, knee, and shoulder on that side
+        only, and the far side is hidden from the camera.
       </p>
     );
   }
   if (sportAnalysisKind === "squat") {
     return (
       <p className={tipClass}>
-        Side-view squat: the selected knee drives rep count and depth.
+        Side-view squat: the selected knee drives rep count and depth. Pick the leg{" "}
+        <strong className="text-[color:var(--foreground)]">nearer the camera</strong> — your own left
+        or right, not the screen&apos;s.
       </p>
     );
   }

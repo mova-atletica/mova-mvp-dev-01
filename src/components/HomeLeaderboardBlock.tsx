@@ -15,9 +15,9 @@ import ExportPanelSelect from "./ExportPanelSelect";
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
 const PODIUM_STYLES = [
-  { bg: "color-mix(in srgb, #eab308 18%, transparent)", ring: "#ca8a04", label: "1" },
-  { bg: "color-mix(in srgb, #94a3b8 22%, transparent)", ring: "#64748b", label: "2" },
-  { bg: "color-mix(in srgb, #d97706 18%, transparent)", ring: "#b45309", label: "3" },
+  { bg: "color-mix(in srgb, #1AAA00 21%, transparent)", ring: "#1AAA00", label: "1" },
+  { bg: "color-mix(in srgb, #118000 15%, transparent)", ring: "#118000", label: "2" },
+  { bg: "color-mix(in srgb, #085900 9%, transparent)", ring: "#085900", label: "3" },
 ] as const;
 
 interface HomeLeaderboardBlockProps {
@@ -85,7 +85,7 @@ export default function HomeLeaderboardBlock({
             )}
             <div className="min-w-0">
               <h2
-                className={`font-bold leading-tight ${isHero ? "text-sm" : "text-base sm:text-lg"}`}
+                className={`font-bold leading-tight ${isHero ? "text-md" : "text-base sm:text-lg"}`}
                 style={{ color: "var(--section-title)" }}
               >
                 Leaderboards

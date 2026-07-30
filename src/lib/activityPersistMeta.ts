@@ -20,16 +20,21 @@ export interface ActivityPersistAnalysisMeta {
   visualConfig?: VisualOverlayPreset | null;
 }
 
+export type ActivitySavePersistResult = {
+  activityId: string | null;
+  error?: string | null;
+  /** Session row saved, but part of the replay payload did not. */
+  warning?: string | null;
+};
+
+/** Legacy alias — studio and mini-app saves report the same shape. */
+export type StudioSessionPersistResult = ActivitySavePersistResult;
+
 export type QuickAnalysisCompleteHandler = (
   score: LeaderboardScorePayload,
   meta?: ActivityPersistAnalysisMeta
-) => void;
-
-export type StudioSessionPersistResult = {
-  activityId: string | null;
-  error?: string | null;
-};
+) => void | Promise<ActivitySavePersistResult | void>;
 
 export type StudioSessionPersistHandler = (
   meta: ActivityPersistAnalysisMeta
-) => void | Promise<StudioSessionPersistResult | void>;
+) => void | Promise<ActivitySavePersistResult | void>;

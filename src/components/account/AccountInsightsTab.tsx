@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  aggregateBodyFocus,
   aggregateJointRom,
   aggregateMovementTags,
   aggregateMovementTrends,
@@ -16,7 +15,6 @@ import { useAccountActivityFeed } from "../../lib/useAccountActivityFeed";
 import { useTranslations } from "../../i18n/LocaleProvider";
 import ChartTimeRangeToggle from "./ChartTimeRangeToggle";
 import {
-  BodyFocusRadar,
   ChartLegend,
   JointRomChart,
   MovementFocusChart,
@@ -26,7 +24,6 @@ import {
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
 const TREND_LEGEND = [
-  { color: "#3b82f6", labelKey: "account.insightsAvgForm" as const },
   { color: "#22c55e", labelKey: "account.insightsAvgRom" as const },
   { color: "#a855f7", labelKey: "account.insightsSymmetry" as const },
 ];
@@ -41,7 +38,6 @@ export default function AccountInsightsTab() {
     () => aggregateMovementTrends(activity, trendRange),
     [trendRange, activity]
   );
-  const bodyFocusData = useMemo(() => aggregateBodyFocus(activity), [activity]);
   const jointRomData = useMemo(() => aggregateJointRom(activity), [activity]);
   const movementData = useMemo(() => aggregateMovementTags(activity), [activity]);
 
@@ -56,14 +52,14 @@ export default function AccountInsightsTab() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatCard
-          label={t("account.insightsAvgForm")}
-          value={movementSummary.avgFormScore ? `${movementSummary.avgFormScore}` : "—"}
-          suffix={movementSummary.avgFormScore ? "/100" : undefined}
-        />
-        <StatCard
           label={t("account.insightsAvgRom")}
           value={movementSummary.avgRom ? `${movementSummary.avgRom}` : "—"}
           suffix={movementSummary.avgRom ? "°" : undefined}
+        />
+        <StatCard
+          label={t("account.insightsSymmetry")}
+          value={movementSummary.avgSymmetry ? `${movementSummary.avgSymmetry}` : "—"}
+          suffix={movementSummary.avgSymmetry ? "/100" : undefined}
         />
         <StatCard label={t("account.insightsActiveStreak")} value={String(activeStreak)} />
         <StatCard label={t("account.insightsRecentSessions")} value={String(recentSessions)} />
@@ -80,7 +76,6 @@ export default function AccountInsightsTab() {
           <MovementTrendChart
             data={trendData}
             labels={{
-              form: t("account.insightsAvgForm"),
               rom: t("account.insightsAvgRom"),
               symmetry: t("account.insightsSymmetry"),
             }}
@@ -107,21 +102,12 @@ export default function AccountInsightsTab() {
         </InsightsSection>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <InsightsSection title={t("account.insightsBodyFocus")}>
-          <p className="mb-2 text-xs text-[color:var(--muted-foreground)]">
-            {t("account.insightsBodyFocusHint")}
-          </p>
-          <BodyFocusRadar data={bodyFocusData} />
-        </InsightsSection>
-
-        <InsightsSection title={t("account.insightsMovementFocus")}>
-          <MovementFocusChart
-            data={movementData}
-            xAxisLabel={t("account.chartAxisSessions")}
-          />
-        </InsightsSection>
-      </div>
+      <InsightsSection title={t("account.insightsMovementFocus")}>
+        <p className="mb-2 text-xs text-[color:var(--muted-foreground)]">
+          {t("account.insightsMovementFocusHint")}
+        </p>
+        <MovementFocusChart data={movementData} xAxisLabel={t("account.chartAxisSessions")} />
+      </InsightsSection>
     </div>
   );
 }

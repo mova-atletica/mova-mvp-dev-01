@@ -7,7 +7,6 @@ import {
   activityKindForMiniApp,
   activitySubtitleForScore,
   activityTitleForScore,
-  metricsFromLeaderboardScore,
 } from "./activityFromScore";
 import {
   createActivitySession,
@@ -15,17 +14,19 @@ import {
   uploadActivityPoses,
   uploadActivityVideo,
 } from "./activitySessions";
-import { fetchBlobFromUrl, getVideoBlobDurationMs } from "./encodeVideo720p";
 import { defaultOpenMoveSessionTitle } from "./openMoveSessionTitle";
+import { deriveSessionMovementMetrics } from "./sessionMovementMetrics";
+import { fetchBlobFromUrl, getVideoBlobDurationMs } from "./videoBlobUtils";
 
-function extensionForVideoBlob(blob: Blob, sourceUrl: string): string {
-  const type = blob.type || "";
-  if (type.includes("mp4") || type.includes("quicktime")) return "mp4";
-  if (type.includes("webm")) return "webm";
-  const path = sourceUrl.split("?")[0]?.toLowerCase() ?? "";
-  if (path.endsWith(".mp4") || path.endsWith(".mov")) return "mp4";
-  return "webm";
+export interface PersistActivityResult {
+  activityId: string | null;
+  error: string | null;
+  /** Session saved, but part of the replay payload did not. */
+  warning: string | null;
 }
+
+const POSES_WARNING = "Analysis data could not be saved, so this session will not replay.";
+const VIDEO_WARNING = "The video could not be saved. The session was saved without it.";
 
 async function attachPosesAndMaybeVideo(
   supabase: SupabaseClient,
@@ -35,8 +36,9 @@ async function attachPosesAndMaybeVideo(
     meta: ActivityPersistAnalysisMeta;
     hasProAccess: boolean;
   }
-): Promise<void> {
+): Promise<string[]> {
   const { userId, sessionId, meta, hasProAccess } = opts;
+  const warnings: string[] = [];
 
   if (meta.poses?.length) {
     const { path, error } = await uploadActivityPoses(supabase, {
@@ -45,26 +47,32 @@ async function attachPosesAndMaybeVideo(
       poses: meta.poses,
       frameIntervalSec: meta.frameIntervalSec ?? null,
     });
-    if (error) {
+    if (error || !path) {
       console.error("Failed to upload activity poses", error);
-    } else if (path) {
-      await supabase
+      warnings.push(POSES_WARNING);
+    } else {
+      const { error: pathError } = await supabase
         .from("activity_sessions")
         .update({ poses_path: path })
         .eq("id", sessionId);
+      if (pathError) {
+        console.error("Failed to link activity poses", pathError.message);
+        warnings.push(POSES_WARNING);
+      }
     }
   }
 
-  // Free: poses + angles only. Pro: store the original clip (no 720p re-encode)
-  // so Activity reopen keeps pose/video resolution aligned.
-  if (!hasProAccess || !meta.videoUrl) return;
+  // Free tier keeps metrics and analysis; video storage is Pro only.
+  if (!hasProAccess || !meta.videoUrl) return warnings;
 
   try {
     const raw = await fetchBlobFromUrl(meta.videoUrl);
-    if (!raw) return;
+    if (!raw) {
+      warnings.push(VIDEO_WARNING);
+      return warnings;
+    }
     const contentType = raw.type || "video/webm";
-    const extension = extensionForVideoBlob(raw, meta.videoUrl);
-    const durationMs = await getVideoBlobDurationMs(raw);
+    const extension = contentType.includes("mp4") ? "mp4" : "webm";
     const { path, error: uploadError } = await uploadActivityVideo(supabase, {
       userId,
       sessionId,
@@ -74,15 +82,24 @@ async function attachPosesAndMaybeVideo(
     });
     if (uploadError || !path) {
       console.error("Failed to upload activity video", uploadError);
-      return;
+      warnings.push(VIDEO_WARNING);
+      return warnings;
     }
-    await updateActivitySessionVideo(supabase, sessionId, {
+    const durationMs = await getVideoBlobDurationMs(raw);
+    const { error: videoError } = await updateActivitySessionVideo(supabase, sessionId, {
       videoPath: path,
       videoDurationMs: durationMs,
     });
+    if (videoError) {
+      console.error("Failed to link activity video", videoError);
+      warnings.push(VIDEO_WARNING);
+    }
   } catch (err) {
     console.error("Pro video save failed", err);
+    warnings.push(VIDEO_WARNING);
   }
+
+  return warnings;
 }
 
 export async function persistMiniAppActivitySession(
@@ -93,7 +110,7 @@ export async function persistMiniAppActivitySession(
     meta?: ActivityPersistAnalysisMeta;
     hasProAccess: boolean;
   }
-): Promise<{ activityId: string | null; error: string | null }> {
+): Promise<PersistActivityResult> {
   const { userId, score, meta, hasProAccess } = opts;
   const { data: activity, error } = await createActivitySession(supabase, {
     userId,
@@ -105,7 +122,7 @@ export async function persistMiniAppActivitySession(
     metricLabel: score.metricLabel,
     metricValueText: score.formattedScore,
     metricNumeric: score.metricValue,
-    metrics: metricsFromLeaderboardScore(score),
+    metrics: deriveSessionMovementMetrics(meta?.angles),
     sportAnalysisKind: meta?.sportAnalysisKind ?? score.sportSlug,
     frameIntervalSec: meta?.frameIntervalSec ?? null,
     angles: meta?.angles ?? null,
@@ -114,19 +131,19 @@ export async function persistMiniAppActivitySession(
   });
 
   if (error || !activity) {
-    return { activityId: null, error: error ?? "Create failed" };
+    return { activityId: null, error: error ?? "Create failed", warning: null };
   }
 
-  if (meta) {
-    await attachPosesAndMaybeVideo(supabase, {
-      userId,
-      sessionId: activity.id,
-      meta,
-      hasProAccess,
-    });
-  }
+  const warnings = meta
+    ? await attachPosesAndMaybeVideo(supabase, {
+        userId,
+        sessionId: activity.id,
+        meta,
+        hasProAccess,
+      })
+    : [];
 
-  return { activityId: activity.id, error: null };
+  return { activityId: activity.id, error: null, warning: warnings[0] ?? null };
 }
 
 export async function persistOpenMoveStudioActivitySession(
@@ -136,33 +153,32 @@ export async function persistOpenMoveStudioActivitySession(
     meta: ActivityPersistAnalysisMeta;
     hasProAccess: boolean;
   }
-): Promise<{ activityId: string | null; error: string | null }> {
+): Promise<PersistActivityResult> {
   const { userId, meta, hasProAccess } = opts;
   const label = meta.sessionLabel?.trim() || "Open Movement Viz session";
-  const title =
-    meta.sessionTitle?.trim() ||
-    defaultOpenMoveSessionTitle();
+  const title = meta.sessionTitle?.trim() || defaultOpenMoveSessionTitle();
   const { data: activity, error } = await createActivitySession(supabase, {
     userId,
     kind: "studio",
     title,
     subtitle: label,
     tags: ["studio"],
+    metrics: deriveSessionMovementMetrics(meta.angles),
     frameIntervalSec: meta.frameIntervalSec ?? null,
     angles: meta.angles ?? null,
     visualConfig: meta.visualConfig ?? null,
   });
 
   if (error || !activity) {
-    return { activityId: null, error: error ?? "Create failed" };
+    return { activityId: null, error: error ?? "Create failed", warning: null };
   }
 
-  await attachPosesAndMaybeVideo(supabase, {
+  const warnings = await attachPosesAndMaybeVideo(supabase, {
     userId,
     sessionId: activity.id,
     meta,
     hasProAccess,
   });
 
-  return { activityId: activity.id, error: null };
+  return { activityId: activity.id, error: null, warning: warnings[0] ?? null };
 }

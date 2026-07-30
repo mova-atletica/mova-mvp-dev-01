@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clapperboard, LayoutDashboard, Pencil, Smartphone, Trophy } from "lucide-react";
+import { Clapperboard, LayoutDashboard, Loader2, Pencil, Smartphone, Trophy } from "lucide-react";
 import type { AccountActivityKind, AccountActivityItem } from "../../types/accountActivity";
 import {
   aggregateActivityByTimeRange,
@@ -66,7 +66,7 @@ function canRenameActivity(item: AccountActivityItem): boolean {
 export default function AccountActivityList() {
   const t = useTranslations();
   const router = useRouter();
-  const { items: sourceActivity, refresh } = useAccountActivityFeed();
+  const { items: sourceActivity, loading: activityLoading, refresh } = useAccountActivityFeed();
   const [filter, setFilter] = useState<ActivityFilter>("all");
   const [volumeRange, setVolumeRange] = useState<ChartTimeRange>("month");
   const [replayActivity, setReplayActivity] = useState<AccountActivityItem | null>(null);
@@ -188,7 +188,21 @@ export default function AccountActivityList() {
             })}
           </div>
 
-          {items.length === 0 ? (
+          {activityLoading ? (
+            <div
+              className="flex items-center justify-center rounded-xl px-4 py-12"
+              style={borderAllTheme}
+              role="status"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              <Loader2
+                className="h-6 w-6 animate-spin text-[color:var(--muted-foreground)]"
+                aria-hidden
+              />
+              <span className="sr-only">Loading activity…</span>
+            </div>
+          ) : items.length === 0 ? (
             <p
               className="rounded-xl px-4 py-8 text-center text-sm text-[color:var(--muted-foreground)]"
               style={borderAllTheme}

@@ -9,11 +9,6 @@ import {
   LineChart,
   Pie,
   PieChart,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,7 +17,6 @@ import {
 import type { AccountActivityKind } from "../../types/accountActivity";
 import type {
   ActivityMixSlice,
-  BodyFocusSlice,
   JointRomAverage,
   MovementTagCount,
   MovementTrendPoint,
@@ -265,15 +259,9 @@ export function MovementFocusChart({
   );
 }
 
-const TREND_COLORS = {
-  form: "var(--accent, #3b82f6)",
-  rom: "#22c55e",
-  symmetry: "#a855f7",
-};
-
 interface MovementTrendChartProps {
   data: MovementTrendPoint[];
-  labels: { form: string; rom: string; symmetry: string };
+  labels: { rom: string; symmetry: string };
   xAxisLabel?: string;
   yAxisLabel?: string;
 }
@@ -284,9 +272,7 @@ export function MovementTrendChart({
   xAxisLabel = "Week",
   yAxisLabel = "Score / ROM",
 }: MovementTrendChartProps) {
-  const hasData = data.some(
-    (d) => d.sessions > 0 || d.formScore != null || d.avgRom != null || d.symmetry != null
-  );
+  const hasData = data.some((d) => d.sessions > 0 || d.avgRom != null || d.symmetry != null);
   if (!hasData) {
     return (
       <p className="py-8 text-center text-xs text-[color:var(--muted-foreground)]">—</p>
@@ -296,13 +282,11 @@ export function MovementTrendChart({
   // Zero-fill empty periods so lines start at the chart edge instead of mid-span.
   const chartData = data.map((d) => ({
     weekLabel: d.weekLabel,
-    formScore: d.formScore ?? 0,
     avgRom: d.avgRom ?? 0,
     symmetry: d.symmetry ?? 0,
     sessions: d.sessions,
   }));
 
-  const formStroke = "#3b82f6";
   const romStroke = "#22c55e";
   const symmetryStroke = "#a855f7";
   const tickFill = "#94a3b8";
@@ -335,16 +319,6 @@ export function MovementTrendChart({
               <Tooltip content={<ChartTooltip />} />
               <Line
                 type="monotone"
-                dataKey="formScore"
-                name={labels.form}
-                stroke={formStroke}
-                strokeWidth={2.5}
-                dot={{ r: 3.5, fill: formStroke, strokeWidth: 0 }}
-                activeDot={{ r: 5 }}
-                isAnimationActive={false}
-              />
-              <Line
-                type="monotone"
                 dataKey="avgRom"
                 name={labels.rom}
                 stroke={romStroke}
@@ -371,48 +345,6 @@ export function MovementTrendChart({
       <p className="mt-1 text-center text-[10px] text-[color:var(--muted-foreground)]">
         {xAxisLabel}
       </p>
-    </div>
-  );
-}
-
-interface BodyFocusRadarProps {
-  data: BodyFocusSlice[];
-}
-
-export function BodyFocusRadar({ data }: BodyFocusRadarProps) {
-  const chartData = data.map((slice) => ({
-    region: slice.label,
-    focus: slice.value,
-  }));
-
-  return (
-    <div className="mx-auto -mb-2 w-full max-w-lg min-w-0" style={{ height: 300 }}>
-      <ResponsiveContainer width="100%" height={300}>
-        <RadarChart
-          cx="50%"
-          cy="48%"
-          outerRadius="78%"
-          data={chartData}
-          margin={{ top: 8, right: 24, bottom: 4, left: 24 }}
-        >
-          <PolarGrid stroke="var(--border-secondary)" />
-          <PolarAngleAxis
-            dataKey="region"
-            tick={{ fill: "var(--muted-foreground)", fontSize: 13 }}
-            tickLine={false}
-          />
-          <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-          <Radar
-            name="Focus"
-            dataKey="focus"
-            stroke="#3b82f6"
-            fill="#3b82f6"
-            fillOpacity={0.35}
-            isAnimationActive={false}
-          />
-          <Tooltip content={<ChartTooltip />} />
-        </RadarChart>
-      </ResponsiveContainer>
     </div>
   );
 }

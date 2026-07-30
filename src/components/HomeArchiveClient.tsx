@@ -64,19 +64,23 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
   );
 
   const handleQuickAnalysisComplete = useCallback(
-    (score: LeaderboardScorePayload, meta?: ActivityPersistAnalysisMeta) => {
+    async (score: LeaderboardScorePayload, meta?: ActivityPersistAnalysisMeta) => {
       // Leaderboard post is offered on the Studio left rail (not an auto modal).
-      if (!isAuthenticated || !profile) return;
+      if (!isAuthenticated || !profile) {
+        return { activityId: null };
+      }
 
       const supabase = createClient();
-      void persistMiniAppActivitySession(supabase, {
+      const result = await persistMiniAppActivitySession(supabase, {
         userId: profile.id,
         score,
         meta,
         hasProAccess,
-      }).then(({ error }) => {
-        if (error) console.error("Failed to save activity session", error);
       });
+      if (result.error) {
+        console.error("Failed to save activity session", result.error);
+      }
+      return result;
     },
     [isAuthenticated, profile, hasProAccess]
   );

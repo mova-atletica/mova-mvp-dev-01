@@ -51,6 +51,7 @@ export default function OpenMoveStudioModal({
   onStudioSessionPersist,
 }: OpenMoveStudioModalProps) {
   const [hasActiveSession, setHasActiveSession] = useState(false);
+  const [hasUnsavedAnalysis, setHasUnsavedAnalysis] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [hydration, setHydration] = useState<OpenMoveActivityHydration | null>(null);
   const [hydrateLoading, setHydrateLoading] = useState(false);
@@ -59,6 +60,7 @@ export default function OpenMoveStudioModal({
   useEffect(() => {
     if (open) {
       setHasActiveSession(false);
+      setHasUnsavedAnalysis(false);
       setCloseConfirmOpen(false);
     }
   }, [open, target]);
@@ -96,12 +98,12 @@ export default function OpenMoveStudioModal({
   }, [open, target]);
 
   const requestClose = useCallback(() => {
-    if (hasActiveSession) {
+    if (hasActiveSession || hasUnsavedAnalysis) {
       setCloseConfirmOpen(true);
       return;
     }
     onOpenChange(false);
-  }, [hasActiveSession, onOpenChange]);
+  }, [hasActiveSession, hasUnsavedAnalysis, onOpenChange]);
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
@@ -121,11 +123,16 @@ export default function OpenMoveStudioModal({
   const confirmClose = useCallback(() => {
     setCloseConfirmOpen(false);
     setHasActiveSession(false);
+    setHasUnsavedAnalysis(false);
     onOpenChange(false);
   }, [onOpenChange]);
 
   const handleActiveSessionChange = useCallback((active: boolean) => {
     setHasActiveSession(active);
+  }, []);
+
+  const handleUnsavedAnalysisChange = useCallback((unsaved: boolean) => {
+    setHasUnsavedAnalysis(unsaved);
   }, []);
 
   useEffect(() => {
@@ -213,6 +220,7 @@ export default function OpenMoveStudioModal({
               embeddedCloseConfirmOpen={closeConfirmOpen}
               onClose={requestClose}
               onActiveSessionChange={handleActiveSessionChange}
+              onUnsavedAnalysisChange={handleUnsavedAnalysisChange}
               mode={isAnalysis ? "quickAnalysis" : "default"}
               initialSport={isAnalysis ? target.kind : undefined}
               analysisTitle={isAnalysis ? target.analysisTitle : undefined}
@@ -257,7 +265,9 @@ export default function OpenMoveStudioModal({
                   >
                     {isHydrate
                       ? "You can reopen this session anytime from Activity."
-                      : "Your current clip and progress will be discarded."}
+                      : hasUnsavedAnalysis
+                        ? "This analysis has not been saved to your Activity yet, and closing will discard it."
+                        : "Your current clip and progress will be discarded."}
                   </p>
                   <div className="mt-8 flex justify-end gap-3">
                     <button

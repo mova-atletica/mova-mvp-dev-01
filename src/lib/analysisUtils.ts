@@ -1,6 +1,14 @@
 // Advanced Biomechanical Analysis Utilities
 import * as poseDetection from "@tensorflow-models/pose-detection";
 
+/**
+ * Minimum mean keypoint score for an angle to be treated as measured.
+ * MoveNet always emits all 17 keypoints, so occluded joints (common on the far
+ * side of a profile clip) arrive as low-score guesses rather than gaps. Matches
+ * the `conf_min` each sport preset tunes to.
+ */
+export const POSE_CONF_MIN = 0.25;
+
 // Enhanced angle calculation with confidence weighting
 export function getAngleWithConfidence(
   a: { x: number; y: number; score?: number },
