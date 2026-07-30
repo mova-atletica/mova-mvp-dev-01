@@ -76,11 +76,13 @@ export function getDefaultConfigForEffect(effect: Effect): Record<string, unknow
         enabledJoints: [],
         showROM: false,
         romJoints: [],
-        safeZoneEnabled: true,
+        safeZoneEnabled: false,
         showMetricChips: true,
         metricChipLayout: "bottom_center_row",
         metricChipTextColor: "#ffffff",
+        metricChipEdgeOffset: 0,
         metricChips: [],
+        ...DEFAULT_LABEL_CHIP,
       };
     case "mobility-geometry":
       return {

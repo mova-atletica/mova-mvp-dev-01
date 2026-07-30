@@ -115,14 +115,24 @@ export function useAssetVideoEngine({
   };
 
   const addEffect = (effect: Effect) => {
-    const newActiveEffect: ActiveEffect = {
-      id: effect.id,
-      effect,
-      config: getDefaultConfigForEffect(effect),
-      enabled: true,
-      order: activeEffects.length
-    };
-    setActiveEffects(prev => [...prev, newActiveEffect]);
+    setActiveEffects((prev) => {
+      const existing = prev.find((e) => e.effect.id === effect.id);
+      if (existing) {
+        return prev.map((e) =>
+          e.effect.id === effect.id ? { ...e, enabled: true } : e
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: effect.id,
+          effect,
+          config: getDefaultConfigForEffect(effect),
+          enabled: true,
+          order: prev.length,
+        },
+      ];
+    });
   };
 
   // Default-on behavior for Open Move: initialize with joint angles enabled.
@@ -144,16 +154,59 @@ export function useAssetVideoEngine({
   }, []);
 
   const removeEffect = (effectId: string) => {
-    if (effectId === 'muybridge') {
+    if (effectId === "muybridge") {
       clearFrameCache();
     }
-    setActiveEffects(prev => prev.filter(effect => effect.id !== effectId));
+    setActiveEffects((prev) => prev.filter((effect) => effect.id !== effectId));
+  };
+
+  /** Ensure an effect entry exists (disabled) so config can be edited while off. */
+  const ensureEffect = (effect: Effect) => {
+    setActiveEffects((prev) => {
+      if (prev.some((e) => e.effect.id === effect.id)) return prev;
+      return [
+        ...prev,
+        {
+          id: effect.id,
+          effect,
+          config: getDefaultConfigForEffect(effect),
+          enabled: false,
+          order: prev.length,
+        },
+      ];
+    });
+  };
+
+  /** Toggle overlay visibility without dropping saved config. */
+  const setEffectEnabled = (effect: Effect, enabled: boolean) => {
+    if (!enabled && effect.id === "muybridge") {
+      clearFrameCache();
+    }
+    setActiveEffects((prev) => {
+      const existing = prev.find((e) => e.effect.id === effect.id);
+      if (existing) {
+        return prev.map((e) =>
+          e.effect.id === effect.id ? { ...e, enabled } : e
+        );
+      }
+      if (!enabled) return prev;
+      return [
+        ...prev,
+        {
+          id: effect.id,
+          effect,
+          config: getDefaultConfigForEffect(effect),
+          enabled: true,
+          order: prev.length,
+        },
+      ];
+    });
   };
 
   // Pre-extract staggered frames so Muybridge preview tiles show distinct poses (no per-frame seek).
   useEffect(() => {
     const muybridgeEffect = activeEffects.find(
-      (e) => e.effect.id === 'muybridge' && e.enabled
+      (e) => e.effect.id === "muybridge" && e.enabled
     );
     if (!muybridgeEffect) return;
 
@@ -174,8 +227,8 @@ export function useAssetVideoEngine({
     if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
       extract();
     } else {
-      video.addEventListener('canplay', extract, { once: true });
-      return () => video.removeEventListener('canplay', extract);
+      video.addEventListener("canplay", extract, { once: true });
+      return () => video.removeEventListener("canplay", extract);
     }
   }, [activeEffects, videoUrl]);
 
@@ -184,7 +237,7 @@ export function useAssetVideoEngine({
   }, [videoUrl]);
 
   const isEffectActive = (effectId: string) => {
-    return activeEffects.some(effect => effect.id === effectId);
+    return activeEffects.some((effect) => effect.id === effectId && effect.enabled);
   };
 
   const getEffectsForCategory = (category: EffectType) => {
@@ -622,7 +675,7 @@ export function useAssetVideoEngine({
     videoRef, canvasRef, overlayRef, containerRef,
     effectModulesRef,
     toggleVideoPlayback,
-    addEffect, removeEffect, isEffectActive, getEffectsForCategory, hasProblematicCombination, handleExport,
+    addEffect, removeEffect, ensureEffect, setEffectEnabled, isEffectActive, getEffectsForCategory, hasProblematicCombination, handleExport,
     poses, videoUrl,
     sportAnalysisKind,
     sportMetricsSnapshot,

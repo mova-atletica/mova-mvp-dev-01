@@ -2,8 +2,15 @@
 
 import { useEffect, useMemo } from "react";
 import type { EffectConfigFormProps } from "./types";
-import { ConfigColorHexRow, ConfigRoot, ConfigSection, configFieldStyles } from "./fields";
+import {
+  ConfigColorHexRow,
+  ConfigRoot,
+  ConfigSection,
+  ConfigSliderRow,
+  configFieldStyles,
+} from "./fields";
 import { EFFECT_CONFIG_JOINT_OPTIONS } from "./jointOptions";
+import { LabelChipBgControls } from "./LabelChipBgControls";
 import { TraceSelect } from "./TraceSelect";
 
 type MetricChipKind =
@@ -45,6 +52,8 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
       | "top_center_row"
       | "top_center_stack") || "bottom_center_row";
   const metricChipTextColor = (config.metricChipTextColor as string) || "#ffffff";
+  const metricChipEdgeOffset =
+    typeof config.metricChipEdgeOffset === "number" ? config.metricChipEdgeOffset : 0;
   const metricChips = ((config.metricChips as MetricChipRow[]) || []).slice(0, 3);
   const sportMetricsSnapshot =
     (config.sportMetricsSnapshot as
@@ -140,6 +149,9 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
     });
   }, [hasAnyAnalysis, sportAnalysisKind, sportMetricsSnapshot]);
 
+  /** Studio / no sport metrics: only ROM — lock kind picker, keep joint select. */
+  const romOnly = availableMetricOptions.length === 1 && availableMetricOptions[0]?.value === "rom_joint";
+
   useEffect(() => {
     const allowedKinds = new Set<MetricChipKind>(availableMetricOptions.map((opt) => opt.value));
     const normalized = metricChips.map((chip) => {
@@ -173,6 +185,83 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
 
   return (
     <ConfigRoot>
+      <button
+        type="button"
+        onClick={addMetricChip}
+        disabled={metricChips.length >= 3}
+        style={{
+          ...configFieldStyles.select,
+          textAlign: "center",
+          cursor: metricChips.length >= 3 ? "not-allowed" : "pointer",
+          opacity: metricChips.length >= 3 ? 0.6 : 1,
+          minHeight: "28px",
+        }}
+      >
+        Add metric chip
+      </button>
+      {metricChips.length >= 3 ? (
+        <div style={configFieldStyles.caption}>Maximum 3 chips reached.</div>
+      ) : null}
+
+      {metricChips.map((chip, idx) => (
+        <div
+          key={chip.id}
+          style={{
+            border: "1px solid color-mix(in srgb, var(--border) 100%, var(--foreground) 50%)",
+            borderRadius: "6px",
+            padding: "6px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+          }}
+        >
+          <div style={configFieldStyles.row}>
+            <span style={configFieldStyles.labelWide}>Chip {idx + 1}</span>
+            {romOnly ? (
+              <span style={{ ...configFieldStyles.caption, flex: 1 }}>ROM (joint)</span>
+            ) : (
+              <div style={{ flex: 1 }}>
+                <TraceSelect
+                  value={chip.kind}
+                  options={availableMetricOptions}
+                  onSelect={(v) =>
+                    updateMetricChip(chip.id, {
+                      kind: v as MetricChipKind,
+                      jointName: v === "rom_joint" ? chip.jointName || "left_knee" : undefined,
+                    })
+                  }
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => removeMetricChip(chip.id)}
+              style={{
+                ...configFieldStyles.select,
+                flex: "0 0 auto",
+                width: "56px",
+                textAlign: "center",
+                cursor: "pointer",
+              }}
+            >
+              Remove
+            </button>
+          </div>
+          {chip.kind === "rom_joint" || romOnly ? (
+            <div style={configFieldStyles.row}>
+              <span style={configFieldStyles.labelWide}>Joint</span>
+              <div style={{ flex: 1 }}>
+                <TraceSelect
+                  value={chip.jointName || "left_knee"}
+                  options={jointOptions}
+                  onSelect={(v) => updateMetricChip(chip.id, { jointName: v, kind: "rom_joint" })}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ))}
+
       <ConfigSection title="Metrics Chips Overlay">
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <div style={configFieldStyles.rowMb6}>
@@ -185,6 +274,18 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
               />
             </div>
           </div>
+          <ConfigSliderRow
+            label="Vertical Offset"
+            labelWidth="50px"
+            min={0}
+            max={1}
+            step={0.01}
+            value={metricChipEdgeOffset}
+            onChange={(n) => updateConfig({ metricChipEdgeOffset: n })}
+            displayValue={`${Math.round(metricChipEdgeOffset * 100)}%`}
+            valueSuffixWidth="30px"
+            marginBottom="6px"
+          />
           <ConfigColorHexRow
             label="Text"
             labelWidth="50px"
@@ -194,79 +295,10 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
             onTextChange={(hex) => updateConfig({ metricChipTextColor: hex })}
             marginBottom="6px"
           />
-          <button
-            type="button"
-            onClick={addMetricChip}
-            disabled={metricChips.length >= 3}
-            style={{
-              ...configFieldStyles.select,
-              textAlign: "center",
-              cursor: metricChips.length >= 3 ? "not-allowed" : "pointer",
-              opacity: metricChips.length >= 3 ? 0.6 : 1,
-              minHeight: "28px",
-            }}
-          >
-            Add metric chip
-          </button>
-          {metricChips.length >= 3 ? (
-            <div style={configFieldStyles.caption}>Maximum 3 chips reached.</div>
-          ) : null}
-          {metricChips.map((chip, idx) => (
-            <div
-              key={chip.id}
-              style={{
-                border: "1px solid color-mix(in srgb, var(--border) 100%, var(--foreground) 50%)",
-                borderRadius: "6px",
-                padding: "6px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "6px",
-              }}
-            >
-              <div style={configFieldStyles.row}>
-                <span style={configFieldStyles.labelWide}>Chip {idx + 1}</span>
-                <div style={{ flex: 1 }}>
-                  <TraceSelect
-                    value={chip.kind}
-                    options={availableMetricOptions}
-                    onSelect={(v) =>
-                      updateMetricChip(chip.id, {
-                        kind: v as MetricChipKind,
-                        jointName: v === "rom_joint" ? chip.jointName || "left_knee" : undefined,
-                      })
-                    }
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeMetricChip(chip.id)}
-                  style={{
-                    ...configFieldStyles.select,
-                    flex: "0 0 auto",
-                    width: "56px",
-                    textAlign: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-              {chip.kind === "rom_joint" ? (
-                <div style={configFieldStyles.row}>
-                  <span style={configFieldStyles.labelWide}>Joint</span>
-                  <div style={{ flex: 1 }}>
-                    <TraceSelect
-                      value={chip.jointName || "left_knee"}
-                      options={jointOptions}
-                      onSelect={(v) => updateMetricChip(chip.id, { jointName: v })}
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ))}
         </div>
       </ConfigSection>
+
+      <LabelChipBgControls config={config} updateConfig={updateConfig} />
     </ConfigRoot>
   );
 }

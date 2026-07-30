@@ -1,13 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown } from "lucide-react";
 import type { AssetVideoEngine } from "./useAssetVideoEngine";
 import { type EffectType } from "./assetVideoTypes";
 import { AssetVideoPlayerExportPanel } from "./AssetVideoPlayerExportPanel";
 import { EffectConfigPanel } from "./effect-config/EffectConfigPanel";
-import { EffectSelectedCheckIcon } from "./EffectSelectedCheckIcon";
 
 /** Inline theme borders — `var(--border)` from ThemeContext; matches OpenMoveStudio (Tailwind `.border-border-theme` unreliable in bundle). */
 const borderBottomTheme = { borderBottom: "1px solid var(--border-secondary)" } as const;
@@ -24,55 +23,76 @@ const triggerLabelClass =
 const contentClass = "rail-accordion-content overflow-hidden";
 const accordionItemClass = "my-4 pb-4 px-0";
 
-const effectBtnBase =
-  "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-light transition-colors";
+const effectRowBase =
+  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-light transition-colors";
 
-const effectBtnOff =
-  "bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] text-[color:var(--foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] hover:opacity-95";
+const effectRowOff =
+  "bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] text-[color:var(--foreground)]";
 
-const effectBtnOn =
+const effectRowOn =
   "bg-[color:color-mix(in_srgb,var(--foreground)_18%,transparent)] text-[color:var(--foreground)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]";
 
 function useEffectCategoryList(engine: AssetVideoEngine) {
   const {
     getEffectsForCategory,
     isEffectActive,
-    addEffect,
-    removeEffect,
+    ensureEffect,
+    setEffectEnabled,
     activeEffects,
     setActiveEffects,
     sportAnalysisKind,
     sportMetricsSnapshot,
   } = engine;
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
   return (category: EffectType) => (
     <div className="flex flex-col gap-1.5">
       {getEffectsForCategory(category).map((effect) => {
-        const on = isEffectActive(effect.id);
+        const enabled = isEffectActive(effect.id);
         const activeEffect = activeEffects.find((e) => e.effect.id === effect.id);
+        const expanded = expandedIds.has(effect.id);
         return (
           <div key={effect.id} className="flex flex-col gap-1.5">
-            <button
-              type="button"
-              style={on ? { border: "1px solid var(--accent, #3b82f6)" } : borderAllTheme}
-              aria-pressed={on}
-              onClick={() => {
-                if (on) {
-                  removeEffect(effect.id);
-                } else {
-                  addEffect(effect);
-                }
-              }}
-              className={`${effectBtnBase} ${on ? effectBtnOn : effectBtnOff}`}
+            <div
+              style={enabled ? { border: "1px solid var(--accent, #3b82f6)" } : borderAllTheme}
+              className={`${effectRowBase} ${enabled ? effectRowOn : effectRowOff}`}
             >
-              <span>{effect.name}</span>
-              {on ? (
-                <span className="flex shrink-0 items-center justify-center text-[var(--accent,#3b82f6)]">
-                  <EffectSelectedCheckIcon />
-                </span>
-              ) : null}
-            </button>
-            {on && activeEffect ? (
+              <input
+                type="checkbox"
+                checked={enabled}
+                aria-label={`Enable ${effect.name}`}
+                title={enabled ? `Disable ${effect.name}` : `Enable ${effect.name}`}
+                onChange={(event) => {
+                  setEffectEnabled(effect, event.target.checked);
+                }}
+                onClick={(event) => event.stopPropagation()}
+                className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-[var(--accent,#3b82f6)]"
+              />
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md py-0.5 text-left outline-none hover:opacity-90"
+                aria-expanded={expanded}
+                onClick={() => {
+                  const opening = !expandedIds.has(effect.id);
+                  if (opening) ensureEffect(effect);
+                  setExpandedIds((prev) => {
+                    const next = new Set(prev);
+                    if (opening) next.add(effect.id);
+                    else next.delete(effect.id);
+                    return next;
+                  });
+                }}
+              >
+                <span className="min-w-0 truncate">{effect.name}</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform duration-200 ${
+                    expanded ? "rotate-180" : ""
+                  }`}
+                  aria-hidden
+                />
+              </button>
+            </div>
+            {expanded && activeEffect ? (
               <div
                 className="rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_4%,transparent)] p-2 backdrop-blur-sm"
                 style={borderAllTheme}

@@ -81,6 +81,11 @@ export interface StatsConfig {
   showMetricChips?: boolean;
   metricChipLayout?: 'bottom_center_row' | 'bottom_center_stack' | 'top_center_row' | 'top_center_stack';
   metricChipTextColor?: string;
+  /**
+   * 0 = flush to the top/bottom edge band; 1 = shifted toward vertical center.
+   * Anchor is still metricChipLayout (top_* vs bottom_*).
+   */
+  metricChipEdgeOffset?: number;
   metricChips?: MetricChipConfig[];
   sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat' | 'poseFlexibility';
   sportMetricsSnapshot?: SportMetricsSnapshot | null;
@@ -610,7 +615,8 @@ export function renderMetricChips(
   ctx: CanvasRenderingContext2D,
   poses: any[],
   romData: ROMData[],
-  config: Partial<StatsConfig>
+  config: Partial<StatsConfig>,
+  glassSource?: CanvasImageSource | null
 ): void {
   if (!config.showMetricChips) return;
   const chipsCfg = config.metricChips || [];
@@ -632,44 +638,72 @@ export function renderMetricChips(
   const valuePx = Math.max(18, Math.round(21 * scale));
   const gap = Math.max(8, Math.round(10 * scale));
   const lanePad = Math.max(10, Math.round(16 * scale));
-  const chipH = Math.round(labelPx * 1.1 + valuePx * 1.25);
+  const chipPadX = Math.max(8, Math.round(10 * scale));
+  const chipPadY = Math.max(6, Math.round(8 * scale));
+  const chipH = Math.round(labelPx * 1.1 + valuePx * 1.25) + chipPadY * 2;
+  const borderRadius = Math.max(6, Math.round(8 * scale));
   const layout = config.metricChipLayout || 'bottom_center_row';
   const isTop = layout.startsWith('top_');
   const isStack = layout.endsWith('_stack');
+  const centerX = config.safeZoneEnabled ? safe.centerX : logicalW / 2;
+  const edgeOffset = Math.min(1, Math.max(0, config.metricChipEdgeOffset ?? 0));
+  const frameTop = config.safeZoneEnabled ? safe.top : 0;
+  const frameBottom = config.safeZoneEnabled ? safe.bottom : logicalH;
+  const midY = logicalH / 2;
+
+  const measureChipWidth = (chip: ResolvedMetricChip) => {
+    ctx.font = `100 ${labelPx}px 'Roboto Mono', monospace`;
+    const labelW = ctx.measureText(chip.label).width;
+    ctx.font = `500 ${valuePx}px 'Roboto Mono', monospace`;
+    const valueW = ctx.measureText(chip.value).width;
+    return Math.max(labelW, valueW) + chipPadX * 2;
+  };
+
+  const drawChip = (chip: ResolvedMetricChip, cx: number, cy: number, chipW: number) => {
+    const bgX = cx - chipW / 2;
+    const bgY = cy - chipH / 2;
+    drawLabelChipBackground(ctx, bgX, bgY, chipW, chipH, borderRadius, {
+      bg: config.labelBg,
+      bgColor: config.labelBgColor,
+      bgOpacity: config.labelBgOpacity,
+      blurPx: config.labelBlurPx,
+      glassSource,
+      scale,
+    });
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `100 ${labelPx}px 'Roboto Mono', monospace`;
+    ctx.fillText(chip.label, cx, cy - valuePx * 0.55);
+    ctx.font = `500 ${valuePx}px 'Roboto Mono', monospace`;
+    ctx.fillText(chip.value, cx, cy + labelPx * 0.75);
+  };
 
   ctx.save();
-  ctx.fillStyle = textColor;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
 
   if (isStack) {
     const totalH = resolved.length * chipH + (resolved.length - 1) * gap;
-    let y = isTop ? safe.top + lanePad + chipH / 2 : safe.bottom - lanePad - totalH + chipH / 2;
+    const blockCenter0 = isTop
+      ? frameTop + lanePad + totalH / 2
+      : frameBottom - lanePad - totalH / 2;
+    const blockCenter = blockCenter0 + (midY - blockCenter0) * edgeOffset;
+    let y = blockCenter - totalH / 2 + chipH / 2;
     for (const chip of resolved) {
-      ctx.font = `100 ${labelPx}px 'Roboto Mono', monospace`;
-      ctx.fillText(chip.label, safe.centerX, y - valuePx * 0.6);
-      ctx.font = `500 ${valuePx}px 'Roboto Mono', monospace`;
-      ctx.fillText(chip.value, safe.centerX, y + labelPx * 0.9);
+      drawChip(chip, centerX, y, measureChipWidth(chip));
       y += chipH + gap;
     }
   } else {
-    const widths = resolved.map((chip) => {
-      ctx.font = `100 ${labelPx}px 'Roboto Mono', monospace`;
-      const labelW = ctx.measureText(chip.label).width;
-      ctx.font = `700 ${valuePx}px 'Roboto Mono', monospace`;
-      const valueW = ctx.measureText(chip.value).width;
-      return Math.max(labelW, valueW);
-    });
+    const widths = resolved.map(measureChipWidth);
     const totalW = widths.reduce((sum, w) => sum + w, 0) + (resolved.length - 1) * gap;
-    let x = safe.centerX - totalW / 2;
-    const y = isTop ? safe.top + lanePad + chipH / 2 : safe.bottom - lanePad - chipH / 2;
+    let x = centerX - totalW / 2;
+    const y0 = isTop
+      ? frameTop + lanePad + chipH / 2
+      : frameBottom - lanePad - chipH / 2;
+    const y = y0 + (midY - y0) * edgeOffset;
     for (let i = 0; i < resolved.length; i++) {
       const w = widths[i];
-      const center = x + w / 2;
-      ctx.font = `100 ${labelPx}px 'Roboto Mono', monospace`;
-      ctx.fillText(resolved[i].label, center, y - valuePx * 0.6);
-      ctx.font = `500 ${valuePx}px 'Roboto Mono', monospace`;
-      ctx.fillText(resolved[i].value, center, y + labelPx * 0.9);
+      const cx = x + w / 2;
+      drawChip(resolved[i], cx, y, w);
       x += w + gap;
     }
   }
@@ -1326,7 +1360,7 @@ export function renderStats(
 
   // Back → front: geometry under chips; joint angles / ROM on top for legibility.
   renderMobilityGeometry(ctx, poses, config, currentFrameIndex);
-  renderMetricChips(ctx, poses, romData, config);
+  renderMetricChips(ctx, poses, romData, config, ctx.canvas);
   renderJointAngles(ctx, jointAngles, config, ctx.canvas);
   renderROMStats(ctx, romData, config, ctx.canvas);
 } 
