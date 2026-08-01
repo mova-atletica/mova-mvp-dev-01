@@ -217,7 +217,7 @@ function StudioRailExportFooter() {
   const engine = useOptionalAssetVideoEngine();
   if (!engine) return null;
   return (
-    <AssetVideoPlayerChromeExportFooter engine={engine} accordionTitle="4. Download & export" />
+    <AssetVideoPlayerChromeExportFooter engine={engine} accordionTitle="Download & export" />
   );
 }
 
@@ -1798,7 +1798,7 @@ export default function OpenMoveStudio({
           {embeddedQuickAnalysis ? (
             <div style={borderTopTheme} className="space-y-2 pt-2">
               <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                1. {canRecordLive ? "Upload or record video" : "Upload video"}
+                {canRecordLive ? "Upload or record video" : "Upload video"}
               </p>
               <OpenMoveSportSetupTip sportAnalysisKind={sportAnalysisKind} />
               {uploadRecordButtons}
@@ -1814,7 +1814,7 @@ export default function OpenMoveStudio({
               {isQuickAnalysis ? (
                 <div style={borderTopTheme} className="space-y-2 pt-2">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                    1. Setup
+                    Setup
                   </p>
                   {sportSetupFields}
                   {sideCoverageNotice ? (
@@ -1826,9 +1826,7 @@ export default function OpenMoveStudio({
               {!isHydrated ? (
                 <div style={borderTopTheme} className="space-y-2 pt-2">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                    {`${isQuickAnalysis ? "2." : "1."} ${
-                      canRecordLive ? "Upload or record video" : "Upload video"
-                    }`}
+                    {canRecordLive ? "Upload or record video" : "Upload video"}
                   </p>
                   {uploadRecordButtons}
                   {session.sessionLabel ? (
@@ -1870,7 +1868,7 @@ export default function OpenMoveStudio({
               {sportHasSetupControls(sportAnalysisKind) ? (
                 <div className="space-y-2 pb-4">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                    2. Setup
+                    Setup
                   </p>
                   {sportSetupFields}
                   {session.status === "clip_ready" && !hasAnalyzed ? (
@@ -1911,7 +1909,7 @@ export default function OpenMoveStudio({
                 </div>
               ) : null}
               {pendingSave && hasAnalyzed ? (
-                <div style={borderTopTheme} className="space-y-2 pb-4 pt-2">
+                <div className="space-y-2 pb-4 pt-2">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                     Save to activity
                   </p>
@@ -1971,7 +1969,7 @@ export default function OpenMoveStudio({
                     {leaderboardPosted
                       ? "Posted to leaderboard"
                       : !isAuthenticated
-                        ? "Sign in to post"
+                        ? "Sign in to post to leaderboard"
                         : !canPostToLeaderboard
                           ? "Complete profile"
                           : "Post to leaderboard"}
@@ -1982,11 +1980,10 @@ export default function OpenMoveStudio({
               {session.status === "ready" && hasAnalyzed ? (
                 <>
                   <div
-                    style={borderTopTheme}
                     className="mb-0 flex items-start justify-between gap-2 pt-2"
                   >
                     <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                      3. Movement Visualization
+                      Movement Visualization
                     </p>
                     <VisualOverlayConfigActions
                       activityId={savedActivityId}
@@ -2005,7 +2002,7 @@ export default function OpenMoveStudio({
               {isQuickAnalysis && !embeddedQuickAnalysis ? (
                 <div className="mb-0 space-y-2 text-[color:var(--foreground)]">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                    3. Analysis
+                    Analysis
                   </p>
                   <p className="text-sm font-medium text-[color:var(--foreground)]">
                     {getSportAnalysisLabel(sportAnalysisKind)}
@@ -2054,11 +2051,7 @@ export default function OpenMoveStudio({
                 className={`mb-0 flex items-start justify-between gap-2 ${isQuickAnalysis && !embeddedQuickAnalysis ? "mt-6" : ""}`}
               >
                 <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                  {isHydrated
-                    ? "1. Movement Visualization"
-                    : isQuickAnalysis
-                      ? "4. Movement Visualization"
-                      : "2. Movement Visualization"}
+                  Movement Visualization
                 </p>
                 <VisualOverlayConfigActions
                   activityId={savedActivityId}
@@ -2298,9 +2291,7 @@ export default function OpenMoveStudio({
                   <div
                     className={
                       isDesktop
-                        ? isLandscapeVideo || expandStageToRemainingWidth
-                          ? "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full self-stretch items-stretch justify-center md:max-h-[calc(100dvh-24px)]"
-                          : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-[min(100%,min(78vw,20rem))] self-stretch items-stretch justify-center md:max-h-[calc(100dvh-24px)]"
+                        ? "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full self-stretch items-stretch justify-center md:max-h-[calc(100dvh-24px)]"
                         : "flex h-full min-h-[min(50vh,520px)] max-h-full w-full max-w-full self-stretch items-stretch justify-center"
                     }
                   >
@@ -2343,7 +2334,7 @@ export default function OpenMoveStudio({
                             isDesktop
                               ? isLandscapeVideo
                                 ? "flex min-h-0 min-w-0 flex-1 items-center justify-center self-stretch [contain:layout]"
-                                : "flex h-full min-w-[min(200px,42vw)] flex-none items-stretch justify-center self-stretch"
+                                : "flex h-full min-w-[min(12rem,42vw)] flex-none items-center justify-center self-stretch"
                               : "flex w-full min-h-0 min-w-0 max-w-full flex-1 items-center justify-center self-stretch [contain:layout]"
                           }
                         >
@@ -2351,14 +2342,15 @@ export default function OpenMoveStudio({
                             videoUrl={session.videoUrl}
                             videoSources={session.videoSources ?? undefined}
                             intrinsicAspect={videoIntrinsicAspect}
+                            heightDriven={!isLandscapeVideo}
                             className={
                               isLandscapeVideo
                                 ? isDesktop
                                   ? "relative mx-auto h-auto w-full max-h-[min(94dvh,calc(100dvh-24px))] max-w-full min-h-0 overflow-hidden rounded-lg bg-[#111214] shadow-lg"
                                   : "relative mx-auto h-auto w-full max-h-[100dvh] max-w-full min-h-0 overflow-hidden"
                                 : expandStageToRemainingWidth
-                                  ? "relative h-full max-h-[min(100dvh,calc(100dvh-0px))] w-auto max-w-full overflow-hidden rounded-lg bg-[#111214] shadow-lg md:max-h-[min(94dvh,calc(100dvh-24px))]"
-                                  : "relative h-full max-h-[min(100dvh,calc(100dvh-0px))] w-auto max-w-[min(100%,min(100vw,56rem))] overflow-hidden bg-[#111214] shadow-lg md:max-h-[min(100dvh,calc(100dvh-0px))]"
+                                  ? "relative max-h-full overflow-hidden rounded-lg bg-[#111214] shadow-lg md:max-h-[min(94dvh,calc(100dvh-24px))]"
+                                  : "relative max-h-full overflow-hidden bg-[#111214] shadow-lg md:max-h-[min(100dvh,calc(100dvh-0px))]"
                             }
                           >
                             <StudioStagePlaybackOverlay />

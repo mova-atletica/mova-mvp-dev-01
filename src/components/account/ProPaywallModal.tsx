@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useAccount } from "../../contexts/MockAuthContext";
 import { useTranslations } from "../../i18n/LocaleProvider";
 
@@ -48,8 +48,7 @@ export default function ProPaywallModal() {
         >
           <div className="mb-5 flex items-start justify-between gap-4 pr-1">
             <div className="min-w-0 flex-1">
-              <Dialog.Title className="flex items-center gap-2 text-base font-semibold text-[color:var(--foreground)]">
-                <Sparkles size={18} className="shrink-0 text-[var(--accent,#3b82f6)]" aria-hidden />
+              <Dialog.Title className="text-base font-semibold text-[color:var(--foreground)]">
                 {t("proPaywall.title")}
               </Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-relaxed text-[color:var(--muted-foreground)]">

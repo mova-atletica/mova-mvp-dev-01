@@ -205,14 +205,6 @@ function ProfileTab({
           </div>
 
           <div className="mt-auto space-y-2 pt-6">
-            <button
-              type="button"
-              disabled
-              style={borderAllTheme}
-              className="w-full cursor-not-allowed rounded-lg px-4 py-2.5 text-left text-sm text-[color:var(--muted-foreground)] opacity-70"
-            >
-              {t("account.deleteAccount")} ({t("common.comingSoon")})
-            </button>
             {PHASE_B_ENABLED && tier === "partner" ? (
               <Link
                 href="/partner/dashboard"
@@ -222,14 +214,24 @@ function ProfileTab({
                 {t("account.partnerDashboard")}
               </Link>
             ) : null}
-            <button
-              type="button"
-              onClick={onSignOut}
-              style={borderAllTheme}
-              className="w-full rounded-lg px-4 py-2.5 text-sm font-medium text-[color:var(--foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_6%,transparent)]"
-            >
-              {t("common.signOut")}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled
+                style={borderAllTheme}
+                className="min-w-0 flex-1 cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-[color:var(--muted-foreground)] opacity-70"
+              >
+                {t("account.deleteAccount")} ({t("common.comingSoon")})
+              </button>
+              <button
+                type="button"
+                onClick={onSignOut}
+                style={borderAllTheme}
+                className="min-w-0 flex-1 rounded-lg px-3 py-2.5 text-sm font-medium text-[color:var(--foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_6%,transparent)]"
+              >
+                {t("common.signOut")}
+              </button>
+            </div>
           </div>
         </div>
 

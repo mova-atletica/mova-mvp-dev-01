@@ -140,7 +140,7 @@ export function OpenMoveSportSetupTip({
   if (sportAnalysisKind === "pullups") {
     return (
       <p className={tipClass}>
-        Keep your arms fully visible. We combine{" "}
+        Keep arms fully visible. We combine{" "}
         <strong className="text-[color:var(--foreground)]">left and right</strong> elbow angles to count
         reps.
       </p>

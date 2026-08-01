@@ -206,7 +206,7 @@ const exportTriggerClass =
 /** Full-width export block — render outside padded column for side-rail edge bleed. */
 export function AssetVideoPlayerChromeExportFooter({
   engine,
-  accordionTitle = "4. Download & export",
+  accordionTitle = "Download & export",
 }: {
   engine: AssetVideoEngine;
   /** Open Move Studio passes step 4 when sport analysis is step 3 in the rail. */

@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Check } from "lucide-react";
 import { useAccount } from "../../contexts/MockAuthContext";
 import { useTranslations } from "../../i18n/LocaleProvider";
 import { hasProAccess } from "../../lib/proAccess";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
+
+const PRO_FEATURES = [
+  "proPaywall.featureStudio",
+  "proPaywall.featureExport",
+  "proPaywall.featureSessions",
+] as const;
 
 export default function AccountProAccessBlock() {
   const { tier, profile, openProPaywall, openBillingPortal, authError } = useAccount();
@@ -33,23 +39,35 @@ export default function AccountProAccessBlock() {
         <p className="text-[10px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
           {t("account.movaPro")}
         </p>
-        <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-[color:var(--foreground)]">
-          {isPro ? (
-            <>
-              <Sparkles size={14} className="text-[var(--accent,#3b82f6)]" aria-hidden />
-              {t("account.proActive")}
-            </>
-          ) : (
-            t("account.proFree")
-          )}
+        <p className="mt-1 text-sm font-medium text-[color:var(--foreground)]">
+          {isPro ? t("account.proActive") : t("account.proFree")}
         </p>
-        <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-          {isPro
-            ? canManageBilling
-              ? t("account.proActiveHint")
-              : t("account.proGrandfatherHint")
-            : t("account.proFreeHint")}
-        </p>
+        {isPro ? (
+          <>
+            <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+              {canManageBilling ? t("account.proActiveHint") : t("account.proGrandfatherHint")}
+            </p>
+            <ul className="mt-3 space-y-2">
+              {PRO_FEATURES.map((key) => (
+                <li
+                  key={key}
+                  className="flex items-start gap-2 text-xs text-[color:var(--foreground)]"
+                >
+                  <Check
+                    size={14}
+                    className="mt-0.5 shrink-0 text-[var(--accent,#3b82f6)]"
+                    aria-hidden
+                  />
+                  <span>{t(key)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+            {t("account.proFreeHint")}
+          </p>
+        )}
       </div>
       <div className="mt-auto pt-4">
         {!isPro ? (
