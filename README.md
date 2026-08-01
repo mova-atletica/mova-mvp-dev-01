@@ -105,8 +105,25 @@ GOOGLE_CLOUD_PROJECT_ID=your-actual-project-id
 GOOGLE_CLOUD_BUCKET_NAME=your-actual-bucket-name
 GOOGLE_CLOUD_KEY_FILE=./google-cloud-key.json
 DATABASE_URL="file:./dev.db"
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Stripe Pro (local = test mode + Stripe CLI listener — do not add a sandbox Dashboard webhook)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PRICE_PRO_MONTHLY=price_...
+STRIPE_PRICE_PRO_YEARLY=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
+**Stripe local:** `stripe listen --forward-to localhost:3000/api/stripe/webhook` and paste the CLI signing secret into `STRIPE_WEBHOOK_SECRET`.
+
+**Stripe production (after deploy):** Live Workbench → Webhooks → Add destination → `https://app.mova-atletica.xyz/api/stripe/webhook` (events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`) → put the live `whsec_...` in Vercel. Also set live `STRIPE_SECRET_KEY`, live price IDs, and `NEXT_PUBLIC_SITE_URL=https://app.mova-atletica.xyz`.
+
+**Supabase:** Run `supabase/migrations/20260731_profiles_entitlement_lock.sql` in the SQL Editor so entitlement columns cannot be client-written.
 ## 📊 Advanced Analysis Features
 
 ### DTW (Dynamic Time Warping)

@@ -41,7 +41,6 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
 
   return (
     <div className="flex flex-col gap-3 text-[color:var(--foreground)]">
-
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="min-w-0">
@@ -199,37 +198,37 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
             </div>
           </div>
         )}
+      </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setVideoVisibility((prev) => ({ ...prev, showVideo: !prev.showVideo }))}
-            className="flex h-10 w-full items-center justify-center rounded-lg border border-border-theme bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] px-3 py-2 text-center text-xs font-light text-[color:var(--foreground)] opacity-90 transition-colors hover:border-border-theme hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
-          >
-            {videoVisibility.showVideo ? "Hide video in export" : "Show video in export"}
-          </button>
+      <div className="sticky bottom-0 z-[1] grid grid-cols-2 gap-3 bg-[var(--header-bg)] pt-1 pb-0.5">
+        <button
+          type="button"
+          onClick={() => setVideoVisibility((prev) => ({ ...prev, showVideo: !prev.showVideo }))}
+          className="flex h-10 w-full items-center justify-center rounded-lg border border-border-theme bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] px-3 py-2 text-center text-xs font-light text-[color:var(--foreground)] opacity-90 transition-colors hover:border-border-theme hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
+        >
+          {videoVisibility.showVideo ? "Hide video in export" : "Show video in export"}
+        </button>
 
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={isExporting}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-theme bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2.5 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isExporting ? (
-              <>
-                <span className="h-3 w-3 animate-spin rounded-full border-2 border-border-theme border-t-[color:var(--foreground)]" />
-                Exporting…
-              </>
-            ) : exportSuccess ? (
-              "✓ Exported!"
-            ) : (
-              <>
-                <Download className="h-3.5 w-3.5 opacity-90" />
-                Export asset
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={isExporting}
+          className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-theme bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2.5 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isExporting ? (
+            <>
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-border-theme border-t-[color:var(--foreground)]" />
+              Exporting…
+            </>
+          ) : exportSuccess ? (
+            "✓ Exported!"
+          ) : (
+            <>
+              <Download className="h-3.5 w-3.5 opacity-90" />
+              Export asset
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

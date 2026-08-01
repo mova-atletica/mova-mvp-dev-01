@@ -27,6 +27,15 @@ export default function OpenMoveStudioGate() {
     setChecked(true);
   }, [hasProAccess, authLoading]);
 
+  useEffect(() => {
+    const onOpenStudio = () => {
+      setStudioAllowed(true);
+      setChecked(true);
+    };
+    window.addEventListener("mova:open-studio", onOpenStudio);
+    return () => window.removeEventListener("mova:open-studio", onOpenStudio);
+  }, []);
+
   const reopenPaywall = () => {
     requestStudioAccess(() => {
       setStudioAllowed(true);

@@ -9,6 +9,8 @@ export interface ProfileRow {
   onboarding_complete: boolean;
   tier: string;
   stripe_customer_id: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_price_id?: string | null;
 }
 
 const VALID_LOCALES = new Set<AppLocale>(["en", "es", "pt-BR"]);
@@ -30,5 +32,6 @@ export function mapProfileRow(row: ProfileRow, user: User): AccountProfile {
     locale,
     onboardingComplete: Boolean(row.onboarding_complete),
     tier,
+    stripeCustomerId: row.stripe_customer_id ?? null,
   };
 }

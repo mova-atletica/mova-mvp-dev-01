@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import OnboardingModal from "./account/OnboardingModal";
 import LeaderboardSavePrompt from "./account/LeaderboardSavePrompt";
 import ProPaywallModal from "./account/ProPaywallModal";
+import ProCheckoutReturnHandler from "./account/ProCheckoutReturnHandler";
 import SignInModal from "./account/SignInModal";
 import SignInQueryOpener from "./account/SignInQueryOpener";
 
@@ -13,6 +14,9 @@ export default function GlobalAccountModals() {
     <>
       <Suspense fallback={null}>
         <SignInQueryOpener />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ProCheckoutReturnHandler />
       </Suspense>
       <SignInModal />
       <OnboardingModal />

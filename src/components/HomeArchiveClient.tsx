@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MiniApp } from "../data/miniApps";
 import { MINI_APPS, MOVA_STUDIO_MINI_APP } from "../data/miniApps";
@@ -42,6 +42,14 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
       setModalTarget({ type: "studio" });
     });
   }, [requestStudioAccess]);
+
+  useEffect(() => {
+    const onOpenStudio = () => {
+      setModalTarget({ type: "studio" });
+    };
+    window.addEventListener("mova:open-studio", onOpenStudio);
+    return () => window.removeEventListener("mova:open-studio", onOpenStudio);
+  }, []);
 
   const openCoachStudio = useCallback(() => {
     if (!hasCoachAccess) return;

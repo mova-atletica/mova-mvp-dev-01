@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Check, LayoutDashboard, Sparkles, X } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import { useAccount } from "../../contexts/MockAuthContext";
 import { useTranslations } from "../../i18n/LocaleProvider";
 
@@ -14,24 +14,27 @@ const PRO_FEATURES = [
   "proPaywall.featureSessions",
 ] as const;
 
+type PriceKey = "monthly" | "yearly";
+
 export default function ProPaywallModal() {
   const {
     proPaywallOpen,
     closeProPaywall,
-    mockUpgradeToPro,
+    startProCheckout,
     isAuthenticated,
     openSignIn,
     authError,
   } = useAccount();
   const t = useTranslations();
-  const [upgrading, setUpgrading] = useState(false);
+  const [priceKey, setPriceKey] = useState<PriceKey>("monthly");
+  const [checkingOut, setCheckingOut] = useState(false);
 
-  const handleUpgrade = async () => {
-    setUpgrading(true);
+  const handleCheckout = async () => {
+    setCheckingOut(true);
     try {
-      await mockUpgradeToPro();
+      await startProCheckout(priceKey);
     } finally {
-      setUpgrading(false);
+      setCheckingOut(false);
     }
   };
 
@@ -71,12 +74,45 @@ export default function ProPaywallModal() {
             ))}
           </ul>
 
-          <div
-            className="mt-5 rounded-lg px-4 py-3 text-xs leading-relaxed text-[color:var(--muted-foreground)]"
-            style={{ ...borderAllTheme, backgroundColor: "var(--background)" }}
-          >
-            <LayoutDashboard size={14} className="mb-1 inline text-[color:var(--foreground)]" />{" "}
-            {t("proPaywall.note")}
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPriceKey("monthly")}
+              style={{
+                border:
+                  priceKey === "monthly"
+                    ? "1px solid var(--accent, #3b82f6)"
+                    : "1px solid var(--border-secondary)",
+                backgroundColor: "var(--background)",
+              }}
+              className="rounded-lg px-3 py-3 text-left"
+            >
+              <p className="text-[10px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
+                {t("proPaywall.monthlyLabel")}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-[color:var(--foreground)]">
+                {t("proPaywall.monthlyPrice")}
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPriceKey("yearly")}
+              style={{
+                border:
+                  priceKey === "yearly"
+                    ? "1px solid var(--accent, #3b82f6)"
+                    : "1px solid var(--border-secondary)",
+                backgroundColor: "var(--background)",
+              }}
+              className="rounded-lg px-3 py-3 text-left"
+            >
+              <p className="text-[10px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
+                {t("proPaywall.yearlyLabel")}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-[color:var(--foreground)]">
+                {t("proPaywall.yearlyPrice")}
+              </p>
+            </button>
           </div>
 
           {!isAuthenticated ? (
@@ -102,8 +138,8 @@ export default function ProPaywallModal() {
           <div className="mt-6 flex flex-col gap-2.5">
             <button
               type="button"
-              onClick={handleUpgrade}
-              disabled={upgrading}
+              onClick={handleCheckout}
+              disabled={checkingOut}
               className="w-full rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-60"
               style={{
                 background: "var(--primary-button-bg)",
@@ -111,7 +147,7 @@ export default function ProPaywallModal() {
                 border: "2px solid var(--primary-button-border)",
               }}
             >
-              {t("proPaywall.upgradeCta")}
+              {checkingOut ? t("proPaywall.checkoutPending") : t("proPaywall.upgradeCta")}
             </button>
             <Dialog.Close asChild>
               <button

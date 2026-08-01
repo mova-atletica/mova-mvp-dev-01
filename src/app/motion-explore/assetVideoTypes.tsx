@@ -23,6 +23,13 @@ export interface AssetVideoPlayerProps {
     poseFlexibilityTorsoDeg?: number | null;
     poseFlexibilityShouldersDeg?: number | null;
   } | null;
+  /**
+   * Free mini-app sessions: skeleton overlay only (default config).
+   * Studio / Pro leave this false.
+   */
+  restrictMiniAppOverlays?: boolean;
+  /** Watermark free exports (mini-app free tier). */
+  watermarkExports?: boolean;
 }
 
 export interface Effect {

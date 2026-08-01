@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useEffect, useLayoutEffect } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, type SetStateAction } from "react";
 import { exportAsset, downloadBlob, type ExportConfig } from "../../lib/exportService";
 import { sampleVideoElementFps, safeExportFps } from "../../lib/videoFps";
 import {
@@ -15,6 +15,7 @@ import { sortEffectsByOverlayDrawOrder } from "../../lib/effects/overlayDrawOrde
 import type { AssetVideoPlayerProps, Effect, ActiveEffect, EffectType } from "./assetVideoTypes";
 import { availableEffects } from "./assetVideoTypes";
 import { getDefaultConfigForEffect } from "./effectDefaultConfig";
+import { isFreeMiniAppEffect } from "../../lib/proAccess";
 
 export function useAssetVideoEngine({
   videoUrl,
@@ -23,6 +24,8 @@ export function useAssetVideoEngine({
   exercise: _exercise,
   sportAnalysisKind = "cycling",
   sportMetricsSnapshot = null,
+  restrictMiniAppOverlays = false,
+  watermarkExports = false,
 }: AssetVideoPlayerProps) {
   const [activeEffects, setActiveEffects] = useState<ActiveEffect[]>([]);
   
@@ -115,6 +118,7 @@ export function useAssetVideoEngine({
   };
 
   const addEffect = (effect: Effect) => {
+    if (restrictMiniAppOverlays && !isFreeMiniAppEffect(effect.id)) return;
     setActiveEffects((prev) => {
       const existing = prev.find((e) => e.effect.id === effect.id);
       if (existing) {
@@ -135,9 +139,30 @@ export function useAssetVideoEngine({
     });
   };
 
-  // Default-on behavior for Open Move: initialize with joint angles enabled.
+  // Default-on: joint angles in Studio/Pro; skeleton only for free mini apps.
   useEffect(() => {
     setActiveEffects((prev) => {
+      if (restrictMiniAppOverlays) {
+        const skeleton = availableEffects.find((effect) => effect.id === "skeleton-overlay");
+        if (!skeleton) return prev.filter((e) => isFreeMiniAppEffect(e.effect.id));
+        const allowed = prev.filter((e) => isFreeMiniAppEffect(e.effect.id));
+        if (allowed.some((e) => e.effect.id === "skeleton-overlay" && e.enabled)) {
+          return allowed.map((e) =>
+            e.effect.id === "skeleton-overlay"
+              ? { ...e, enabled: true, config: getDefaultConfigForEffect(skeleton) }
+              : e
+          );
+        }
+        return [
+          {
+            id: skeleton.id,
+            effect: skeleton,
+            config: getDefaultConfigForEffect(skeleton),
+            enabled: true,
+            order: 0,
+          },
+        ];
+      }
       if (prev.length > 0) return prev;
       const jointAnglesEffect = availableEffects.find((effect) => effect.id === "joint-angles");
       if (!jointAnglesEffect) return prev;
@@ -151,9 +176,10 @@ export function useAssetVideoEngine({
         },
       ];
     });
-  }, []);
+  }, [restrictMiniAppOverlays]);
 
   const removeEffect = (effectId: string) => {
+    if (restrictMiniAppOverlays && isFreeMiniAppEffect(effectId)) return;
     if (effectId === "muybridge") {
       clearFrameCache();
     }
@@ -162,6 +188,8 @@ export function useAssetVideoEngine({
 
   /** Ensure an effect entry exists (disabled) so config can be edited while off. */
   const ensureEffect = (effect: Effect) => {
+    if (restrictMiniAppOverlays && !isFreeMiniAppEffect(effect.id)) return;
+    if (restrictMiniAppOverlays) return; // free: no config panel / expand
     setActiveEffects((prev) => {
       if (prev.some((e) => e.effect.id === effect.id)) return prev;
       return [
@@ -179,6 +207,8 @@ export function useAssetVideoEngine({
 
   /** Toggle overlay visibility without dropping saved config. */
   const setEffectEnabled = (effect: Effect, enabled: boolean) => {
+    if (restrictMiniAppOverlays && !isFreeMiniAppEffect(effect.id)) return;
+    if (restrictMiniAppOverlays && isFreeMiniAppEffect(effect.id) && !enabled) return;
     if (!enabled && effect.id === "muybridge") {
       clearFrameCache();
     }
@@ -269,6 +299,7 @@ export function useAssetVideoEngine({
         videoVisibility,
         sportAnalysisKind,
         sportMetricsSnapshot,
+        watermark: watermarkExports,
       });
       
       if (result.success && result.data instanceof Blob && result.filename) {
@@ -660,7 +691,24 @@ export function useAssetVideoEngine({
     };
   }, [videoUrl]);
   return {
-    activeEffects, setActiveEffects,
+    activeEffects,
+    setActiveEffects: (update: SetStateAction<ActiveEffect[]>) => {
+      setActiveEffects((prev) => {
+        const next = typeof update === "function" ? update(prev) : update;
+        if (!restrictMiniAppOverlays) return next;
+        return next
+          .filter((e) => isFreeMiniAppEffect(e.effect.id))
+          .map((e) =>
+            e.effect.id === "skeleton-overlay"
+              ? {
+                  ...e,
+                  enabled: true,
+                  config: getDefaultConfigForEffect(e.effect),
+                }
+              : e
+          );
+      });
+    },
     statsConfig, setStatsConfig,
     exportConfig, setExportConfig,
     isExporting, setIsExporting,
@@ -680,6 +728,8 @@ export function useAssetVideoEngine({
     sportAnalysisKind,
     sportMetricsSnapshot,
     availableEffects,
+    restrictMiniAppOverlays,
+    watermarkExports,
   };
 }
 

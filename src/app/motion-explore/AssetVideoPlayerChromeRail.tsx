@@ -2,11 +2,13 @@
 
 import React, { useState } from "react";
 import * as Accordion from "@radix-ui/react-accordion";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Lock } from "lucide-react";
 import type { AssetVideoEngine } from "./useAssetVideoEngine";
 import { type EffectType } from "./assetVideoTypes";
 import { AssetVideoPlayerExportPanel } from "./AssetVideoPlayerExportPanel";
 import { EffectConfigPanel } from "./effect-config/EffectConfigPanel";
+import { isFreeMiniAppEffect } from "../../lib/proAccess";
+import { useTranslations } from "../../i18n/LocaleProvider";
 
 /** Inline theme borders — `var(--border)` from ThemeContext; matches OpenMoveStudio (Tailwind `.border-border-theme` unreliable in bundle). */
 const borderBottomTheme = { borderBottom: "1px solid var(--border-secondary)" } as const;
@@ -42,37 +44,57 @@ function useEffectCategoryList(engine: AssetVideoEngine) {
     setActiveEffects,
     sportAnalysisKind,
     sportMetricsSnapshot,
+    restrictMiniAppOverlays,
   } = engine;
+  const t = useTranslations();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
   return (category: EffectType) => (
     <div className="flex flex-col gap-1.5">
       {getEffectsForCategory(category).map((effect) => {
-        const enabled = isEffectActive(effect.id);
+        const locked =
+          Boolean(restrictMiniAppOverlays) && !isFreeMiniAppEffect(effect.id);
+        const enabled = !locked && isEffectActive(effect.id);
         const activeEffect = activeEffects.find((e) => e.effect.id === effect.id);
-        const expanded = expandedIds.has(effect.id);
+        const expanded = !locked && !restrictMiniAppOverlays && expandedIds.has(effect.id);
+        const unlockHint = t("account.upgradeToUnlock");
+
         return (
           <div key={effect.id} className="flex flex-col gap-1.5">
             <div
               style={enabled ? { border: "1px solid var(--accent, #3b82f6)" } : borderAllTheme}
-              className={`${effectRowBase} ${enabled ? effectRowOn : effectRowOff}`}
+              className={`${effectRowBase} ${enabled ? effectRowOn : effectRowOff} ${
+                locked ? "opacity-55" : ""
+              }`}
+              title={locked ? unlockHint : undefined}
             >
-              <input
-                type="checkbox"
-                checked={enabled}
-                aria-label={`Enable ${effect.name}`}
-                title={enabled ? `Disable ${effect.name}` : `Enable ${effect.name}`}
-                onChange={(event) => {
-                  setEffectEnabled(effect, event.target.checked);
-                }}
-                onClick={(event) => event.stopPropagation()}
-                className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-[var(--accent,#3b82f6)]"
-              />
+              {locked ? (
+                <Lock
+                  size={12}
+                  className="shrink-0 text-[color:var(--muted-foreground)]"
+                  aria-hidden
+                />
+              ) : (
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  aria-label={`Enable ${effect.name}`}
+                  title={enabled ? `Disable ${effect.name}` : `Enable ${effect.name}`}
+                  onChange={(event) => {
+                    setEffectEnabled(effect, event.target.checked);
+                  }}
+                  onClick={(event) => event.stopPropagation()}
+                  className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-[var(--accent,#3b82f6)]"
+                />
+              )}
               <button
                 type="button"
-                className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md py-0.5 text-left outline-none hover:opacity-90"
+                disabled={locked || Boolean(restrictMiniAppOverlays)}
+                className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md py-0.5 text-left outline-none hover:opacity-90 disabled:cursor-default disabled:hover:opacity-100"
                 aria-expanded={expanded}
+                title={locked ? unlockHint : undefined}
                 onClick={() => {
+                  if (locked || restrictMiniAppOverlays) return;
                   const opening = !expandedIds.has(effect.id);
                   if (opening) ensureEffect(effect);
                   setExpandedIds((prev) => {
@@ -84,12 +106,18 @@ function useEffectCategoryList(engine: AssetVideoEngine) {
                 }}
               >
                 <span className="min-w-0 truncate">{effect.name}</span>
-                <ChevronDown
-                  className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform duration-200 ${
-                    expanded ? "rotate-180" : ""
-                  }`}
-                  aria-hidden
-                />
+                {!locked && !restrictMiniAppOverlays ? (
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform duration-200 ${
+                      expanded ? "rotate-180" : ""
+                    }`}
+                    aria-hidden
+                  />
+                ) : locked ? (
+                  <span className="shrink-0 text-[10px] text-[color:var(--muted-foreground)]">
+                    {unlockHint}
+                  </span>
+                ) : null}
               </button>
             </div>
             {expanded && activeEffect ? (
@@ -185,10 +213,13 @@ export function AssetVideoPlayerChromeExportFooter({
   accordionTitle?: string;
 }) {
   return (
-    <div style={borderTopTheme} className="w-full flex-shrink-0 py-4 bg-[var(--header-bg)] backdrop-blur-xxl">
-      <Accordion.Root type="single" collapsible defaultValue={undefined}>
-        <Accordion.Item value="export" className="border-0 px-4">
-          <Accordion.Header>
+    <div
+      style={borderTopTheme}
+      className="flex w-full min-h-0 max-h-[min(48vh,24rem)] flex-shrink-0 flex-col overflow-hidden bg-[var(--header-bg)] py-3 backdrop-blur-xxl"
+    >
+      <Accordion.Root type="single" collapsible defaultValue={undefined} className="flex min-h-0 flex-col">
+        <Accordion.Item value="export" className="flex min-h-0 flex-col border-0 px-4">
+          <Accordion.Header className="shrink-0">
             <Accordion.Trigger className={exportTriggerClass}>
               <span className="mb-0 shrink-0 text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                 {accordionTitle}
@@ -196,8 +227,10 @@ export function AssetVideoPlayerChromeExportFooter({
               <ChevronDown className="h-4 w-4 shrink-0 text-[color:var(--muted)] transition-transform duration-300 ease-in-out" />
             </Accordion.Trigger>
           </Accordion.Header>
-          <Accordion.Content className={`${contentClass} data-[state=open]:overflow-visible`}>
-            <div className="bg-[color:color-mix(in_srgb,var(--header-bg)_100%)] px-4 py-3 md:px-8 overflow-visible">
+          <Accordion.Content
+            className="rail-accordion-content min-h-0 overflow-hidden data-[state=open]:max-h-[min(40vh,20rem)] data-[state=open]:overflow-y-auto"
+          >
+            <div className="bg-[color:color-mix(in_srgb,var(--header-bg)_100%)] px-4 py-3 md:px-8">
               <AssetVideoPlayerExportPanel engine={engine} />
             </div>
           </Accordion.Content>

@@ -25,6 +25,8 @@ export interface ExportConfig {
   duration?: number; // for video exports
   /** Source fps (or override). Clamped 10–60; defaults to 30 if missing. */
   framerate?: number;
+  /** Free-tier mini-app exports: draw brand mark bottom-right. */
+  watermark?: boolean;
   sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat' | 'poseFlexibility';
   sportMetricsSnapshot?: {
     cyclingCadenceRpm?: number | null;
@@ -69,6 +71,48 @@ function createExportCanvas(width: number, height: number): HTMLCanvasElement {
   canvas.style.height = height + 'px';
   
   return canvas;
+}
+
+const WATERMARK_SRC = '/images/brand/logo/Logo_Contained.svg';
+let watermarkImagePromise: Promise<HTMLImageElement | null> | null = null;
+
+function loadBrandWatermarkImage(): Promise<HTMLImageElement | null> {
+  if (typeof window === 'undefined') return Promise.resolve(null);
+  if (!watermarkImagePromise) {
+    watermarkImagePromise = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => {
+        console.warn('Failed to load export watermark logo');
+        resolve(null);
+      };
+      img.src = WATERMARK_SRC;
+    });
+  }
+  return watermarkImagePromise;
+}
+
+/**
+ * Bottom-right brand mark for free exports: ~10% of short side, ~4.5% inset (IG safe zone), full opacity.
+ */
+async function drawExportWatermark(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number
+): Promise<void> {
+  const logo = await loadBrandWatermarkImage();
+  if (!logo) return;
+  const shortSide = Math.min(canvasWidth, canvasHeight);
+  const markSize = shortSide * 0.1;
+  const inset = shortSide * 0.045;
+  const x = canvasWidth - inset - markSize;
+  const y = canvasHeight - inset - markSize;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(logo, x, y, markSize, markSize);
+  ctx.restore();
 }
 
 /**
@@ -291,7 +335,11 @@ async function renderEffectsToCanvas(
       // Render muybridge with effects applied to each frame
       await renderMuybridgeFromCanvas(ctx, video, poses, muybridgeEffect.config, video.currentTime, true, effectRenderer, config.videoVisibility);
     }
-  
+
+  if (config.watermark) {
+    await drawExportWatermark(ctx, canvas.width, canvas.height);
+  }
+
   return canvas;
 }
 
@@ -662,6 +710,10 @@ async function exportAsVideo(
                 break;
             }
           }
+          }
+
+          if (config.watermark) {
+            await drawExportWatermark(ctx, canvas.width, canvas.height);
           }
 
           if (!recordingStarted) {

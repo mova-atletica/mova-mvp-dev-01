@@ -17,6 +17,10 @@ import { createClient } from "../lib/supabase/client";
 import { insertLeaderboardEntry, listLeaderboardEntries } from "../lib/leaderboards";
 import { mapProfileRow, type ProfileRow } from "../lib/supabase/profile";
 import { hasCoachAccess, hasProAccess } from "../lib/proAccess";
+import {
+  clearPendingStudioAccess,
+  markPendingStudioAccess,
+} from "../lib/proCheckoutIntent";
 import type {
   AccountProfile,
   AccountTier,
@@ -76,7 +80,12 @@ interface MockAuthContextValue {
   requestStudioAccess: (onGranted: () => void) => void;
   openProPaywall: () => void;
   closeProPaywall: () => void;
-  mockUpgradeToPro: () => Promise<void>;
+  /** Redirect to Stripe Checkout for Pro (monthly | yearly). */
+  startProCheckout: (priceKey?: "monthly" | "yearly") => Promise<void>;
+  /** Open Stripe Customer Portal when the account has a Stripe customer. */
+  openBillingPortal: () => Promise<void>;
+  /** Re-fetch profile from Supabase (e.g. after Checkout return). */
+  refreshProfile: () => Promise<void>;
 }
 
 const MockAuthContext = createContext<MockAuthContextValue | null>(null);
@@ -157,6 +166,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           locale: "en",
           onboardingComplete: false,
           tier: "free",
+          stripeCustomerId: null,
         });
         return;
       }
@@ -180,6 +190,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             locale: "en",
             onboardingComplete: false,
             tier: "free",
+            stripeCustomerId: null,
           });
           return;
         }
@@ -433,6 +444,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   const setMockTier = useCallback(
     (nextTier: Exclude<AccountTier, "guest">) => {
       if (process.env.NODE_ENV !== "development") return;
+      // Local-only optimistic override — DB tier writes are locked to service role.
       setProfile((prev) => {
         if (!prev) return prev;
         return {
@@ -446,7 +458,6 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         void supabase
           .from("profiles")
           .update({
-            tier: nextTier === "partner" ? "pro" : nextTier,
             onboarding_complete: true,
           })
           .eq("id", user.id);
@@ -515,6 +526,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   const closeProPaywall = useCallback(() => {
     setProPaywallOpen(false);
     pendingStudioAccessRef.current = null;
+    clearPendingStudioAccess();
   }, []);
 
   const requestStudioAccess = useCallback(
@@ -524,41 +536,61 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       pendingStudioAccessRef.current = onGranted;
+      markPendingStudioAccess();
       setAuthError(null);
       setProPaywallOpen(true);
     },
     [userHasProAccess]
   );
 
-  const mockUpgradeToPro = useCallback(async () => {
-    if (!user) {
-      setProPaywallOpen(false);
-      setSignInOpen(true);
-      return;
-    }
+  const startProCheckout = useCallback(
+    async (priceKey: "monthly" | "yearly" = "monthly") => {
+      if (!user) {
+        setProPaywallOpen(false);
+        setSignInOpen(true);
+        return;
+      }
 
+      setAuthError(null);
+      try {
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ priceKey }),
+        });
+        const payload = (await res.json()) as { url?: string; error?: string };
+        if (!res.ok || !payload.url) {
+          setAuthError(payload.error ?? "Could not start checkout");
+          return;
+        }
+        window.location.assign(payload.url);
+      } catch (err) {
+        console.error("Checkout start failed", err);
+        setAuthError(err instanceof Error ? err.message : "Could not start checkout");
+      }
+    },
+    [user]
+  );
+
+  const openBillingPortal = useCallback(async () => {
     setAuthError(null);
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ tier: "pro" })
-      .eq("id", user.id)
-      .select(
-        "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
-      )
-      .single();
-
-    if (error || !data) {
-      console.error("Mock upgrade failed", error?.message);
-      setAuthError(error?.message ?? "Failed to upgrade to Pro");
-      return;
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const payload = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !payload.url) {
+        setAuthError(payload.error ?? "Could not open billing portal");
+        return;
+      }
+      window.location.assign(payload.url);
+    } catch (err) {
+      console.error("Portal open failed", err);
+      setAuthError(err instanceof Error ? err.message : "Could not open billing portal");
     }
+  }, []);
 
-    setProfile(mapProfileRow(data as ProfileRow, user));
-    setProPaywallOpen(false);
-    const callback = pendingStudioAccessRef.current;
-    pendingStudioAccessRef.current = null;
-    callback?.();
-  }, [supabase, user]);
+  const refreshProfile = useCallback(async () => {
+    await loadProfile(user);
+  }, [loadProfile, user]);
 
   const value = useMemo<MockAuthContextValue>(
     () => ({
@@ -594,7 +626,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       requestStudioAccess,
       openProPaywall,
       closeProPaywall,
-      mockUpgradeToPro,
+      startProCheckout,
+      openBillingPortal,
+      refreshProfile,
     }),
     [
       tier,
@@ -629,7 +663,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       requestStudioAccess,
       openProPaywall,
       closeProPaywall,
-      mockUpgradeToPro,
+      startProCheckout,
+      openBillingPortal,
+      refreshProfile,
     ]
   );
 

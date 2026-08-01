@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useAccount } from "../../contexts/MockAuthContext";
 import { useTranslations } from "../../i18n/LocaleProvider";
@@ -8,9 +9,20 @@ import { hasProAccess } from "../../lib/proAccess";
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
 export default function AccountProAccessBlock() {
-  const { tier, openProPaywall } = useAccount();
+  const { tier, profile, openProPaywall, openBillingPortal, authError } = useAccount();
   const t = useTranslations();
   const isPro = hasProAccess(tier);
+  const canManageBilling = Boolean(profile?.stripeCustomerId);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const handleManage = async () => {
+    setPortalLoading(true);
+    try {
+      await openBillingPortal();
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   return (
     <section
@@ -32,7 +44,11 @@ export default function AccountProAccessBlock() {
           )}
         </p>
         <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-          {isPro ? t("account.proActiveHint") : t("account.proFreeHint")}
+          {isPro
+            ? canManageBilling
+              ? t("account.proActiveHint")
+              : t("account.proGrandfatherHint")
+            : t("account.proFreeHint")}
         </p>
       </div>
       <div className="mt-auto pt-4">
@@ -49,16 +65,20 @@ export default function AccountProAccessBlock() {
           >
             {t("account.upgradePro")}
           </button>
-        ) : (
+        ) : canManageBilling ? (
           <button
             type="button"
-            disabled
+            onClick={handleManage}
+            disabled={portalLoading}
             style={borderAllTheme}
-            className="w-full cursor-not-allowed rounded-lg px-4 py-2.5 text-sm text-[color:var(--muted-foreground)] opacity-70"
+            className="w-full rounded-lg px-4 py-2.5 text-sm text-[color:var(--foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_6%,transparent)] disabled:opacity-60"
           >
-            {t("account.manageSubscription")} ({t("common.comingSoon")})
+            {portalLoading ? t("account.openingPortal") : t("account.manageSubscription")}
           </button>
-        )}
+        ) : null}
+        {authError ? (
+          <p className="mt-2 text-xs leading-relaxed text-red-500">{authError}</p>
+        ) : null}
       </div>
     </section>
   );

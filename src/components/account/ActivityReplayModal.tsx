@@ -17,6 +17,8 @@ import {
 } from "../../lib/activitySessions";
 import { createClient } from "../../lib/supabase/client";
 import MotionAnalysisPanel from "../../app/motion-explore/MotionAnalysisPanel";
+import { useAccount } from "../../contexts/MockAuthContext";
+import { useTranslations } from "../../i18n/LocaleProvider";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
@@ -35,6 +37,8 @@ export default function ActivityReplayModal({
   onOpenChange,
   activity,
 }: ActivityReplayModalProps) {
+  const { hasProAccess, openProPaywall } = useAccount();
+  const t = useTranslations();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -141,6 +145,7 @@ export default function ActivityReplayModal({
   }, [activity, sportKind]);
 
   const hasAnalysis = Boolean(angles && poses.length > 0);
+  const showUpgradeForVideo = !loading && !videoUrl && !hasProAccess;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -160,7 +165,7 @@ export default function ActivityReplayModal({
               </Dialog.Title>
               <Dialog.Description className="truncate text-xs text-[color:var(--muted-foreground)]">
                 {activity?.subtitle ?? "Saved analysis"}
-                {!activity?.videoPath ? " · Video available on Pro" : ""}
+                {!activity?.videoPath ? ` · ${t("account.videoAvailableOnPro")}` : ""}
               </Dialog.Description>
             </div>
             <Dialog.Close className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_8%,transparent)]">
@@ -180,10 +185,34 @@ export default function ActivityReplayModal({
                   className="max-h-full max-w-full object-contain"
                 />
               ) : (
-                <p className="max-w-xs px-6 text-center text-sm text-[color:var(--muted-foreground)]">
-                  No video for this session. Analysis charts are still available
-                  {activity?.kind === "mini-app" ? " on the right" : ""}.
-                </p>
+                <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
+                  <p className="text-sm text-[color:var(--muted-foreground)]">
+                    {t("account.noVideoForSession")}
+                    {activity?.kind === "mini-app" ? ` ${t("account.noVideoChartsHint")}` : ""}
+                  </p>
+                  {showUpgradeForVideo ? (
+                    <>
+                      <p className="text-xs text-[color:var(--muted-foreground)]">
+                        {t("account.upgradeToStoreVideos")}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onOpenChange(false);
+                          openProPaywall();
+                        }}
+                        className="rounded-lg px-4 py-2 text-sm font-medium"
+                        style={{
+                          background: "var(--primary-button-bg)",
+                          color: "var(--primary-button-text)",
+                          border: "2px solid var(--primary-button-border)",
+                        }}
+                      >
+                        {t("account.upgradePro")}
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               )}
             </div>
 

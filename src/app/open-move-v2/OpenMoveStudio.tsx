@@ -236,12 +236,16 @@ function AssetVideoSessionBridge({
   sportAnalysisKind,
   sportMetricsSnapshot,
   initialVisualConfig = null,
+  restrictMiniAppOverlays = false,
+  watermarkExports = false,
   children,
 }: {
   session: SessionState & { status: "ready"; videoUrl: string };
   sportAnalysisKind: SportAnalysisKind;
   sportMetricsSnapshot: SportMetricsSnapshot | null;
   initialVisualConfig?: VisualOverlayPreset | null;
+  restrictMiniAppOverlays?: boolean;
+  watermarkExports?: boolean;
   children: React.ReactNode;
 }) {
   const engine = useAssetVideoEngine({
@@ -250,6 +254,8 @@ function AssetVideoSessionBridge({
     exerciseTitle: session.sessionLabel,
     sportAnalysisKind,
     sportMetricsSnapshot,
+    restrictMiniAppOverlays,
+    watermarkExports,
   });
   const hydratedVisualRef = useRef(false);
 
@@ -271,6 +277,8 @@ function ConditionalEngineBridge({
   sportMetricsSnapshot,
   showVideoEngine,
   initialVisualConfig = null,
+  restrictMiniAppOverlays = false,
+  watermarkExports = false,
   children,
 }: {
   session: SessionState;
@@ -278,6 +286,8 @@ function ConditionalEngineBridge({
   sportMetricsSnapshot: SportMetricsSnapshot | null;
   showVideoEngine: boolean;
   initialVisualConfig?: VisualOverlayPreset | null;
+  restrictMiniAppOverlays?: boolean;
+  watermarkExports?: boolean;
   children: React.ReactNode;
 }) {
   if (
@@ -292,6 +302,8 @@ function ConditionalEngineBridge({
         sportAnalysisKind={sportAnalysisKind}
         sportMetricsSnapshot={sportMetricsSnapshot}
         initialVisualConfig={initialVisualConfig}
+        restrictMiniAppOverlays={restrictMiniAppOverlays}
+        watermarkExports={watermarkExports}
       >
         {children}
       </AssetVideoSessionBridge>
@@ -531,9 +543,12 @@ export default function OpenMoveStudio({
     openSignIn,
     openOnboarding,
     hasCoachAccess,
+    hasProAccess,
   } = useAccount();
   /** Live capture stays a partner tool during beta; everyone else uploads a clip. */
   const canRecordLive = hasCoachAccess;
+  const restrictMiniAppOverlays = isQuickAnalysis && !hasProAccess;
+  const watermarkExports = isQuickAnalysis && !hasProAccess;
   const [isDesktop, setIsDesktop] = useState(false);
   const [viewportResolved, setViewportResolved] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -1781,22 +1796,79 @@ export default function OpenMoveStudio({
           ) : null}
 
           {embeddedQuickAnalysis ? (
-            <>
-              <div style={borderTopTheme} className="space-y-2 pt-2">
-                <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                  1. {canRecordLive ? "Upload or record video" : "Upload video"}
+            <div style={borderTopTheme} className="space-y-2 pt-2">
+              <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                1. {canRecordLive ? "Upload or record video" : "Upload video"}
+              </p>
+              <OpenMoveSportSetupTip sportAnalysisKind={sportAnalysisKind} />
+              {uploadRecordButtons}
+              {session.sessionLabel ? (
+                <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
+                  <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
+                  {session.sessionLabel}
                 </p>
-                <OpenMoveSportSetupTip sportAnalysisKind={sportAnalysisKind} />
-                {uploadRecordButtons}
-                {session.sessionLabel ? (
-                  <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
-                    <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
-                    {session.sessionLabel}
-                  </p>
-                ) : null}
-              </div>
-              {sessionHasVideo && sportHasSetupControls(sportAnalysisKind) ? (
+              ) : null}
+            </div>
+          ) : (
+            <>
+              {isQuickAnalysis ? (
                 <div style={borderTopTheme} className="space-y-2 pt-2">
+                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                    1. Setup
+                  </p>
+                  {sportSetupFields}
+                  {sideCoverageNotice ? (
+                    <p className="text-[10px] leading-snug text-amber-500">{sideCoverageNotice}</p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {!isHydrated ? (
+                <div style={borderTopTheme} className="space-y-2 pt-2">
+                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                    {`${isQuickAnalysis ? "2." : "1."} ${
+                      canRecordLive ? "Upload or record video" : "Upload video"
+                    }`}
+                  </p>
+                  {uploadRecordButtons}
+                  {session.sessionLabel ? (
+                    <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
+                      <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
+                      {session.sessionLabel}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/*
+        Layout contract: fill space below header with a flex column so ChromeRail gets a height budget.
+        Embedded mini apps: Setup / Save / Leaderboard scroll with overlays so export stays reachable.
+        Do not wrap StudioPanelChrome in overflow-y-auto — ChromeRail owns scroll + pinned export footer.
+      */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        {session.status === "processing_video" ? (
+          <div style={borderBottomTheme} className="flex-shrink-0 px-8 py-2">
+            <div className="h-1.5 overflow-hidden rounded-full bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]">
+              <div
+                className="h-full bg-[var(--accent,#3b82f6)] transition-all"
+                style={{ width: `${tfProgress}%` }}
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-[color:var(--muted)]">
+              Analyzing motion… {tfProgress}%
+            </p>
+          </div>
+        ) : null}
+
+        {embeddedQuickAnalysis && sessionHasVideo ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="open-move-studio-panel-scroll min-h-0 flex-1 overflow-y-auto p-8 pt-2">
+              {sportHasSetupControls(sportAnalysisKind) ? (
+                <div className="space-y-2 pb-4">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                     2. Setup
                   </p>
@@ -1817,7 +1889,10 @@ export default function OpenMoveStudio({
                 </div>
               ) : null}
               {showAnalyzeButton ? (
-                <div style={borderTopTheme} className="space-y-2 pt-2">
+                <div
+                  style={sportHasSetupControls(sportAnalysisKind) ? borderTopTheme : undefined}
+                  className="space-y-2 pb-4 pt-2"
+                >
                   {session.errorMessage && session.status === "clip_ready" ? (
                     <p className="text-[10px] leading-snug text-red-500/90">{session.errorMessage}</p>
                   ) : null}
@@ -1836,7 +1911,7 @@ export default function OpenMoveStudio({
                 </div>
               ) : null}
               {pendingSave && hasAnalyzed ? (
-                <div style={borderTopTheme} className="space-y-2 pt-2">
+                <div style={borderTopTheme} className="space-y-2 pb-4 pt-2">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                     Save to activity
                   </p>
@@ -1863,7 +1938,7 @@ export default function OpenMoveStudio({
                 </div>
               ) : null}
               {leaderboardScore && hasAnalyzed ? (
-                <div style={borderTopTheme} className="space-y-2 pt-2">
+                <div style={borderTopTheme} className="space-y-2 pb-4 pt-2">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                     Post to leaderboard
                   </p>
@@ -1903,62 +1978,28 @@ export default function OpenMoveStudio({
                   </button>
                 </div>
               ) : null}
-            </>
-          ) : (
-            <>
-              {isQuickAnalysis ? (
-                <div style={borderTopTheme} className="space-y-2 pt-2">
-                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                    1. Setup
-                  </p>
-                  {sportSetupFields}
-                  {sideCoverageNotice ? (
-                    <p className="text-[10px] leading-snug text-amber-500">{sideCoverageNotice}</p>
-                  ) : null}
-                </div>
-              ) : null}
 
-              {!isHydrated ? (
-                <div style={borderTopTheme} className="space-y-2 pt-2">
-                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                    {`${isQuickAnalysis ? "2." : "1."} ${
-                      canRecordLive ? "Upload or record video" : "Upload video"
-                    }`}
-                  </p>
-                  {uploadRecordButtons}
-                  {session.sessionLabel ? (
-                    <p className="line-clamp-2 text-[11px] text-[color:var(--muted)]">
-                      <span className="text-[color:var(--muted-foreground)]">Current video source:</span>{" "}
-                      {session.sessionLabel}
+              {session.status === "ready" && hasAnalyzed ? (
+                <>
+                  <div
+                    style={borderTopTheme}
+                    className="mb-0 flex items-start justify-between gap-2 pt-2"
+                  >
+                    <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                      3. Movement Visualization
                     </p>
-                  ) : null}
-                </div>
+                    <VisualOverlayConfigActions
+                      activityId={savedActivityId}
+                      visualConfigRef={visualConfigRef}
+                    />
+                  </div>
+                  <StudioPanelChrome scrollContainer="passthrough" />
+                </>
               ) : null}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/*
-        Layout contract: fill space below header with a flex column so ChromeRail gets a height budget.
-        Do not wrap StudioPanelChrome in overflow-y-auto — ChromeRail owns scroll + pinned export footer.
-      */}
-      <div className="flex min-h-0 flex-1 flex-col">
-        {session.status === "processing_video" ? (
-          <div style={borderBottomTheme} className="flex-shrink-0 px-8 py-2">
-            <div className="h-1.5 overflow-hidden rounded-full bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]">
-              <div
-                className="h-full bg-[var(--accent,#3b82f6)] transition-all"
-                style={{ width: `${tfProgress}%` }}
-              />
             </div>
-            <p className="mt-1 text-[10px] text-[color:var(--muted)]">
-              Analyzing motion… {tfProgress}%
-            </p>
+            {session.status === "ready" && hasAnalyzed ? <StudioRailExportFooter /> : null}
           </div>
-        ) : null}
-
-        {session.status === "ready" && (!embeddedQuickAnalysis || hasAnalyzed) ? (
+        ) : session.status === "ready" && (!embeddedQuickAnalysis || hasAnalyzed) ? (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="open-move-studio-panel-scroll min-h-0 flex-1 overflow-y-auto p-8 pt-2">
               {isQuickAnalysis && !embeddedQuickAnalysis ? (
@@ -2016,9 +2057,7 @@ export default function OpenMoveStudio({
                   {isHydrated
                     ? "1. Movement Visualization"
                     : isQuickAnalysis
-                      ? embeddedQuickAnalysis
-                        ? "2. Movement Visualization"
-                        : "4. Movement Visualization"
+                      ? "4. Movement Visualization"
                       : "2. Movement Visualization"}
                 </p>
                 <VisualOverlayConfigActions
@@ -2065,6 +2104,8 @@ export default function OpenMoveStudio({
       sportMetricsSnapshot={overlaySportMetricsSnapshot}
       showVideoEngine={showVideoEngine}
       initialVisualConfig={initialHydration?.visualConfig ?? null}
+      restrictMiniAppOverlays={restrictMiniAppOverlays}
+      watermarkExports={watermarkExports}
     >
     <div
       ref={setStudioRootRef}

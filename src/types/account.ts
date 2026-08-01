@@ -10,6 +10,8 @@ export interface AccountProfile {
   locale: AppLocale;
   onboardingComplete: boolean;
   tier: Exclude<AccountTier, "guest">;
+  /** Present when the user has been through Stripe Checkout (or customer created). */
+  stripeCustomerId: string | null;
 }
 
 export interface LeaderboardScorePayload {
