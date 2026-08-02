@@ -7,6 +7,26 @@
     "backToArchive": "Back to archive",
     "comingSoon": "Coming soon"
   },
+  "signInModal": {
+    "tryForFreeTitle": "Sign in / create account",
+    "tryForFreeBody": "If you're new, try for FREE! Enter your email and we'll send you a code to get started.",
+    "checkEmailTitle": "Check your email",
+    "checkEmailBody": "We sent a sign-in link and 6-digit code. Click the link or enter the code below.",
+    "codeSentTo": "Code sent to",
+    "codeLabel": "6-digit code",
+    "verifyCode": "Verify code",
+    "verifying": "Verifying…",
+    "differentEmail": "Use a different email",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "sendCode": "Send code",
+    "sending": "Sending…",
+    "linkExpired": "Sign-in link expired or invalid. Try again.",
+    "legalPrefix": "By continuing you agree to our",
+    "terms": "Terms",
+    "legalAnd": "and",
+    "privacy": "Privacy Policy"
+  },
   "account": {
     "title": "Account",
     "subtitle": "Profile, sessions, and your movement data.",

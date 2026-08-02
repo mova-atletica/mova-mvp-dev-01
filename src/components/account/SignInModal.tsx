@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { useAccount } from "../../contexts/MockAuthContext";
+import { useTranslations } from "../../i18n/LocaleProvider";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
@@ -16,11 +17,13 @@ export default function SignInModal() {
   const {
     signInOpen,
     closeSignIn,
+    dismissSignIn,
     signInWithMagicLink,
     verifyEmailOtp,
     authError,
     isAuthenticated,
   } = useAccount();
+  const t = useTranslations();
 
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
@@ -42,11 +45,11 @@ export default function SignInModal() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "auth") {
-      setLocalError("Sign-in link expired or invalid. Try again.");
+      setLocalError(t("signInModal.linkExpired"));
     }
-  }, [signInOpen]);
+  }, [signInOpen, t]);
 
-  // Close sign-in once authenticated (onboarding may open next).
+  // Close sign-in once authenticated (onboarding / paywall may open next).
   useEffect(() => {
     if (signInOpen && isAuthenticated) {
       closeSignIn();
@@ -82,14 +85,17 @@ export default function SignInModal() {
       setLocalError(error);
       return;
     }
-    // Auth state change closes modal and may open onboarding.
+    // Auth state change closes modal and may open onboarding or paywall.
   };
 
   return (
     <Dialog.Root
       open={signInOpen}
       onOpenChange={(open) => {
-        if (!open) closeSignIn();
+        if (!open) {
+          if (isAuthenticated) closeSignIn();
+          else dismissSignIn();
+        }
       }}
     >
       <Dialog.Portal>
@@ -101,12 +107,10 @@ export default function SignInModal() {
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <Dialog.Title className="text-base font-semibold text-[color:var(--foreground)]">
-                {sent ? "Check your email" : "Sign In / Create Account"}
+                {sent ? t("signInModal.checkEmailTitle") : t("signInModal.tryForFreeTitle")}
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                {sent
-                  ? "We sent a sign-in link and 6-digit code. Click the link or enter the code below."
-                  : "Enter your email and we’ll send a 6-digit code. New here? This creates your account."}
+                {sent ? t("signInModal.checkEmailBody") : t("signInModal.tryForFreeBody")}
               </Dialog.Description>
             </div>
             <Dialog.Close className="rounded p-1 text-[color:var(--muted-foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_8%,transparent)]">
@@ -118,13 +122,13 @@ export default function SignInModal() {
             <div className="space-y-4">
               {errorMessage ? <p className="text-sm text-red-500">{errorMessage}</p> : null}
               <p className="text-xs text-[color:var(--muted-foreground)]">
-                Code sent to{" "}
+                {t("signInModal.codeSentTo")}{" "}
                 <span className="font-medium text-[color:var(--foreground)]">{email}</span>
               </p>
               <form onSubmit={handleVerifyCode} className="space-y-3">
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-[color:var(--foreground)]">
-                    6-digit code
+                    {t("signInModal.codeLabel")}
                   </span>
                   <input
                     type="text"
@@ -153,7 +157,7 @@ export default function SignInModal() {
                     border: "2px solid var(--primary-button-border)",
                   }}
                 >
-                  {verifying ? "Verifying…" : "Verify code"}
+                  {verifying ? t("signInModal.verifying") : t("signInModal.verifyCode")}
                 </button>
               </form>
               <button
@@ -165,7 +169,7 @@ export default function SignInModal() {
                 }}
                 className="w-full text-center text-xs text-[color:var(--muted-foreground)] underline"
               >
-                Use a different email
+                {t("signInModal.differentEmail")}
               </button>
             </div>
           ) : (
@@ -173,13 +177,13 @@ export default function SignInModal() {
               {errorMessage ? <p className="text-sm text-red-500">{errorMessage}</p> : null}
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-[color:var(--foreground)]">
-                  Email
+                  {t("signInModal.emailLabel")}
                 </span>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder={t("signInModal.emailPlaceholder")}
                   required
                   autoFocus
                   className="w-full rounded-lg px-3 py-2.5 text-sm outline-none"
@@ -201,19 +205,19 @@ export default function SignInModal() {
                   border: "2px solid var(--primary-button-border)",
                 }}
               >
-                {submitting ? "Sending…" : "Send code"}
+                {submitting ? t("signInModal.sending") : t("signInModal.sendCode")}
               </button>
             </form>
           )}
 
           <p className="mt-5 border-t border-[color:var(--border-secondary)] pt-4 text-center text-[10px] text-[color:var(--muted-foreground)]">
-            By continuing you agree to our{" "}
+            {t("signInModal.legalPrefix")}{" "}
             <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline">
-              Terms
+              {t("signInModal.terms")}
             </a>{" "}
-            and{" "}
+            {t("signInModal.legalAnd")}{" "}
             <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline">
-              Privacy Policy
+              {t("signInModal.privacy")}
             </a>
             .
           </p>

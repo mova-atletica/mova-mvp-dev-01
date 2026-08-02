@@ -19,6 +19,7 @@ import { mapProfileRow, type ProfileRow } from "../lib/supabase/profile";
 import { hasCoachAccess, hasProAccess } from "../lib/proAccess";
 import {
   clearPendingStudioAccess,
+  hasPendingStudioAccess,
   markPendingStudioAccess,
 } from "../lib/proCheckoutIntent";
 import type {
@@ -75,6 +76,8 @@ interface MockAuthContextValue {
   dismissLeaderboardSave: () => void;
   openSignIn: () => void;
   closeSignIn: () => void;
+  /** Close sign-in and clear pending Studio intent (user dismissed). */
+  dismissSignIn: () => void;
   openOnboarding: () => void;
   closeOnboarding: () => void;
   requestStudioAccess: (onGranted: () => void) => void;
@@ -248,16 +251,43 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(LB_STORAGE_KEY, JSON.stringify(leaderboardEntries));
   }, [leaderboardEntries, lbHydrated]);
 
-  // After first auth (OTP or magic link), open onboarding if profile incomplete.
+  // After first auth (OTP or magic link): onboarding if incomplete, else resume Studio funnel.
   useEffect(() => {
     if (authLoading) return;
     const nowAuth = Boolean(user && profile);
-    if (nowAuth && !wasAuthenticatedRef.current && profile && !profile.onboardingComplete) {
+    if (nowAuth && !wasAuthenticatedRef.current && profile) {
       setSignInOpen(false);
-      setOnboardingOpen(true);
+      if (!profile.onboardingComplete) {
+        setOnboardingOpen(true);
+      } else if (pendingStudioAccessRef.current || hasPendingStudioAccess()) {
+        if (hasProAccess(profile.tier)) {
+          const onGranted = pendingStudioAccessRef.current;
+          pendingStudioAccessRef.current = null;
+          clearPendingStudioAccess();
+          onGranted?.();
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("mova:open-studio"));
+          }
+        } else {
+          setAuthError(null);
+          setProPaywallOpen(true);
+        }
+      }
     }
     wasAuthenticatedRef.current = nowAuth;
   }, [authLoading, user, profile]);
+
+  // Resume incomplete onboarding after reload when Studio intent is still pending.
+  // Do not auto-open the paywall here — that conflicts with Checkout return while tier is still free.
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || !profile) return;
+    if (!hasPendingStudioAccess()) return;
+    if (signInOpen || onboardingOpen || proPaywallOpen) return;
+    if (!profile.onboardingComplete) {
+      setOnboardingOpen(true);
+    }
+  }, [authLoading, user, profile, signInOpen, onboardingOpen, proPaywallOpen]);
 
   const tier: AccountTier = profile?.tier ?? "guest";
   const isAuthenticated = Boolean(user && profile);
@@ -402,6 +432,12 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
       setOnboardingOpen(false);
 
+      // Studio gate: after required onboarding, show optional Pro paywall (do not open Studio).
+      if (pendingStudioAccessRef.current || hasPendingStudioAccess()) {
+        setAuthError(null);
+        setProPaywallOpen(true);
+      }
+
       setPendingLeaderboardScore((pending) => {
         if (!pending) return null;
         const optimistic: LeaderboardEntry = {
@@ -512,22 +548,35 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     setLeaderboardSaveOpen(false);
   }, []);
 
+  const abandonPendingStudioAccess = useCallback(() => {
+    pendingStudioAccessRef.current = null;
+    clearPendingStudioAccess();
+  }, []);
+
   const openOnboarding = useCallback(() => setOnboardingOpen(true), []);
-  const closeOnboarding = useCallback(() => setOnboardingOpen(false), []);
+  /** Dismiss onboarding without completing — clears pending Studio intent. */
+  const closeOnboarding = useCallback(() => {
+    setOnboardingOpen(false);
+    abandonPendingStudioAccess();
+  }, [abandonPendingStudioAccess]);
   const openSignIn = useCallback(() => {
     setOnboardingOpen(false);
     setSignInOpen(true);
   }, []);
   const closeSignIn = useCallback(() => setSignInOpen(false), []);
+  /** User closed sign-in without authenticating — clears pending Studio intent. */
+  const dismissSignIn = useCallback(() => {
+    setSignInOpen(false);
+    abandonPendingStudioAccess();
+  }, [abandonPendingStudioAccess]);
   const openProPaywall = useCallback(() => {
     setAuthError(null);
     setProPaywallOpen(true);
   }, []);
   const closeProPaywall = useCallback(() => {
     setProPaywallOpen(false);
-    pendingStudioAccessRef.current = null;
-    clearPendingStudioAccess();
-  }, []);
+    abandonPendingStudioAccess();
+  }, [abandonPendingStudioAccess]);
 
   const requestStudioAccess = useCallback(
     (onGranted: () => void) => {
@@ -538,9 +587,25 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       pendingStudioAccessRef.current = onGranted;
       markPendingStudioAccess();
       setAuthError(null);
+
+      // Guest → sign-in; signed-in incomplete → onboarding; free onboarded → paywall.
+      if (!user || !profile) {
+        setProPaywallOpen(false);
+        setOnboardingOpen(false);
+        setSignInOpen(true);
+        return;
+      }
+      if (!profile.onboardingComplete) {
+        setProPaywallOpen(false);
+        setSignInOpen(false);
+        setOnboardingOpen(true);
+        return;
+      }
+      setSignInOpen(false);
+      setOnboardingOpen(false);
       setProPaywallOpen(true);
     },
-    [userHasProAccess]
+    [userHasProAccess, user, profile]
   );
 
   const startProCheckout = useCallback(
@@ -621,6 +686,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       dismissLeaderboardSave,
       openSignIn,
       closeSignIn,
+      dismissSignIn,
       openOnboarding,
       closeOnboarding,
       requestStudioAccess,
@@ -658,6 +724,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       dismissLeaderboardSave,
       openSignIn,
       closeSignIn,
+      dismissSignIn,
       openOnboarding,
       closeOnboarding,
       requestStudioAccess,

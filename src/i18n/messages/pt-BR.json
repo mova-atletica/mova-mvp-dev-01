@@ -7,6 +7,26 @@
     "backToArchive": "Voltar ao arquivo",
     "comingSoon": "Em breve"
   },
+  "signInModal": {
+    "tryForFreeTitle": "Experimente grátis",
+    "tryForFreeBody": "Entre ou crie uma conta com seu e-mail. O plano gratuito inclui mini apps; Open Movement Viz é Pro.",
+    "checkEmailTitle": "Confira seu e-mail",
+    "checkEmailBody": "Enviamos um link de acesso e um código de 6 dígitos. Clique no link ou digite o código abaixo.",
+    "codeSentTo": "Código enviado para",
+    "codeLabel": "Código de 6 dígitos",
+    "verifyCode": "Verificar código",
+    "verifying": "Verificando…",
+    "differentEmail": "Usar outro e-mail",
+    "emailLabel": "E-mail",
+    "emailPlaceholder": "voce@exemplo.com",
+    "sendCode": "Enviar código",
+    "sending": "Enviando…",
+    "linkExpired": "Link de acesso expirado ou inválido. Tente de novo.",
+    "legalPrefix": "Ao continuar, você concorda com nossos",
+    "terms": "Termos",
+    "legalAnd": "e a",
+    "privacy": "Política de Privacidade"
+  },
   "account": {
     "title": "Conta",
     "subtitle": "Perfil, sessões e seus dados de movimento.",
