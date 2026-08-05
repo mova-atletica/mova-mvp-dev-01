@@ -31,6 +31,7 @@ import {
   analyzePlank,
   analyzePoseFlexibility,
   analyzePullUps,
+  analyzePushUps,
   analyzeSquat,
 } from "../../lib/sportAnalysis";
 import type {
@@ -42,6 +43,8 @@ import type {
   PlankAnalysisResult,
   PlankFacingSide,
   PullUpsAnalysisResult,
+  PushUpsAnalysisResult,
+  PushUpSide,
   SquatAnalysisResult,
   SquatSide,
   SportAnalysisKind,
@@ -131,6 +134,7 @@ function selectedSideForSport(
 ): BodySide | null {
   if (sport === "plank") return setup.plankFacingSide;
   if (sport === "squat") return setup.squatSide;
+  if (sport === "pushups") return setup.pushUpSide;
   if (sport === "cycling") return setup.cyclingLeg;
   if (sport === "poseFlexibility") return setup.poseFlexibilitySide;
   return null;
@@ -324,6 +328,7 @@ type AnalyzedSetupSnapshot = {
   cyclingLeg: CyclingLeg;
   plankFacingSide: PlankFacingSide;
   squatSide: SquatSide;
+  pushUpSide: PushUpSide;
   poseFlexibilitySide: PoseFlexibilitySide;
   poseFlexibilityFocusAreas: PoseFlexibilityFocusArea[];
 };
@@ -332,6 +337,7 @@ function analyzedSetupSnapshot(
   cyclingLeg: CyclingLeg,
   plankFacingSide: PlankFacingSide,
   squatSide: SquatSide,
+  pushUpSide: PushUpSide,
   poseFlexibilitySide: PoseFlexibilitySide,
   poseFlexibilityFocusAreas: PoseFlexibilityFocusArea[]
 ): AnalyzedSetupSnapshot {
@@ -339,6 +345,7 @@ function analyzedSetupSnapshot(
     cyclingLeg,
     plankFacingSide,
     squatSide,
+    pushUpSide,
     poseFlexibilitySide,
     poseFlexibilityFocusAreas: [...poseFlexibilityFocusAreas],
   };
@@ -348,6 +355,7 @@ function analyzedSetupsMatch(a: AnalyzedSetupSnapshot, b: AnalyzedSetupSnapshot)
   if (a.cyclingLeg !== b.cyclingLeg) return false;
   if (a.plankFacingSide !== b.plankFacingSide) return false;
   if (a.squatSide !== b.squatSide) return false;
+  if (a.pushUpSide !== b.pushUpSide) return false;
   if (a.poseFlexibilitySide !== b.poseFlexibilitySide) return false;
   if (a.poseFlexibilityFocusAreas.length !== b.poseFlexibilityFocusAreas.length) return false;
   return a.poseFlexibilityFocusAreas.every((area) => b.poseFlexibilityFocusAreas.includes(area));
@@ -467,6 +475,13 @@ export default function OpenMoveStudio({
       : null
   );
   const [squatAnalysisError, setSquatAnalysisError] = useState<string | null>(null);
+  const [pushUpsAnalysisResult, setPushUpsAnalysisResult] = useState<PushUpsAnalysisResult | null>(
+    () =>
+      initialHydration?.sportAnalysisKind === "pushups"
+        ? (initialHydration.sportAnalysis as PushUpsAnalysisResult | null)
+        : null
+  );
+  const [pushUpsAnalysisError, setPushUpsAnalysisError] = useState<string | null>(null);
   const [poseFlexibilityAnalysisResult, setPoseFlexibilityAnalysisResult] =
     useState<PoseFlexibilityAnalysisResult | null>(() =>
       initialHydration?.sportAnalysisKind === "poseFlexibility"
@@ -484,6 +499,8 @@ export default function OpenMoveStudio({
   const [plankSideMenuOpen, setPlankSideMenuOpen] = useState(false);
   const [squatSide, setSquatSide] = useState<SquatSide>("left");
   const [squatSideMenuOpen, setSquatSideMenuOpen] = useState(false);
+  const [pushUpSide, setPushUpSide] = useState<PushUpSide>("left");
+  const [pushUpSideMenuOpen, setPushUpSideMenuOpen] = useState(false);
   const [poseFlexibilitySide, setPoseFlexibilitySide] = useState<PoseFlexibilitySide>("left");
   const [poseFlexibilitySideMenuOpen, setPoseFlexibilitySideMenuOpen] = useState(false);
   const [poseFlexibilityFocusAreas, setPoseFlexibilityFocusAreas] = useState<PoseFlexibilityFocusArea[]>([
@@ -605,6 +622,7 @@ export default function OpenMoveStudio({
         : Math.max(0, Math.min(100, 100 - Math.min(100, repeatabilityRmse)));
     const repCount = pullUpsAnalysisResult?.rep_count ?? null;
     const squatReps = squatAnalysisResult?.rep_count ?? null;
+    const pushupsReps = pushUpsAnalysisResult?.rep_count ?? null;
     const poseFlexMetrics = poseFlexibilityAnalysisResult?.focusMetrics ?? [];
     const poseMetric = (focusArea: PoseFlexibilityFocusArea) =>
       poseFlexMetrics.find((metric) => metric.focusArea === focusArea)?.value ?? null;
@@ -634,6 +652,7 @@ export default function OpenMoveStudio({
       plankAvgHipDeviation: null,
       plankAvgHipAngleDeg: plankAnalysisResult?.avgHipAngleDeg ?? null,
       squatRepCount: squatReps,
+      pushupsRepCount: pushupsReps,
       poseFlexibilityLegsDeg: poseMetric("legs"),
       poseFlexibilityHipsDeg: poseMetric("hips"),
       poseFlexibilityTorsoDeg: poseMetric("torso"),
@@ -645,6 +664,7 @@ export default function OpenMoveStudio({
     pullUpsAnalysisResult,
     plankAnalysisResult,
     squatAnalysisResult,
+    pushUpsAnalysisResult,
     poseFlexibilityAnalysisResult,
     session.angles,
   ]);
@@ -844,10 +864,11 @@ export default function OpenMoveStudio({
         cyclingLeg,
         plankFacingSide,
         squatSide,
+        pushUpSide,
         poseFlexibilitySide,
         poseFlexibilityFocusAreas
       ),
-    [cyclingLeg, plankFacingSide, squatSide, poseFlexibilitySide, poseFlexibilityFocusAreas]
+    [cyclingLeg, plankFacingSide, squatSide, pushUpSide, poseFlexibilitySide, poseFlexibilityFocusAreas]
   );
 
   const setupChangedFromLastAnalyze = useMemo(() => {
@@ -873,6 +894,8 @@ export default function OpenMoveStudio({
     setPlankAnalysisError(null);
     setSquatAnalysisResult(null);
     setSquatAnalysisError(null);
+    setPushUpsAnalysisResult(null);
+    setPushUpsAnalysisError(null);
     setPoseFlexibilityAnalysisResult(null);
     setPoseFlexibilityAnalysisError(null);
     setLeaderboardScore(null);
@@ -1011,6 +1034,26 @@ export default function OpenMoveStudio({
         } else {
           setSquatAnalysisResult(null);
           setSquatAnalysisError(squatRes.error);
+        }
+        return;
+      }
+      if (sportAnalysisKind === "pushups") {
+        setPushUpsAnalysisResult(null);
+        setPushUpsAnalysisError(null);
+        const pushRes = analyzePushUps({
+          poses,
+          frameIntervalSec,
+          side: setup.pushUpSide,
+        });
+        if (pushRes.ok) {
+          setPushUpsAnalysisResult(pushRes.result);
+          setPushUpsAnalysisError(null);
+          emitQuickComplete("pushups", pushRes.result, () =>
+            buildLeaderboardScorePayload(analysisSlug!, "pushups", { pushUps: pushRes.result })
+          );
+        } else {
+          setPushUpsAnalysisResult(null);
+          setPushUpsAnalysisError(pushRes.error);
         }
         return;
       }
@@ -1299,6 +1342,8 @@ export default function OpenMoveStudio({
       setPlankAnalysisError(null);
       setSquatAnalysisResult(null);
       setSquatAnalysisError(null);
+      setPushUpsAnalysisResult(null);
+      setPushUpsAnalysisError(null);
       setPoseFlexibilityAnalysisResult(null);
       setPoseFlexibilityAnalysisError(null);
       setSavedSessionTitle(null);
@@ -1337,6 +1382,8 @@ export default function OpenMoveStudio({
       setPlankAnalysisError(null);
       setSquatAnalysisResult(null);
       setSquatAnalysisError(null);
+      setPushUpsAnalysisResult(null);
+      setPushUpsAnalysisError(null);
       setPoseFlexibilityAnalysisResult(null);
       setPoseFlexibilityAnalysisError(null);
       setSession((s) => ({
@@ -1381,6 +1428,8 @@ export default function OpenMoveStudio({
     setPlankAnalysisError(null);
     setSquatAnalysisResult(null);
     setSquatAnalysisError(null);
+    setPushUpsAnalysisResult(null);
+    setPushUpsAnalysisError(null);
     setPoseFlexibilityAnalysisResult(null);
     setPoseFlexibilityAnalysisError(null);
     setSession({ ...initialSession, status: "loading_sample" });
@@ -1465,6 +1514,7 @@ export default function OpenMoveStudio({
     cyclingLeg,
     plankFacingSide,
     squatSide,
+    pushUpSide,
     poseFlexibilitySide,
     poseFlexibilityFocusAreas,
     sportAnalysisKind,
@@ -1524,6 +1574,10 @@ export default function OpenMoveStudio({
       squatSideMenuOpen={squatSideMenuOpen}
       onSquatSideMenuOpenChange={setSquatSideMenuOpen}
       onSquatSideChange={setSquatSide}
+      pushUpSide={pushUpSide}
+      pushUpSideMenuOpen={pushUpSideMenuOpen}
+      onPushUpSideMenuOpenChange={setPushUpSideMenuOpen}
+      onPushUpSideChange={setPushUpSide}
       poseFlexibilitySide={poseFlexibilitySide}
       poseFlexibilitySideMenuOpen={poseFlexibilitySideMenuOpen}
       onPoseFlexibilitySideMenuOpenChange={setPoseFlexibilitySideMenuOpen}
@@ -2038,6 +2092,13 @@ export default function OpenMoveStudio({
                       View results in the &quot;Sport analysis&quot; tab.
                     </p>
                   ) : null}
+                  {sportAnalysisKind === "pushups" && pushUpsAnalysisError ? (
+                    <p className="text-[10px] leading-snug text-red-500/90">{pushUpsAnalysisError}</p>
+                  ) : sportAnalysisKind === "pushups" && pushUpsAnalysisResult ? (
+                    <p className="text-[10px] text-[color:var(--muted)]">
+                      View results in the &quot;Sport analysis&quot; tab.
+                    </p>
+                  ) : null}
                   {sportAnalysisKind === "poseFlexibility" && poseFlexibilityAnalysisError ? (
                     <p className="text-[10px] leading-snug text-red-500/90">{poseFlexibilityAnalysisError}</p>
                   ) : sportAnalysisKind === "poseFlexibility" && poseFlexibilityAnalysisResult ? (
@@ -2084,6 +2145,8 @@ export default function OpenMoveStudio({
           plankAnalysisError,
           squatAnalysisResult,
           squatAnalysisError,
+          pushUpsAnalysisResult,
+          pushUpsAnalysisError,
           poseFlexibilityAnalysisResult,
           poseFlexibilityAnalysisError,
         }

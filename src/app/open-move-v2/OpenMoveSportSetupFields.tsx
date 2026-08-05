@@ -9,6 +9,7 @@ import type {
   PlankFacingSide,
   PoseFlexibilityFocusArea,
   PoseFlexibilitySide,
+  PushUpSide,
   SportAnalysisKind,
   SquatSide,
 } from "../../lib/sportAnalysis";
@@ -165,6 +166,15 @@ export function OpenMoveSportSetupTip({
       </p>
     );
   }
+  if (sportAnalysisKind === "pushups") {
+    return (
+      <p className={tipClass}>
+        Side-view push-up: the selected elbow drives rep count and depth. Pick the side{" "}
+        <strong className="text-[color:var(--foreground)]">nearer the camera</strong> — your own left
+        or right, not the screen&apos;s.
+      </p>
+    );
+  }
   return (
     <p className={tipClass}>
       Side-view clip. Flexibility metrics use the selected focus areas.
@@ -195,6 +205,10 @@ export interface OpenMoveSportSetupFieldsProps {
   squatSideMenuOpen: boolean;
   onSquatSideMenuOpenChange: (open: boolean) => void;
   onSquatSideChange: (side: SquatSide) => void;
+  pushUpSide: PushUpSide;
+  pushUpSideMenuOpen: boolean;
+  onPushUpSideMenuOpenChange: (open: boolean) => void;
+  onPushUpSideChange: (side: PushUpSide) => void;
   poseFlexibilitySide: PoseFlexibilitySide;
   poseFlexibilitySideMenuOpen: boolean;
   onPoseFlexibilitySideMenuOpenChange: (open: boolean) => void;
@@ -219,6 +233,10 @@ export default function OpenMoveSportSetupFields({
   squatSideMenuOpen,
   onSquatSideMenuOpenChange,
   onSquatSideChange,
+  pushUpSide,
+  pushUpSideMenuOpen,
+  onPushUpSideMenuOpenChange,
+  onPushUpSideChange,
   poseFlexibilitySide,
   poseFlexibilitySideMenuOpen,
   onPoseFlexibilitySideMenuOpenChange,
@@ -353,6 +371,50 @@ export default function OpenMoveSportSetupFields({
               onSelect={() => {
                 onSquatSideChange("right");
                 onSquatSideMenuOpenChange(false);
+              }}
+            >
+              Right
+            </PopoverMenuItem>
+          </PopoverSideSelect>
+        )}
+        {tip}
+      </>
+    );
+  }
+
+  if (sportAnalysisKind === "pushups") {
+    return (
+      <>
+        {embedded ? (
+          <EmbeddedNativeSelect
+            label="Side toward camera"
+            value={pushUpSide}
+            options={[
+              { value: "left", label: "Left" },
+              { value: "right", label: "Right" },
+            ]}
+            onChange={onPushUpSideChange}
+          />
+        ) : (
+          <PopoverSideSelect
+            label="Side toward camera"
+            valueLabel={pushUpSide === "left" ? "Left" : "Right"}
+            open={pushUpSideMenuOpen}
+            onOpenChange={onPushUpSideMenuOpenChange}
+          >
+            <PopoverMenuItem
+              onSelect={() => {
+                onPushUpSideChange("left");
+                onPushUpSideMenuOpenChange(false);
+              }}
+            >
+              Left
+            </PopoverMenuItem>
+            <PopoverMenuItem
+              isLast
+              onSelect={() => {
+                onPushUpSideChange("right");
+                onPushUpSideMenuOpenChange(false);
               }}
             >
               Right

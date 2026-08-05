@@ -19,6 +19,7 @@ type MetricChipKind =
   | "cycling_stroke_repeatability"
   | "pullups_reps"
   | "pullups_elbow_symmetry"
+  | "pushups_reps"
   | "plank_hold_sec"
   | "plank_correction_count"
   | "plank_avg_hip_dev"
@@ -35,6 +36,7 @@ const ALL_METRIC_CHIP_OPTIONS: Array<{ value: MetricChipKind; label: string }> =
   { value: "cycling_stroke_repeatability", label: "Cycling stroke repeatability" },
   { value: "pullups_reps", label: "Pull-up reps" },
   { value: "pullups_elbow_symmetry", label: "Pull-up elbow symmetry" },
+  { value: "pushups_reps", label: "Push-up reps" },
   { value: "plank_hold_sec", label: "Plank hold" },
   { value: "plank_correction_count", label: "Plank corrections" },
   { value: "plank_avg_hip_dev", label: "Plank hip line" },
@@ -67,6 +69,7 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
           plankAvgHipDeviation?: number | null;
           plankAvgHipAngleDeg?: number | null;
           squatRepCount?: number | null;
+          pushupsRepCount?: number | null;
           poseFlexibilityLegsDeg?: number | null;
           poseFlexibilityHipsDeg?: number | null;
           poseFlexibilityTorsoDeg?: number | null;
@@ -74,7 +77,14 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
         }
       | null) || null;
   const sportAnalysisKind =
-    (config.sportAnalysisKind as "cycling" | "pullups" | "plank" | "squat" | "poseFlexibility" | undefined) || "cycling";
+    (config.sportAnalysisKind as
+      | "cycling"
+      | "pullups"
+      | "pushups"
+      | "plank"
+      | "squat"
+      | "poseFlexibility"
+      | undefined) || "cycling";
 
   const chipLayoutOptions = [
     { value: "bottom_center_row", label: "Bottom center row" },
@@ -96,6 +106,7 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
       sportMetricsSnapshot.plankAvgHipDeviation,
       sportMetricsSnapshot.plankAvgHipAngleDeg,
       sportMetricsSnapshot.squatRepCount,
+      sportMetricsSnapshot.pushupsRepCount,
       sportMetricsSnapshot.poseFlexibilityLegsDeg,
       sportMetricsSnapshot.poseFlexibilityHipsDeg,
       sportMetricsSnapshot.poseFlexibilityTorsoDeg,
@@ -140,6 +151,11 @@ export function MetricsChipsEffectConfig({ config, updateConfig }: EffectConfigF
         if (opt.value === "pose_flex_shoulders") {
           return Number.isFinite(sportMetricsSnapshot?.poseFlexibilityShouldersDeg ?? NaN);
         }
+        return false;
+      }
+
+      if (sportAnalysisKind === "pushups") {
+        if (opt.value === "pushups_reps") return Number.isFinite(sportMetricsSnapshot?.pushupsRepCount ?? NaN);
         return false;
       }
 

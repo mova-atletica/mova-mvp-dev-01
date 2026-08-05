@@ -63,6 +63,9 @@ const TAG_LABELS: Record<string, string> = {
   squat: "Squat",
   plank: "Plank",
   "pull-ups": "Pull-ups",
+  pullups: "Pull-ups",
+  pushups: "Push-ups",
+  "push-ups": "Push-ups",
   cycling: "Cycling",
   program: "Program",
 };

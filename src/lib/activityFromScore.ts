@@ -5,6 +5,7 @@ export function activityTitleForScore(score: LeaderboardScorePayload): string {
   if (score.sportSlug === "plank") return "Plank hold";
   if (score.sportSlug === "squat") return "Squat analysis";
   if (score.sportSlug === "pullups") return "Pull-up set";
+  if (score.sportSlug === "pushups") return "Push-up set";
   return score.sportTitle;
 }
 

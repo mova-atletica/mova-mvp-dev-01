@@ -103,7 +103,7 @@ begin
   raise notice 'Seeded activity for user %', target_user;
 end $$;
 
--- Public leaderboard seeds (plank / squat / pullups only). user_id null.
+-- Public leaderboard seeds (plank / squat / pullups / pushups). user_id null.
 delete from public.leaderboard_entries where is_seed = true and user_id is null;
 
 insert into public.leaderboard_entries (
@@ -136,4 +136,13 @@ insert into public.leaderboard_entries (
 (null, 'pullups', 'rep_count', 'Reps', 15, '15', 'Amelia S.', 'AU', true, '2026-03-05T11:00:00Z'),
 (null, 'pullups', 'rep_count', 'Reps', 14, '14', 'Ravi P.', 'IN', true, '2026-03-06T14:00:00Z'),
 (null, 'pullups', 'rep_count', 'Reps', 12, '12', 'Nina O.', 'SE', true, '2026-03-07T08:00:00Z'),
-(null, 'pullups', 'rep_count', 'Reps', 11, '11', 'Carlos M.', 'MX', true, '2026-03-08T16:00:00Z');
+(null, 'pullups', 'rep_count', 'Reps', 11, '11', 'Carlos M.', 'MX', true, '2026-03-08T16:00:00Z'),
+-- Push-ups
+(null, 'pushups', 'rep_count', 'Reps', 55, '55', 'Maya L.', 'US', true, '2026-03-01T10:00:00Z'),
+(null, 'pushups', 'rep_count', 'Reps', 50, '50', 'Jonas K.', 'DE', true, '2026-03-02T11:00:00Z'),
+(null, 'pushups', 'rep_count', 'Reps', 47, '47', 'Sofia R.', 'BR', true, '2026-03-03T09:00:00Z'),
+(null, 'pushups', 'rep_count', 'Reps', 44, '44', 'Arjun P.', 'IN', true, '2026-03-03T16:00:00Z'),
+(null, 'pushups', 'rep_count', 'Reps', 41, '41', 'Claire D.', 'FR', true, '2026-03-04T12:00:00Z'),
+(null, 'pushups', 'rep_count', 'Reps', 38, '38', 'Kenji T.', 'JP', true, '2026-03-05T08:00:00Z'),
+(null, 'pushups', 'rep_count', 'Reps', 35, '35', 'Nora S.', 'SE', true, '2026-03-06T13:00:00Z'),
+(null, 'pushups', 'rep_count', 'Reps', 32, '32', 'Luis M.', 'MX', true, '2026-03-07T10:00:00Z');

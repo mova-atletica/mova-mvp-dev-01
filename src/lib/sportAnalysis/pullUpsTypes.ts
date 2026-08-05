@@ -1,6 +1,12 @@
 /** Pull-up rep counting from elbow angle series (client-side; same pattern as cycling). */
 
-export type SportAnalysisKind = "cycling" | "pullups" | "plank" | "squat" | "poseFlexibility";
+export type SportAnalysisKind =
+  | "cycling"
+  | "pullups"
+  | "pushups"
+  | "plank"
+  | "squat"
+  | "poseFlexibility";
 
 export interface PullUpsAnalysisInput {
   leftElbowAngles: (number | null)[];

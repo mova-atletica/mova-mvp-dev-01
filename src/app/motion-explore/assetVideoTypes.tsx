@@ -7,7 +7,7 @@ export interface AssetVideoPlayerProps {
   poses: any[];
   exerciseTitle?: string;
   exercise?: any;
-  sportAnalysisKind?: "cycling" | "pullups" | "plank" | "squat" | "poseFlexibility";
+  sportAnalysisKind?: "cycling" | "pullups" | "pushups" | "plank" | "squat" | "poseFlexibility";
   sportMetricsSnapshot?: {
     cyclingCadenceRpm?: number | null;
     cyclingStrokeRepeatability?: number | null;
@@ -18,6 +18,7 @@ export interface AssetVideoPlayerProps {
     plankAvgHipDeviation?: number | null;
     plankAvgHipAngleDeg?: number | null;
     squatRepCount?: number | null;
+    pushupsRepCount?: number | null;
     poseFlexibilityLegsDeg?: number | null;
     poseFlexibilityHipsDeg?: number | null;
     poseFlexibilityTorsoDeg?: number | null;

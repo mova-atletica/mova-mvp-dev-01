@@ -8,6 +8,7 @@ import {
   FlexibilityStretchIcon,
   PlankSideIcon,
   PullUpBarIcon,
+  PushUpIcon,
   SquatIcon,
   type MiniAppSportIcon,
 } from "./icons/miniAppSportIcons";
@@ -25,6 +26,7 @@ const ICON_BY_APP_ID: Record<string, MiniAppSportIcon> = {
   flexibility: FlexibilityStretchIcon,
   cycling: CyclingBikeIcon,
   pullups: PullUpBarIcon,
+  pushups: PushUpIcon,
 };
 
 interface MiniAppIconTileProps {

@@ -33,6 +33,7 @@ function formatHydrationHeaderTitle(
 const SPORT_KINDS = new Set<SportAnalysisKind>([
   "cycling",
   "pullups",
+  "pushups",
   "plank",
   "squat",
   "poseFlexibility",

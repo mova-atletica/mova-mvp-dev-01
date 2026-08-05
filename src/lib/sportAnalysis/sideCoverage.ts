@@ -23,6 +23,7 @@ const KEYPOINT_INDEX: Record<BodySide, Record<SideJoint, number>> = {
 const SPORT_JOINTS: Record<SportAnalysisKind, SideJoint[]> = {
   plank: ["shoulder", "elbow", "hip", "knee", "ankle"],
   squat: ["shoulder", "hip", "knee", "ankle"],
+  pushups: ["shoulder", "elbow", "hip", "ankle"],
   cycling: ["hip", "knee", "ankle"],
   poseFlexibility: ["shoulder", "elbow", "hip", "knee", "ankle"],
   // Pull-ups combine both arms rather than selecting a side.

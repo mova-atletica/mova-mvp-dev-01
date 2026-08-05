@@ -87,7 +87,7 @@ export interface StatsConfig {
    */
   metricChipEdgeOffset?: number;
   metricChips?: MetricChipConfig[];
-  sportAnalysisKind?: 'cycling' | 'pullups' | 'plank' | 'squat' | 'poseFlexibility';
+  sportAnalysisKind?: 'cycling' | 'pullups' | 'pushups' | 'plank' | 'squat' | 'poseFlexibility';
   sportMetricsSnapshot?: SportMetricsSnapshot | null;
 
   /** Configurable body axes / mobility lines for side-view flexibility content. */
@@ -152,6 +152,7 @@ export type MetricChipKind =
   | 'cycling_stroke_repeatability'
   | 'pullups_reps'
   | 'pullups_elbow_symmetry'
+  | 'pushups_reps'
   | 'plank_hold_sec'
   | 'plank_correction_count'
   | 'plank_avg_hip_dev'
@@ -181,6 +182,8 @@ export interface SportMetricsSnapshot {
   plankAvgHipAngleDeg?: number | null;
   /** Squat reps counted by side-view knee-angle state machine. */
   squatRepCount?: number | null;
+  /** Push-up reps counted by side-view elbow-angle state machine. */
+  pushupsRepCount?: number | null;
   poseFlexibilityLegsDeg?: number | null;
   poseFlexibilityHipsDeg?: number | null;
   poseFlexibilityTorsoDeg?: number | null;
@@ -506,7 +509,7 @@ function resolveMetricChip(
   chip: MetricChipConfig,
   romData: ROMData[],
   sport: SportMetricsSnapshot | null | undefined,
-  sportKind: 'cycling' | 'pullups' | 'plank' | 'squat' | 'poseFlexibility',
+  sportKind: 'cycling' | 'pullups' | 'pushups' | 'plank' | 'squat' | 'poseFlexibility',
   poses: any[]
 ): ResolvedMetricChip | null {
   if (chip.kind === 'rom_joint') {
@@ -553,6 +556,13 @@ function resolveMetricChip(
     const v = sport?.pullupsElbowSymmetry;
     if (v == null || !Number.isFinite(v)) return null;
     return { id: chip.id, label: `Elbow symmetry`, value: `${Math.round(v)}%` };
+  }
+
+  if (chip.kind === 'pushups_reps') {
+    if (sportKind !== 'pushups') return null;
+    const v = sport?.pushupsRepCount;
+    if (v == null || !Number.isFinite(v)) return null;
+    return { id: chip.id, label: `Push-up reps`, value: `${Math.round(v)}` };
   }
 
   if (chip.kind === 'plank_hold_sec') {

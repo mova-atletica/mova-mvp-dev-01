@@ -8,6 +8,7 @@ import type { OpenMoveAngleSeries } from "../../lib/openMoveAngleSeries";
 import type {
   PlankAnalysisResult,
   PullUpsAnalysisResult,
+  PushUpsAnalysisResult,
   SquatAnalysisResult,
   SportAnalysisKind,
 } from "../../lib/sportAnalysis";
@@ -139,6 +140,13 @@ export default function ActivityReplayModal({
         enableSportAnalysisTab: true as const,
         sportAnalysisKind: "pullups" as const,
         pullUpsAnalysisResult: result as PullUpsAnalysisResult,
+      };
+    }
+    if (sportKind === "pushups") {
+      return {
+        enableSportAnalysisTab: true as const,
+        sportAnalysisKind: "pushups" as const,
+        pushUpsAnalysisResult: result as PushUpsAnalysisResult,
       };
     }
     return { enableSportAnalysisTab: false as const };

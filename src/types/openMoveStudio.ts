@@ -51,6 +51,8 @@ export function getSportAnalysisLabel(kind: SportAnalysisKind): string {
       return "Cycling";
     case "pullups":
       return "Pull-ups";
+    case "pushups":
+      return "Push-ups";
     case "plank":
       return "Plank";
     case "squat":

@@ -6,6 +6,7 @@ import type { PlankAnalysisResult } from "../lib/sportAnalysis/plankTypes";
 import type { PoseFlexibilityAnalysisResult } from "../lib/sportAnalysis/poseFlexibilityTypes";
 import type { PullUpsAnalysisResult } from "../lib/sportAnalysis/pullUpsTypes";
 import type { SquatAnalysisResult } from "../lib/sportAnalysis/squatTypes";
+import type { PushUpsAnalysisResult } from "../lib/sportAnalysis/pushUpsTypes";
 
 function formatHoldDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -18,6 +19,7 @@ export function buildLeaderboardScorePayload(
   kind: SportAnalysisKind,
   results: {
     pullUps?: PullUpsAnalysisResult | null;
+    pushUps?: PushUpsAnalysisResult | null;
     plank?: PlankAnalysisResult | null;
     squat?: SquatAnalysisResult | null;
     cycling?: CyclingDualAnalysisResult | null;
@@ -35,6 +37,17 @@ export function buildLeaderboardScorePayload(
       metricLabel: "Reps",
       metricValue: results.pullUps.rep_count,
       formattedScore: String(results.pullUps.rep_count),
+    };
+  }
+
+  if (kind === "pushups" && results.pushUps) {
+    return {
+      sportSlug,
+      sportTitle,
+      metricKey: "rep_count",
+      metricLabel: "Reps",
+      metricValue: results.pushUps.rep_count,
+      formattedScore: String(results.pushUps.rep_count),
     };
   }
 

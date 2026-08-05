@@ -101,6 +101,21 @@ const QUICK_ANALYSIS_MOVEMENTS_UNSORTED: QuickAnalysisMovement[] = [
     sortOrder: 5,
     featured: true,
   },
+  {
+    slug: "pushups",
+    kind: "pushups",
+    title: "Push-ups",
+    subtitle: "Rep count & depth",
+    tileDescription: "Push-up counter",
+    description: "Side-view push-up analysis for rep counting and depth from elbow angles.",
+    primaryMetric: "Reps",
+    setupHint: "Full body in frame. Film from side view.",
+    cameraProfile: "side-profile",
+    gradient: "linear-gradient(135deg, #7c2d12 0%, #ea580c 50%, #fdba74 100%)",
+    tileImage: "/images/sports/push-ups.png",
+    sortOrder: 6,
+    featured: true,
+  },
 ];
 
 /** All movements including hidden ones (deep links / re-enable). */
@@ -108,7 +123,7 @@ export const ALL_QUICK_ANALYSIS_MOVEMENTS = [...QUICK_ANALYSIS_MOVEMENTS_UNSORTE
   (a, b) => a.sortOrder - b.sortOrder
 );
 
-/** Featured catalog: plank, squat, pull-ups (cycling / flexibility hidden for Phase A). */
+/** Featured catalog: plank, squat, pull-ups, push-ups (cycling / flexibility hidden for Phase A). */
 export const QUICK_ANALYSIS_MOVEMENTS = ALL_QUICK_ANALYSIS_MOVEMENTS.filter(
   (m) => m.featured !== false
 );

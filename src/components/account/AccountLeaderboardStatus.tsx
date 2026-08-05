@@ -14,6 +14,8 @@ const TAG_TO_SPORT: Record<string, string> = {
   plank: "plank",
   "pull-ups": "pullups",
   pullups: "pullups",
+  "push-ups": "pushups",
+  pushups: "pushups",
 };
 
 interface ActivityBestScore {

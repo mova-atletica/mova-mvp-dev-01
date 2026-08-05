@@ -22,6 +22,7 @@ import type {
   PoseFlexibilityAnalysisResult,
   PullUpsAnalysisResult,
   SquatAnalysisResult,
+  PushUpsAnalysisResult,
   SportAnalysisKind,
 } from "../../lib/sportAnalysis";
 import InfoTooltip from "../../components/InfoTooltip";
@@ -64,6 +65,8 @@ interface MotionAnalysisPanelProps {
   plankAnalysisError?: string | null;
   squatAnalysisResult?: SquatAnalysisResult | null;
   squatAnalysisError?: string | null;
+  pushUpsAnalysisResult?: PushUpsAnalysisResult | null;
+  pushUpsAnalysisError?: string | null;
   poseFlexibilityAnalysisResult?: PoseFlexibilityAnalysisResult | null;
   poseFlexibilityAnalysisError?: string | null;
   /** Exercise studio: metadata + programs list */
@@ -136,6 +139,8 @@ export default function MotionAnalysisPanel({
   plankAnalysisError = null,
   squatAnalysisResult = null,
   squatAnalysisError = null,
+  pushUpsAnalysisResult = null,
+  pushUpsAnalysisError = null,
   poseFlexibilityAnalysisResult = null,
   poseFlexibilityAnalysisError = null,
   enableDetailsTab = false,
@@ -837,6 +842,164 @@ export default function MotionAnalysisPanel({
       );
     }
 
+    if (sportAnalysisKind === "pushups") {
+      if (pushUpsAnalysisError) {
+        return (
+          <div className="space-y-2 text-sm" style={{ color: "var(--foreground)" }}>
+            <p className="text-red-500/90">{pushUpsAnalysisError}</p>
+            <p style={{ color: "var(--muted-foreground)" }}>
+              Use side view, pick the side facing camera, and perform clear down-and-up push-ups.
+            </p>
+          </div>
+        );
+      }
+      if (!pushUpsAnalysisResult) {
+        return (
+          <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            In the side rail, open <strong>2. Sport analysis</strong>, choose <strong>Push-ups</strong>, then click{" "}
+            <strong>Analyze</strong>. We count reps from the selected elbow angle using a state machine.
+          </p>
+        );
+      }
+
+      const r = pushUpsAnalysisResult;
+      const dt = frameIntervalSec && frameIntervalSec > 0 ? frameIntervalSec : 1 / 30;
+      const elbowRows = r.chart_smoothed_elbow.map((v, i) => ({
+        t: i * dt,
+        elbow: v != null && Number.isFinite(v) ? v : null,
+      }));
+      const tMax = elbowRows.length > 0 ? elbowRows[elbowRows.length - 1].t : 0;
+
+      return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-normal" style={{ color: "var(--foreground)" }}>
+            Push-ups
+          </h3>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            Side-view elbow-angle state machine: top ≥155°, depth target ≤95°, min ROM 35°, spacing 0.5s. Body-line
+            advisory uses shoulder–hip–ankle.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Reps
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-blue-600">{r.rep_count}</div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Depth pass
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-green-600">{r.depthPassPct.toFixed(0)}%</div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Avg bottom elbow
+              </div>
+              <div className="text-2xl font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {r.avgBottomElbowDeg.toFixed(0)}°
+              </div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                Avg ROM
+              </div>
+              <div className="text-2xl font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {r.avgRomDeg.toFixed(0)}°
+              </div>
+            </div>
+            <div className="rounded-lg p-3" style={{ border: "1px solid var(--border)" }}>
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                hip sag / pike
+              </div>
+              <div className="text-2xl font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {r.advisoryHipSagPct.toFixed(0)}%
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-medium" style={{ color: "var(--foreground)" }}>
+              Rep times (from clip start)
+            </h4>
+            <div className="max-h-40 overflow-y-auto rounded-lg text-sm" style={{ border: "1px solid var(--border)" }}>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                    <th className="px-3 py-2 text-left font-medium" style={{ color: "var(--muted-foreground)" }}>
+                      #
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium" style={{ color: "var(--foreground)" }}>
+                      Time (s)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.rep_times_sec.map((sec, idx) => (
+                    <tr
+                      key={idx}
+                      style={{ borderBottom: "1px solid color-mix(in srgb, var(--border) 80%, transparent)" }}
+                    >
+                      <td className="px-3 py-1.5 tabular-nums" style={{ color: "var(--muted-foreground)" }}>
+                        {idx + 1}
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-medium tabular-nums" style={{ color: "var(--foreground)" }}>
+                        {sec.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={elbowRows} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.45} />
+              <XAxis
+                dataKey="t"
+                type="number"
+                domain={[0, tMax]}
+                tick={CHART_AXIS_TICK}
+                stroke="var(--border)"
+                tickFormatter={(v: number) => `${v.toFixed(1)}s`}
+              />
+              <YAxis tick={CHART_AXIS_TICK} stroke="var(--border)" domain={[0, 180]} />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--results-chart-tooltip-bg)",
+                  color: "var(--results-chart-tooltip-text)",
+                  border: "none",
+                  borderRadius: 8,
+                  fontSize: "12px",
+                }}
+                labelFormatter={(t) => `t = ${Number(t).toFixed(2)} s`}
+              />
+              <Line
+                type="monotone"
+                dataKey="elbow"
+                name="Elbow °"
+                stroke="var(--accent, #3b82f6)"
+                strokeWidth={2}
+                dot={false}
+                connectNulls={false}
+                isAnimationActive={false}
+              />
+              {r.rep_times_sec.map((tRep, i) => (
+                <ReferenceLine
+                  key={`pushup-rep-${i}`}
+                  x={tRep}
+                  stroke="color-mix(in srgb, var(--accent, #3b82f6) 65%, transparent)"
+                  strokeDasharray="4 4"
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
     if (sportAnalysisKind === "poseFlexibility") {
       if (poseFlexibilityAnalysisError) {
         return (
@@ -1287,6 +1450,8 @@ export default function MotionAnalysisPanel({
     cyclingAnalysisError,
     squatAnalysisResult,
     squatAnalysisError,
+    pushUpsAnalysisResult,
+    pushUpsAnalysisError,
     poseFlexibilityAnalysisResult,
     poseFlexibilityAnalysisError,
     poses,

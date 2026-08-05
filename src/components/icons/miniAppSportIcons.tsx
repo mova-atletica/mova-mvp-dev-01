@@ -80,6 +80,20 @@ export function PullUpBarIcon({ size = 44, strokeWidth = STROKE, ...props }: Ico
   );
 }
 
+/** Side-view push-up — body horizontal, arm supporting. */
+export function PushUpIcon({ size = 44, strokeWidth = STROKE, ...props }: IconProps) {
+  return (
+    <SportIconSvg size={size} strokeWidth={strokeWidth} {...props}>
+      <circle cx="10" cy="22" r="3.5" />
+      <path d="M13.5 22H36" />
+      <path d="M18 22V32" />
+      <path d="M15.5 32H20.5" />
+      <path d="M36 22L40 32" />
+      <path d="M38 32H42" />
+    </SportIconSvg>
+  );
+}
+
 /** Side-view bicycle — matches monoline sport family. */
 export function CyclingBikeIcon({ size = 44, strokeWidth = STROKE, ...props }: IconProps) {
   return (
