@@ -2687,7 +2687,15 @@ export default function OpenMoveStudio({
           />
           <Dialog.Content
             className="fixed inset-0 flex flex-col overflow-hidden border-0 bg-black p-0 shadow-none outline-none"
-            style={{ zIndex: portalLayers.liveContent }}
+            style={{
+              zIndex: portalLayers.liveContent,
+              width: "100dvw",
+              height: "100dvh",
+              maxWidth: "100dvw",
+              maxHeight: "100dvh",
+              overscrollBehavior: "none",
+              touchAction: "manipulation",
+            }}
           >
             <Dialog.Title
               style={{

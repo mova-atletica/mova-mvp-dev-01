@@ -104,6 +104,87 @@ const SwitchCameraIcon = () => (
   </svg>
 );
 
+/** Touch-friendly − / + control for style numeric values (replaces tiny range sliders). */
+function NumericStepperControl({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  unit = "",
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  onChange: (next: number) => void;
+}) {
+  const decDisabled = value <= min;
+  const incDisabled = value >= max;
+  const btnStyle = (disabled: boolean): React.CSSProperties => ({
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    border: "1px solid var(--vp-panel-border)",
+    background: "var(--vp-panel-icon-bg)",
+    color: "var(--vp-panel-icon)",
+    fontSize: 22,
+    fontWeight: 600,
+    lineHeight: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.4 : 1,
+    flexShrink: 0,
+    WebkitTapHighlightColor: "transparent",
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span className="text-xs" style={{ color: "var(--vp-label)" }}>
+        {label}
+      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button
+          type="button"
+          aria-label={`Decrease ${label}`}
+          disabled={decDisabled}
+          onClick={() => onChange(Math.max(min, value - step))}
+          style={btnStyle(decDisabled)}
+        >
+          −
+        </button>
+        <span
+          style={{
+            minWidth: 48,
+            textAlign: "center",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "var(--vp-panel-title)",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {value}
+          {unit}
+        </span>
+        <button
+          type="button"
+          aria-label={`Increase ${label}`}
+          disabled={incDisabled}
+          onClick={() => onChange(Math.min(max, value + step))}
+          style={btnStyle(incDisabled)}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface LiveVideoPlayerProps {
   onRecordingComplete: (videoUrl: string, duration: number, realTimeAnalysisData?: any[]) => void;
   onMethodChange: () => void;
@@ -198,7 +279,7 @@ export default function LiveVideoPlayer({
   const [jointColor, setJointColor] = useState<string>('#00ff00');
   const [boneWeight, setBoneWeight] = useState<number>(2);
   const [jointSize, setJointSize] = useState<number>(4);
-  const [videoVisible, setVideoVisible] = useState(true);
+  const videoVisible = true;
   const [showKeypoints, setShowKeypoints] = useState(false);
   const [showAngles, setShowAngles] = useState(false);
 
@@ -266,6 +347,8 @@ export default function LiveVideoPlayer({
   const embeddedFullscreen = layoutVariant === 'embeddedFullscreen';
   const [captureAspect, setCaptureAspect] = useState<'portrait' | 'landscape'>('portrait');
   const [cameraFacing, setCameraFacing] = useState<'user' | 'environment'>('environment');
+  /** visualViewport box — counters iOS Safari landscape page-zoom / chrome resize. */
+  const [viewportBox, setViewportBox] = useState<{ w: number; h: number } | null>(null);
 
   // Detect mobile device (safe for SSR)
   const [isMobile, setIsMobile] = useState(false);
@@ -283,9 +366,8 @@ export default function LiveVideoPlayer({
   const videoConstraints = useMemo(() => {
     if (!isMounted) {
       return {
-        width: 360,
-        height: 640,
-        aspectRatio: 9 / 16,
+        width: 640,
+        height: 480,
         facingMode: "user" as const,
       };
     }
@@ -296,37 +378,82 @@ export default function LiveVideoPlayer({
           ? ("environment" as const)
           : ("user" as const);
     if (!embeddedFullscreen) {
+      // Non-studio layouts: keep a simple request without forced portrait aspectRatio.
       return {
-        width: 360,
-        height: 640,
-        aspectRatio: 9 / 16,
+        width: 640,
+        height: 480,
         facingMode,
       };
     }
-    // Studio fullscreen on desktop: landscape capture (plank / side view); mobile uses toggle below.
+    // Studio fullscreen on desktop: landscape capture (plank / side view).
     if (!isMobile) {
       return {
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        aspectRatio: 16 / 9,
         facingMode,
       };
     }
+    // Mobile live: Parque-style wide FOV (no aspectRatio — avoids iOS center-crop "2×").
+    // Landscape toggle prefers a wider ideal; portrait uses classic VGA like Mova Parque.
     if (captureAspect === "landscape") {
       return {
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        aspectRatio: 16 / 9,
         facingMode,
       };
     }
     return {
-      width: { ideal: 720 },
-      height: { ideal: 1280 },
-      aspectRatio: 9 / 16,
+      width: 640,
+      height: 480,
       facingMode,
     };
   }, [isMounted, isMobile, embeddedFullscreen, captureAspect, cameraFacing]);
+
+  /** Sync capture aspect to device orientation; reset scroll to fight iOS landscape zoom. */
+  useEffect(() => {
+    if (!embeddedFullscreen || !isMobile || !isMounted) return;
+
+    const readBox = () => {
+      const vv = window.visualViewport;
+      return {
+        w: Math.round(vv?.width ?? window.innerWidth),
+        h: Math.round(vv?.height ?? window.innerHeight),
+      };
+    };
+
+    const stabilize = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      setViewportBox(readBox());
+    };
+
+    const syncFromDevice = () => {
+      const landscape = window.innerWidth > window.innerHeight;
+      setCaptureAspect(landscape ? "landscape" : "portrait");
+      stabilize();
+    };
+
+    syncFromDevice();
+
+    const onOrientation = () => {
+      // iOS fires orientationchange before layout settles.
+      window.setTimeout(syncFromDevice, 50);
+      window.setTimeout(stabilize, 250);
+    };
+
+    window.addEventListener("orientationchange", onOrientation);
+    window.addEventListener("resize", stabilize);
+    window.visualViewport?.addEventListener("resize", stabilize);
+    window.visualViewport?.addEventListener("scroll", stabilize);
+
+    return () => {
+      window.removeEventListener("orientationchange", onOrientation);
+      window.removeEventListener("resize", stabilize);
+      window.visualViewport?.removeEventListener("resize", stabilize);
+      window.visualViewport?.removeEventListener("scroll", stabilize);
+    };
+  }, [embeddedFullscreen, isMobile, isMounted]);
 
   useEffect(() => {
     if (!plankLiveCoach) {
@@ -1285,30 +1412,24 @@ export default function LiveVideoPlayer({
             style={{ marginLeft: '8px', width: '28px', height: '22px', border: 'none', background: 'none', verticalAlign: 'middle', cursor: 'pointer' }}
           />
         </label>
-        <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
-          Bone Weight
-          <input
-            type="range"
-            min={1}
-            max={8}
-            value={boneWeight}
-            onChange={e => setBoneWeight(Number(e.target.value))}
-            style={{ marginLeft: '8px', width: '60px', verticalAlign: 'middle' }}
-          />
-          <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--vp-label)' }}>{boneWeight}px</span>
-        </label>
-        <label className="text-xs mb-1" style={{ color: 'var(--vp-label)' }}>
-          Joint Size
-          <input
-            type="range"
-            min={2}
-            max={16}
-            value={jointSize}
-            onChange={e => setJointSize(Number(e.target.value))}
-            style={{ marginLeft: '8px', width: '60px', verticalAlign: 'middle' }}
-          />
-          <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--vp-label)' }}>{jointSize}px</span>
-        </label>
+        <NumericStepperControl
+          label="Bone Weight"
+          value={boneWeight}
+          min={1}
+          max={8}
+          step={1}
+          unit="px"
+          onChange={setBoneWeight}
+        />
+        <NumericStepperControl
+          label="Joint Size"
+          value={jointSize}
+          min={2}
+          max={16}
+          step={1}
+          unit="px"
+          onChange={setJointSize}
+        />
     </div>
   );
 
@@ -1316,20 +1437,6 @@ export default function LiveVideoPlayer({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Style</div>
       {stylePanelControls}
-    </div>
-  );
-
-  const exportPanel = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--vp-panel-title)', marginBottom: '8px' }}>Export</div>
-      {/* Export Frame Button only */}
-      <button
-        onClick={exportCurrentFrame}
-        className="px-3 py-2 rounded text-xs vp-btn"
-        style={{ marginBottom: '4px' }}
-      >
-        Export Frame
-      </button>
     </div>
   );
 
@@ -1511,15 +1618,6 @@ export default function LiveVideoPlayer({
       >
         {showAngles ? EyeIcon : EyeOffIcon}Angles
       </button>
-      
-      {/* Video Toggle */}
-      <button
-        onClick={() => setVideoVisible(v => !v)}
-        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
-        style={{ marginBottom: '4px' }}
-      >
-        {videoVisible ? EyeIcon : EyeOffIcon}Video
-      </button>
 
       {/* Rep Counting Toggle - Only show for rep-based exercises */}
       {(exercise?.exerciseType === 'repetition' || exercise?.exerciseType === 'rep-based') && (
@@ -1628,15 +1726,6 @@ export default function LiveVideoPlayer({
       >
         {showAngles ? EyeIcon : EyeOffIcon}Angles
       </button>
-      
-      {/* Video Toggle */}
-      <button
-        onClick={() => setVideoVisible(v => !v)}
-        className="px-3 py-2 rounded text-xs vp-btn flex items-center"
-        style={{ marginBottom: '4px' }}
-      >
-        {videoVisible ? EyeIcon : EyeOffIcon}Video
-      </button>
 
       {/* Rep Counting Toggle - Only show for rep-based exercises */}
       {(exercise?.exerciseType === 'repetition' || exercise?.exerciseType === 'rep-based') && (
@@ -1715,11 +1804,9 @@ export default function LiveVideoPlayer({
   // --- Panel Content Switch ---
   let panelContent: React.ReactNode = null;
   if (embeddedFullscreen) {
-    if (openMenu === 'export') panelContent = exportPanel;
-    else if (openMenu === 'motionViz') panelContent = motionVizPanel;
+    if (openMenu === 'motionViz') panelContent = motionVizPanel;
   } else if (openMenu === 'focus') panelContent = selectionPanel;
   else if (openMenu === 'style') panelContent = stylePanel;
-  else if (openMenu === 'export') panelContent = exportPanel;
   else if (openMenu === 'analysis') panelContent = analysisPanel;
   
   // Strategy pattern for feedback overlay based on exercise type
@@ -1885,6 +1972,8 @@ export default function LiveVideoPlayer({
         onToolbarClose={embeddedFullscreen ? onEmbeddedClose : undefined}
         toolbarActions={mobileLiveToolbarActions}
         compactToolbar={embeddedFullscreen}
+        touchToolbar={showMobileLiveToolbar}
+        onToolbarExport={exportCurrentFrame}
         bottomOverlay={liveBottomOverlay}
         containerClassName={embeddedFullscreen ? 'w-full h-full min-h-0' : ''}
         style={embeddedFullscreen ? { width: '100%', height: '100%', minHeight: 0 } : undefined}
@@ -1894,10 +1983,33 @@ export default function LiveVideoPlayer({
   );
 
   if (embeddedFullscreen) {
+    const shellStyle: React.CSSProperties =
+      isMobile && viewportBox
+        ? {
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: viewportBox.w,
+            height: viewportBox.h,
+            maxWidth: "100dvw",
+            maxHeight: "100dvh",
+            overflow: "hidden",
+            overscrollBehavior: "none",
+            touchAction: "manipulation",
+          }
+        : {
+            minHeight: 0,
+            width: "100%",
+            height: "100%",
+            overflow: "hidden",
+            overscrollBehavior: "none",
+            touchAction: "manipulation",
+          };
+
     return (
       <div
-        className="relative flex min-h-0 w-full flex-1 flex-col bg-black"
-        style={{ minHeight: 0, width: '100%' }}
+        className="relative flex flex-col bg-black"
+        style={shellStyle}
       >
         {recording ? (
           <div

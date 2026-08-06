@@ -19,6 +19,8 @@ interface CoreVideoPlayerProps {
   setOpenMenu?: (menu: CoreVideoPlayerOpenMenu) => void;
   /** Export + Motion viz menus only (live studio fullscreen). */
   compactToolbar?: boolean;
+  /** Larger hit targets for mobile live fullscreen (44×44). */
+  touchToolbar?: boolean;
   panelContent?: React.ReactNode;
   // New props for the custom play bar
   currentTime?: number;
@@ -33,6 +35,11 @@ interface CoreVideoPlayerProps {
   onToolbarClose?: () => void;
   /** Extra toolbar buttons (e.g. mobile live camera / orientation), rendered below close. */
   toolbarActions?: CoreVideoToolbarAction[];
+  /**
+   * When set, the download button is last and exports immediately (no Export menu).
+   * When omitted, download toggles the Export panel (VideoPlayer).
+   */
+  onToolbarExport?: () => void;
   /** Centered strip over the video (e.g. live record / change method). */
   bottomOverlay?: React.ReactNode;
 
@@ -70,11 +77,12 @@ export type CoreVideoToolbarAction = {
 
 const toolbarButtonStyle = (
   active: boolean,
-  disabled?: boolean
+  disabled?: boolean,
+  size: number = 30
 ): React.CSSProperties => ({
-  width: 30,
-  height: 30,
-  borderRadius: 6,
+  width: size,
+  height: size,
+  borderRadius: size >= 44 ? 10 : 6,
   background: active ? 'var(--vp-panel-icon-active-bg)' : 'var(--vp-panel-icon-bg)',
   border: 'none',
   boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
@@ -94,6 +102,14 @@ const DownloadIcon = () => (
     <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M12 15V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+/** Snapshot / capture frame — used when toolbar export is one-tap. */
+const CameraSnapshotIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+    <circle cx="12" cy="13" r="4" />
   </svg>
 );
 
@@ -170,14 +186,33 @@ export default function CoreVideoPlayer({
   fillContainer = false,
   onToolbarClose,
   toolbarActions,
+  onToolbarExport,
   bottomOverlay,
   compactToolbar = false,
+  touchToolbar = false,
   feedbackOverlay, // New prop for unified feedback overlay
 }: CoreVideoPlayerProps) {
   // If controlled props are provided, use them; otherwise, use local state (for backward compatibility)
   const [uncontrolledOpenMenu, setUncontrolledOpenMenu] = useState<CoreVideoPlayerOpenMenu>(null);
   const openMenu = controlledOpenMenu !== undefined ? controlledOpenMenu : uncontrolledOpenMenu;
   const setOpenMenu = controlledSetOpenMenu !== undefined ? controlledSetOpenMenu : setUncontrolledOpenMenu;
+  const btnSize = touchToolbar ? 44 : 30;
+  const toolbarGap = touchToolbar ? 8 : 6;
+  /** Leave room for the vertical button column when opening floating panels. */
+  const panelRightInset = touchToolbar
+    ? onToolbarClose
+      ? 'max(64px, calc(env(safe-area-inset-right) + 56px))'
+      : 'max(56px, calc(env(safe-area-inset-right) + 48px))'
+    : onToolbarClose
+      ? 'max(87px, calc(env(safe-area-inset-right) + 75px))'
+      : 'max(51px, calc(env(safe-area-inset-right) + 39px))';
+  const panelRightInsetStatic = touchToolbar
+    ? onToolbarClose
+      ? 64
+      : 56
+    : onToolbarClose
+      ? 87
+      : 51;
 
   if (error) {
     return (
@@ -246,25 +281,13 @@ export default function CoreVideoPlayer({
                   zIndex: 50,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px', // Reduced gap for smaller buttons
+                  gap: toolbarGap,
                 }}>
                   {onToolbarClose ? (
                     <button
                       type="button"
                       style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 6,
-                        background: 'var(--vp-panel-icon-bg)',
-                        border: 'none',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        color: 'var(--vp-panel-icon)',
-                        borderBottom: '1px solid var(--vp-panel-border)',
+                        ...toolbarButtonStyle(false, false, btnSize),
                       }}
                       onClick={onToolbarClose}
                       aria-label="Close"
@@ -276,7 +299,7 @@ export default function CoreVideoPlayer({
                     <button
                       key={action.id}
                       type="button"
-                      style={toolbarButtonStyle(false, action.disabled)}
+                      style={toolbarButtonStyle(false, action.disabled, btnSize)}
                       onClick={action.disabled ? undefined : action.onClick}
                       disabled={action.disabled}
                       aria-label={action.ariaLabel}
@@ -284,20 +307,11 @@ export default function CoreVideoPlayer({
                       {action.icon}
                     </button>
                   ))}
-                  {/* Export */}
-                  <button
-                    type="button"
-                    style={toolbarButtonStyle(openMenu === 'export')}
-                    onClick={() => setOpenMenu(openMenu === 'export' ? null : 'export')}
-                    aria-label="Export"
-                  >
-                    <DownloadIcon />
-                  </button>
 
                   {compactToolbar ? (
                     <button
                       type="button"
-                      style={toolbarButtonStyle(openMenu === 'motionViz')}
+                      style={toolbarButtonStyle(openMenu === 'motionViz', false, btnSize)}
                       onClick={() => setOpenMenu(openMenu === 'motionViz' ? null : 'motionViz')}
                       aria-label="Motion viz"
                     >
@@ -307,7 +321,7 @@ export default function CoreVideoPlayer({
                     <>
                       <button
                         type="button"
-                        style={toolbarButtonStyle(openMenu === 'analysis')}
+                        style={toolbarButtonStyle(openMenu === 'analysis', false, btnSize)}
                         onClick={() => setOpenMenu(openMenu === 'analysis' ? null : 'analysis')}
                         aria-label="Real-time Analysis"
                       >
@@ -315,7 +329,7 @@ export default function CoreVideoPlayer({
                       </button>
                       <button
                         type="button"
-                        style={toolbarButtonStyle(openMenu === 'style')}
+                        style={toolbarButtonStyle(openMenu === 'style', false, btnSize)}
                         onClick={() => setOpenMenu(openMenu === 'style' ? null : 'style')}
                         aria-label="Style"
                       >
@@ -323,7 +337,7 @@ export default function CoreVideoPlayer({
                       </button>
                       <button
                         type="button"
-                        style={toolbarButtonStyle(openMenu === 'focus')}
+                        style={toolbarButtonStyle(openMenu === 'focus', false, btnSize)}
                         onClick={() => setOpenMenu(openMenu === 'focus' ? null : 'focus')}
                         aria-label="Focus Selection"
                       >
@@ -331,19 +345,33 @@ export default function CoreVideoPlayer({
                       </button>
                     </>
                   )}
+
+                  {/* Download last: direct export when onToolbarExport is set, else Export menu */}
+                  <button
+                    type="button"
+                    style={toolbarButtonStyle(
+                      !onToolbarExport && openMenu === 'export',
+                      false,
+                      btnSize
+                    )}
+                    onClick={() => {
+                      if (onToolbarExport) {
+                        onToolbarExport();
+                        return;
+                      }
+                      setOpenMenu(openMenu === 'export' ? null : 'export');
+                    }}
+                    aria-label={onToolbarExport ? 'Snapshot' : 'Export'}
+                  >
+                    {onToolbarExport ? <CameraSnapshotIcon /> : <DownloadIcon />}
+                  </button>
                 </div>
                 {/* --- Floating Panel for Open Menu (moved here) --- */}
                 {openMenu && (
                   <div style={{
                     position: 'absolute',
                     top: fillContainer ? 'max(12px, env(safe-area-inset-top))' : 12,
-                    right: fillContainer
-                      ? onToolbarClose
-                        ? 'max(87px, calc(env(safe-area-inset-right) + 75px))'
-                        : 'max(51px, calc(env(safe-area-inset-right) + 39px))'
-                      : onToolbarClose
-                        ? 87
-                        : 51,
+                    right: fillContainer ? panelRightInset : panelRightInsetStatic,
                     background: 'var(--vp-panel-bg)',
                     borderRadius: 9,
                     boxShadow: 'var(--vp-panel-shadow)',

@@ -110,6 +110,38 @@ export default function HomeLeaderboardBlock({
           </div>
         </div>
 
+        <div
+          className="mb-1.5 flex shrink-0 items-center gap-2 px-2 sm:gap-2.5 sm:px-2.5"
+          role="row"
+        >
+          <span
+            className="flex h-6 w-6 shrink-0 items-center justify-center text-[9px] font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)] sm:h-7 sm:w-7 sm:text-[10px]"
+            role="columnheader"
+          >
+            #
+          </span>
+          <span className="h-7 w-7 shrink-0 sm:h-8 sm:w-8" aria-hidden />
+          <span
+            className="w-[6.5rem] shrink-0 text-[9px] font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)] sm:w-[8rem] sm:text-[10px]"
+            role="columnheader"
+          >
+            Athlete
+          </span>
+          <span
+            className="w-12 shrink-0 text-center text-[9px] font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)] sm:w-14 sm:text-[10px]"
+            role="columnheader"
+          >
+            Country
+          </span>
+          <span className="min-w-0 flex-1" aria-hidden />
+          <span
+            className="w-[4.5rem] shrink-0 text-center text-[9px] font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)] sm:w-[5.25rem] sm:text-[10px]"
+            role="columnheader"
+          >
+            {movement?.primaryMetric ?? "Score"}
+          </span>
+        </div>
+
         <ol
           className={`min-h-0 flex-1 space-y-1.5 overflow-y-auto open-move-studio-panel-scroll ${
             isHero ? "max-h-none" : ""
@@ -159,7 +191,7 @@ export default function HomeLeaderboardBlock({
                   >
                     {leaderboardInitials(entry.displayName)}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-[color:var(--foreground)] sm:text-sm">
+                  <span className="w-[6.5rem] min-w-0 shrink-0 truncate text-xs font-medium text-[color:var(--foreground)] sm:w-[8rem] sm:text-sm">
                     {entry.displayName}
                     {isMe ? (
                       <span className="ml-1 text-[10px] font-normal text-[color:var(--muted-foreground)]">
@@ -167,10 +199,15 @@ export default function HomeLeaderboardBlock({
                       </span>
                     ) : null}
                   </span>
-                  <span className="shrink-0 text-sm sm:text-base" title={entry.countryCode} aria-hidden>
+                  <span
+                    className="flex w-12 shrink-0 justify-center text-sm sm:w-14 sm:text-base"
+                    title={entry.countryCode}
+                    aria-label={entry.countryCode}
+                  >
                     {getCountryFlag(entry.countryCode)}
                   </span>
-                  <span className="shrink-0 text-xs font-semibold tabular-nums text-[color:var(--foreground)] sm:text-sm">
+                  <span className="min-w-0 flex-1" aria-hidden />
+                  <span className="flex w-[4.5rem] shrink-0 justify-center text-xs font-semibold tabular-nums text-[color:var(--foreground)] sm:w-[5.25rem] sm:text-sm">
                     {entry.formattedScore}
                   </span>
                 </li>
