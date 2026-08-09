@@ -26,6 +26,7 @@ import {
   type SquatCoachRefs,
 } from "../lib/sportAnalysis/squatLiveCoach";
 import type { SquatSide } from "../lib/sportAnalysis/squatTypes";
+import { pickLiveRecordingMimeType } from "../lib/videoBlobUtils";
 
 /** Throttle plank debug logs so rAF + pose does not flood the console. */
 const PLANK_LIVE_DEBUG_INTERVAL_MS = 800;
@@ -186,7 +187,10 @@ function NumericStepperControl({
 }
 
 interface LiveVideoPlayerProps {
-  onRecordingComplete: (videoUrl: string, duration: number, realTimeAnalysisData?: any[]) => void;
+  onRecordingComplete: (
+    result: { url: string; blob: Blob; durationSec: number },
+    realTimeAnalysisData?: any[]
+  ) => void;
   onMethodChange: () => void;
   referenceAngles?: any;
   exercise: any;
@@ -977,42 +981,28 @@ export default function LiveVideoPlayer({
     ctx.fill();
   }
 
-  // Enhanced recording functions
+  // Enhanced recording functions — MP4-first for iOS-safe Activity storage.
   const startRecording = () => {
     if (webcamRef.current && webcamRef.current.stream) {
-      
-      // Safari-compatible MIME type detection
-      const mimeType = MediaRecorder.isTypeSupported('video/webm') 
-        ? 'video/webm' 
-        : MediaRecorder.isTypeSupported('video/mp4') 
-        ? 'video/mp4' 
-        : 'video/webm'; // fallback
-      
+      const { mimeType } = pickLiveRecordingMimeType();
+
       try {
         const recorder = new MediaRecorder(webcamRef.current.stream, { mimeType });
         const chunks: Blob[] = [];
-        const startTime = Date.now(); // Store start time in a local variable
-        
+        const startTime = Date.now();
+
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0) {
             chunks.push(e.data);
           }
         };
         recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: mimeType });
-          //console.log('Recording stopped, blob size:', blob.size);
-          
-          // Calculate actual recording duration using the local startTime variable
+          const blobType = chunks[0]?.type || mimeType;
+          const blob = new Blob(chunks, { type: blobType });
           const endTime = Date.now();
-          const actualDuration = (endTime - startTime) / 1000; // Convert to seconds
-          //console.log('Actual recording duration:', actualDuration, 'seconds');
-          
+          const actualDuration = (endTime - startTime) / 1000;
           const url = URL.createObjectURL(blob);
-          //console.log('LiveVideoPlayer: calling onRecordingComplete with URL:', url, 'duration:', actualDuration);
-          
-          // Pass empty array for real-time analysis data (simplified)
-          onRecordingComplete(url, actualDuration, []);
-          
+          onRecordingComplete({ url, blob, durationSec: actualDuration }, []);
           setRecording(false);
           setRecordingStartTime(null);
           setRecordingDuration(actualDuration);
@@ -1022,27 +1012,25 @@ export default function LiveVideoPlayer({
         setRecording(true);
         setRecordingStartTime(startTime);
       } catch (error) {
-        console.error('Failed to start recording:', error);
-        // Fallback: try without specifying MIME type
+        console.error("Failed to start recording:", error);
+        // Fallback: browser default mime (may be WebM on Chrome).
         try {
           const recorder = new MediaRecorder(webcamRef.current.stream);
           const chunks: Blob[] = [];
           const startTime = Date.now();
-          
+
           recorder.ondataavailable = (e) => {
             if (e.data.size > 0) {
               chunks.push(e.data);
             }
           };
           recorder.onstop = () => {
-            const blob = new Blob(chunks);
+            const blobType = chunks[0]?.type || "video/webm";
+            const blob = new Blob(chunks, { type: blobType });
             const endTime = Date.now();
             const actualDuration = (endTime - startTime) / 1000;
             const url = URL.createObjectURL(blob);
-            
-            // Pass empty array for real-time analysis data (simplified)
-            onRecordingComplete(url, actualDuration, []);
-            
+            onRecordingComplete({ url, blob, durationSec: actualDuration }, []);
             setRecording(false);
             setRecordingStartTime(null);
             setRecordingDuration(actualDuration);
@@ -1052,7 +1040,7 @@ export default function LiveVideoPlayer({
           setRecording(true);
           setRecordingStartTime(startTime);
         } catch (fallbackError) {
-          console.error('Recording not supported in this browser:', fallbackError);
+          console.error("Recording not supported in this browser:", fallbackError);
         }
       }
     }

@@ -6,6 +6,13 @@ import type { VisualOverlayPreset } from "./visualOverlayPreset";
 /** Extra payload passed with mini-app / studio session saves for Day 4.5 replay. */
 export interface ActivityPersistAnalysisMeta {
   videoUrl?: string | null;
+  /**
+   * In-memory recording/upload bytes. Prefer this over re-fetching `videoUrl`
+   * (especially live `blob:` URLs on mobile).
+   */
+  videoBlob?: Blob | null;
+  /** Original filename hint for extension/content-type (uploads). */
+  videoFileName?: string | null;
   angles?: OpenMoveAngleSeries | null;
   poses?: any[] | null;
   frameIntervalSec?: number | null;
@@ -25,6 +32,8 @@ export type ActivitySavePersistResult = {
   error?: string | null;
   /** Session row saved, but part of the replay payload did not. */
   warning?: string | null;
+  /** True when analysis saved but Pro video upload failed (in-session retry possible). */
+  videoUploadFailed?: boolean;
 };
 
 /** Legacy alias — studio and mini-app saves report the same shape. */

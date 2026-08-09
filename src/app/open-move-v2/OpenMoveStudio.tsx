@@ -57,6 +57,8 @@ import {
 } from "../../lib/sportAnalysis/sideCoverage";
 import type { ActivityPersistAnalysisMeta } from "../../lib/activityPersistMeta";
 import type { SportMetricsSnapshot } from "../../lib/effects/stats";
+import { createClient } from "../../lib/supabase/client";
+import { retryActivitySessionVideo } from "../../lib/persistActivitySession";
 
 import AssetVideoPlayerStage from "../motion-explore/AssetVideoPlayerStage";
 import MotionAnalysisPanel from "../motion-explore/MotionAnalysisPanel";
@@ -442,6 +444,9 @@ export default function OpenMoveStudio({
   });
   const sessionVideoUrlRef = useRef<string | null>(session.videoUrl);
   sessionVideoUrlRef.current = session.videoUrl;
+  /** In-memory upload/live bytes for reliable Activity video save (avoid re-fetching blob: URLs). */
+  const videoBlobRef = useRef<Blob | null>(null);
+  const videoFileNameRef = useRef<string | null>(null);
   const studioPersistKeyRef = useRef<string | null>(
     initialHydration
       ? `${initialHydration.videoUrl}:${initialHydration.poses.length}:${initialHydration.frameIntervalSec}`
@@ -515,6 +520,8 @@ export default function OpenMoveStudio({
     pendingKey: string;
     pending: {
       videoUrl: string | null;
+      videoBlob?: Blob | null;
+      videoFileName?: string | null;
       angles: NonNullable<SessionState["angles"]>;
       poses: any[];
       frameIntervalSec: number;
@@ -531,6 +538,9 @@ export default function OpenMoveStudio({
   );
   /** Save failed outright, or saved without part of the replay payload. */
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Analysis saved but video upload failed — in-session retry while blob is held. */
+  const [videoUploadFailed, setVideoUploadFailed] = useState(false);
+  const [videoRetrying, setVideoRetrying] = useState(false);
   const visualConfigRef = useRef<VisualOverlayPreset | null>(
     initialHydration?.visualConfig ?? null
   );
@@ -555,6 +565,7 @@ export default function OpenMoveStudio({
   const [sideCoverageNotice, setSideCoverageNotice] = useState<string | null>(null);
   const {
     isAuthenticated,
+    profile,
     canPostToLeaderboard,
     submitLeaderboardScore,
     openSignIn,
@@ -913,6 +924,7 @@ export default function OpenMoveStudio({
       setLeaderboardPosted(false);
       setPendingSave(null);
       setSaveState("idle");
+      setVideoUploadFailed(false);
 
       const selectedSide = selectedSideForSport(sportAnalysisKind, setup);
       setSideCoverageNotice(
@@ -946,6 +958,8 @@ export default function OpenMoveStudio({
           score: payload,
           meta: {
             videoUrl: sessionVideoUrlRef.current,
+            videoBlob: videoBlobRef.current,
+            videoFileName: videoFileNameRef.current,
             angles,
             poses,
             frameIntervalSec,
@@ -1092,15 +1106,55 @@ export default function OpenMoveStudio({
 
     setSaveState("saving");
     setSaveError(null);
-    const res = await onQuickAnalysisComplete?.(pending.score, pending.meta);
+    setVideoUploadFailed(false);
+    const res = await onQuickAnalysisComplete?.(pending.score, {
+      ...pending.meta,
+      videoBlob: videoBlobRef.current ?? pending.meta.videoBlob,
+      videoFileName: videoFileNameRef.current ?? pending.meta.videoFileName,
+    });
     if (res && (res.error || !res.activityId)) {
       setSaveState("idle");
       setSaveError(SESSION_SAVE_FAILED);
       return;
     }
     setSaveState("saved");
-    setSaveError(res?.warning ?? null);
+    if (res?.activityId) setSavedActivityId(res.activityId);
+    if (res?.videoUploadFailed) {
+      setVideoUploadFailed(true);
+      setSaveError(res.warning ?? "Analysis saved, but the video did not upload. Stay on this screen to retry.");
+    } else {
+      setVideoUploadFailed(false);
+      setSaveError(res?.warning ?? null);
+    }
   }, [isAuthenticated, openSignIn, onQuickAnalysisComplete]);
+
+  const retryFailedVideoUpload = useCallback(async () => {
+    const activityId = savedActivityId;
+    const blob = videoBlobRef.current;
+    if (!activityId || !profile?.id || (!blob && !sessionVideoUrlRef.current)) return;
+    if (!hasProAccess) return;
+
+    setVideoRetrying(true);
+    setSaveError(null);
+    const supabase = createClient();
+    const { error } = await retryActivitySessionVideo(supabase, {
+      userId: profile.id,
+      sessionId: activityId,
+      meta: {
+        videoBlob: blob,
+        videoUrl: sessionVideoUrlRef.current,
+        videoFileName: videoFileNameRef.current,
+      },
+    });
+    setVideoRetrying(false);
+    if (error) {
+      setVideoUploadFailed(true);
+      setSaveError(error);
+      return;
+    }
+    setVideoUploadFailed(false);
+    setSaveError(null);
+  }, [savedActivityId, profile?.id, hasProAccess]);
 
   const postLeaderboardFromRail = useCallback(() => {
     if (!leaderboardScore || leaderboardPosted) return;
@@ -1143,6 +1197,8 @@ export default function OpenMoveStudio({
         pendingKey: key,
         pending: {
           videoUrl,
+          videoBlob: videoBlobRef.current,
+          videoFileName: videoFileNameRef.current,
           angles,
           poses,
           frameIntervalSec,
@@ -1170,17 +1226,31 @@ export default function OpenMoveStudio({
       setNamePrompt(null);
       setSavedSessionTitle(title);
       setSaveError(null);
+      setVideoUploadFailed(false);
       const result = onStudioSessionPersist({
         ...current.pending,
+        videoBlob: videoBlobRef.current ?? current.pending.videoBlob,
+        videoFileName: videoFileNameRef.current ?? current.pending.videoFileName,
         sessionTitle: title,
         visualConfig: visualConfigRef.current ?? defaultOpenMoveVisualOverlayPreset(),
       });
       void Promise.resolve(result).then((res) => {
         if (!res) return;
         if (res.activityId) setSavedActivityId(res.activityId);
-        setSaveError(
-          res.error || !res.activityId ? SESSION_SAVE_FAILED : (res.warning ?? null)
-        );
+        if (res.error || !res.activityId) {
+          setSaveError(SESSION_SAVE_FAILED);
+          return;
+        }
+        if (res.videoUploadFailed) {
+          setVideoUploadFailed(true);
+          setSaveError(
+            res.warning ??
+              "Analysis saved, but the video did not upload. Stay on this screen to retry."
+          );
+        } else {
+          setVideoUploadFailed(false);
+          setSaveError(res.warning ?? null);
+        }
       });
     },
     [onStudioSessionPersist]
@@ -1196,14 +1266,24 @@ export default function OpenMoveStudio({
   }, [commitNamePrompt]);
 
   const attachVideoClip = useCallback(
-    (videoUrl: string, label: string, source: SessionState["source"]) => {
+    (
+      videoUrl: string,
+      label: string,
+      source: SessionState["source"],
+      videoBlob?: Blob | null,
+      videoFileName?: string | null
+    ) => {
       clearSportAnalysisResults();
       setHasAnalyzed(false);
       setLastAnalyzedSetup(null);
       studioPersistKeyRef.current = null;
       setSavedSessionTitle(null);
       setSavedActivityId(null);
+      setVideoUploadFailed(false);
+      setSaveError(null);
       visualConfigRef.current = null;
+      videoBlobRef.current = videoBlob ?? null;
+      videoFileNameRef.current = videoFileName ?? null;
       setNamePrompt(null);
       setSession({
         status: "clip_ready",
@@ -1432,6 +1512,8 @@ export default function OpenMoveStudio({
     setPushUpsAnalysisError(null);
     setPoseFlexibilityAnalysisResult(null);
     setPoseFlexibilityAnalysisError(null);
+    videoBlobRef.current = null;
+    videoFileNameRef.current = null;
     setSession({ ...initialSession, status: "loading_sample" });
     try {
       const keypointsRes = await fetch(FEATURED_KEYPOINTS_PATH, { cache: "default" });
@@ -1533,9 +1615,11 @@ export default function OpenMoveStudio({
       setUploadRejectHint(null);
       const url = URL.createObjectURL(file);
       if (embeddedQuickAnalysis) {
-        attachVideoClip(url, file.name || "Uploaded video", "upload");
+        attachVideoClip(url, file.name || "Uploaded video", "upload", file, file.name);
         return;
       }
+      videoBlobRef.current = file;
+      videoFileNameRef.current = file.name;
       await runTfjsOnUrl(url, file.name || "Uploaded video", "upload");
     },
     [embeddedQuickAnalysis, attachVideoClip, runTfjsOnUrl]
@@ -1548,13 +1632,24 @@ export default function OpenMoveStudio({
     e.target.value = "";
   };
 
-  const onRecordingComplete = async (url: string) => {
+  const onRecordingComplete = async (result: {
+    url: string;
+    blob: Blob;
+    durationSec: number;
+  }) => {
     setShowLiveModal(false);
+    const liveName = result.blob.type.includes("mp4")
+      ? "live-recording.mp4"
+      : result.blob.type.includes("webm")
+        ? "live-recording.webm"
+        : "live-recording.mp4";
     if (embeddedQuickAnalysis) {
-      attachVideoClip(url, "Live recording", "live");
+      attachVideoClip(result.url, "Live recording", "live", result.blob, liveName);
       return;
     }
-    await runTfjsOnUrl(url, "Live recording", "live");
+    videoBlobRef.current = result.blob;
+    videoFileNameRef.current = liveName;
+    await runTfjsOnUrl(result.url, "Live recording", "live");
   };
 
   const sportSetupFields = (
@@ -1633,7 +1728,7 @@ export default function OpenMoveStudio({
           className="inline-flex min-h-[2.75rem] flex-1 items-center justify-center gap-2 rounded-lg px-4 py-6 text-xs font-light text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] disabled:opacity-50"
         >
           <Upload size={12} />
-          {uploadDragActive ? "Drop video" : "Drop video or click to upload"}
+          {uploadDragActive ? "Drop video" : "Upload Video"}
         </button>
         <input
           ref={fileInputRef}
@@ -1777,24 +1872,37 @@ export default function OpenMoveStudio({
             <div
               role="status"
               aria-live="polite"
-              className="flex items-start gap-2 rounded-lg px-3 py-2"
+              className="flex flex-col gap-2 rounded-lg px-3 py-2"
               style={{
                 border: "1px solid color-mix(in srgb, #ef4444 45%, transparent)",
                 backgroundColor: "color-mix(in srgb, #ef4444 10%, transparent)",
               }}
             >
-              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[#ef4444]" aria-hidden />
-              <p className="flex-1 text-[11px] leading-snug text-[color:var(--foreground)]">
-                {saveError}
-              </p>
-              <button
-                type="button"
-                onClick={() => setSaveError(null)}
-                className="shrink-0 rounded p-0.5 text-[color:var(--muted-foreground)] transition-colors hover:text-[color:var(--foreground)]"
-                aria-label="Dismiss save warning"
-              >
-                <X size={13} />
-              </button>
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[#ef4444]" aria-hidden />
+                <p className="flex-1 text-[11px] leading-snug text-[color:var(--foreground)]">
+                  {saveError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSaveError(null)}
+                  className="shrink-0 rounded p-0.5 text-[color:var(--muted-foreground)] transition-colors hover:text-[color:var(--foreground)]"
+                  aria-label="Dismiss save warning"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+              {videoUploadFailed && savedActivityId && hasProAccess ? (
+                <button
+                  type="button"
+                  disabled={videoRetrying}
+                  onClick={() => void retryFailedVideoUpload()}
+                  className="self-start rounded-md px-2.5 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                  style={{ background: "var(--accent,#3b82f6)" }}
+                >
+                  {videoRetrying ? "Retrying video upload…" : "Retry video upload"}
+                </button>
+              ) : null}
             </div>
           ) : null}
 
@@ -1804,7 +1912,7 @@ export default function OpenMoveStudio({
                 Name this session
               </p>
               <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-                Shown on your Account Activity list so you can find it later.
+                Saves your analysis and video clip to Activity under this name.
               </p>
               <input
                 type="text"
@@ -1843,7 +1951,7 @@ export default function OpenMoveStudio({
                   className="rounded-lg px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90"
                   style={{ background: "var(--accent,#3b82f6)" }}
                 >
-                  Save
+                  Save analysis + video
                 </button>
               </div>
             </div>
@@ -1962,74 +2070,124 @@ export default function OpenMoveStudio({
                   </button>
                 </div>
               ) : null}
-              {pendingSave && hasAnalyzed ? (
+              {!isAuthenticated && hasAnalyzed && (pendingSave || leaderboardScore) ? (
                 <div className="space-y-2 pb-4 pt-2">
                   <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                    Save to activity
+                    Save your result
                   </p>
+                  {leaderboardScore ? (
+                    <p className="text-[10px] leading-snug text-[color:var(--muted)]">
+                      {leaderboardScore.sportTitle}:{" "}
+                      <span className="font-medium text-[color:var(--foreground)]">
+                        {leaderboardScore.formattedScore}
+                      </span>{" "}
+                      ({leaderboardScore.metricLabel})
+                    </p>
+                  ) : null}
                   <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-                    {saveState === "saved"
-                      ? "Saved. Reopen it anytime from your Activity."
-                      : "Keep this analysis in your Activity history. Re-analyze first if the tracked side looks wrong."}
+                    Saves your analysis to Activity and lets you post to the leaderboard. Free
+                    includes mini apps; Pro keeps the video recording.
                   </p>
                   <button
                     type="button"
-                    onClick={() => void saveAnalysisToActivity()}
-                    disabled={saveState !== "idle"}
-                    style={borderAllTheme}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2.5 text-xs font-medium text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:cursor-default disabled:opacity-60"
+                    onClick={openSignIn}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-medium transition-opacity hover:opacity-90"
+                    style={{
+                      background: "var(--primary-button-bg)",
+                      color: "var(--primary-button-text)",
+                      border: "2px solid var(--primary-button-border)",
+                    }}
                   >
-                    {saveState === "saved"
-                      ? "Saved to activity"
-                      : saveState === "saving"
-                        ? "Saving…"
-                        : !isAuthenticated
-                          ? "Sign in to save"
-                          : "Save session"}
+                    Sign in to save
                   </button>
                 </div>
-              ) : null}
-              {leaderboardScore && hasAnalyzed ? (
-                <div style={borderTopTheme} className="space-y-2 pb-4 pt-2">
-                  <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
-                    Post to leaderboard
-                  </p>
-                  <p className="text-[10px] leading-snug text-[color:var(--muted)]">
-                    {leaderboardScore.sportTitle}:{" "}
-                    <span className="font-medium text-[color:var(--foreground)]">
-                      {leaderboardScore.formattedScore}
-                    </span>{" "}
-                    ({leaderboardScore.metricLabel})
-                  </p>
-                  <button
-                    type="button"
-                    onClick={postLeaderboardFromRail}
-                    disabled={leaderboardPosted}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-medium transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60"
-                    style={
-                      leaderboardPosted
-                        ? {
-                            border: "1px solid var(--border-secondary)",
-                            color: "var(--muted-foreground)",
-                            backgroundColor: "transparent",
-                          }
-                        : {
-                            background: "var(--primary-button-bg)",
-                            color: "var(--primary-button-text)",
-                            border: "2px solid var(--primary-button-border)",
-                          }
-                    }
-                  >
-                    {leaderboardPosted
-                      ? "Posted to leaderboard"
-                      : !isAuthenticated
-                        ? "Sign in to post to leaderboard"
-                        : !canPostToLeaderboard
-                          ? "Complete profile"
-                          : "Post to leaderboard"}
-                  </button>
-                </div>
-              ) : null}
+              ) : (
+                <>
+                  {pendingSave && hasAnalyzed ? (
+                    <div className="space-y-2 pb-4 pt-2">
+                      <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                        Save to activity
+                      </p>
+                      <p className="text-[10px] leading-snug text-[color:var(--muted)]">
+                        {saveState === "saved"
+                          ? videoUploadFailed
+                            ? "Analysis is in Activity, but the video still needs to upload."
+                            : "Saved. Reopen it anytime from your Activity."
+                          : hasProAccess
+                            ? "Saves your analysis and video clip to Activity. Re-analyze first if the tracked side looks wrong."
+                            : "Saves your analysis to Activity. Upgrade to Pro to keep the recording too."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void saveAnalysisToActivity()}
+                        disabled={saveState !== "idle"}
+                        style={borderAllTheme}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)] px-3 py-2.5 text-xs font-medium text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] disabled:cursor-default disabled:opacity-60"
+                      >
+                        {saveState === "saved"
+                          ? "Saved to activity"
+                          : saveState === "saving"
+                            ? hasProAccess
+                              ? "Saving analysis + video…"
+                              : "Saving analysis…"
+                            : hasProAccess
+                              ? "Save analysis + video"
+                              : "Save analysis"}
+                      </button>
+                      {saveState === "saved" && videoUploadFailed && hasProAccess ? (
+                        <button
+                          type="button"
+                          disabled={videoRetrying}
+                          onClick={() => void retryFailedVideoUpload()}
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                          style={{ background: "var(--accent,#3b82f6)" }}
+                        >
+                          {videoRetrying ? "Retrying video upload…" : "Retry video upload"}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {leaderboardScore && hasAnalyzed ? (
+                    <div style={borderTopTheme} className="space-y-2 pb-4 pt-2">
+                      <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
+                        Post to leaderboard
+                      </p>
+                      <p className="text-[10px] leading-snug text-[color:var(--muted)]">
+                        {leaderboardScore.sportTitle}:{" "}
+                        <span className="font-medium text-[color:var(--foreground)]">
+                          {leaderboardScore.formattedScore}
+                        </span>{" "}
+                        ({leaderboardScore.metricLabel})
+                      </p>
+                      <button
+                        type="button"
+                        onClick={postLeaderboardFromRail}
+                        disabled={leaderboardPosted}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-medium transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60"
+                        style={
+                          leaderboardPosted
+                            ? {
+                                border: "1px solid var(--border-secondary)",
+                                color: "var(--muted-foreground)",
+                                backgroundColor: "transparent",
+                              }
+                            : {
+                                background: "var(--primary-button-bg)",
+                                color: "var(--primary-button-text)",
+                                border: "2px solid var(--primary-button-border)",
+                              }
+                        }
+                      >
+                        {leaderboardPosted
+                          ? "Posted to leaderboard"
+                          : !canPostToLeaderboard
+                            ? "Complete profile"
+                            : "Post to leaderboard"}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              )}
 
               {session.status === "ready" && hasAnalyzed ? (
                 <>

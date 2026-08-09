@@ -280,7 +280,7 @@ export async function uploadActivityVideo(
 ): Promise<{ path: string | null; error: string | null }> {
   const ext = opts.extension ?? (opts.contentType?.includes("webm") ? "webm" : "mp4");
   const path = activityVideoObjectPath(opts.userId, opts.sessionId, `source.${ext}`);
-  const contentType = opts.contentType || (ext === "webm" ? "video/webm" : "video/mp4");
+  const contentType = opts.contentType || (ext === "webm" ? "video/webm" : ext === "mov" ? "video/quicktime" : "video/mp4");
 
   const { error } = await supabase.storage.from(ACTIVITY_SESSIONS_BUCKET).upload(path, opts.file, {
     cacheControl: "3600",

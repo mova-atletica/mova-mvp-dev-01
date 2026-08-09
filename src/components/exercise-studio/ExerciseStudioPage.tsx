@@ -530,9 +530,9 @@ export default function ExerciseStudioPage({
     e.target.value = "";
   };
 
-  const onRecordingComplete = async (url: string) => {
+  const onRecordingComplete = async (result: { url: string; blob: Blob; durationSec: number }) => {
     setShowLiveModal(false);
-    await runUserTfjs(url, "Live recording", "live");
+    await runUserTfjs(result.url, "Live recording", "live");
   };
 
   const clearUserClip = () => setUserSession(null);

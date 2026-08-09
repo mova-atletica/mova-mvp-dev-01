@@ -16,63 +16,77 @@ import {
 } from "./activitySessions";
 import { defaultOpenMoveSessionTitle } from "./openMoveSessionTitle";
 import { deriveSessionMovementMetrics } from "./sessionMovementMetrics";
-import { fetchBlobFromUrl, getVideoBlobDurationMs } from "./videoBlobUtils";
+import {
+  getVideoBlobDurationMs,
+  resolveVideoBlobForUpload,
+  videoUploadFormatForBlob,
+} from "./videoBlobUtils";
 
 export interface PersistActivityResult {
   activityId: string | null;
   error: string | null;
   /** Session saved, but part of the replay payload did not. */
   warning: string | null;
+  videoUploadFailed?: boolean;
 }
 
-const POSES_WARNING = "Analysis data could not be saved, so this session will not replay.";
-const VIDEO_WARNING = "The video could not be saved. The session was saved without it.";
+export const POSES_WARNING =
+  "Analysis data could not be saved, so this session will not replay.";
+export const VIDEO_WARNING =
+  "Analysis saved, but the video did not upload. Stay on this screen to retry.";
 
-async function attachPosesAndMaybeVideo(
+async function attachPoses(
   supabase: SupabaseClient,
   opts: {
     userId: string;
     sessionId: string;
     meta: ActivityPersistAnalysisMeta;
-    hasProAccess: boolean;
   }
-): Promise<string[]> {
-  const { userId, sessionId, meta, hasProAccess } = opts;
-  const warnings: string[] = [];
+): Promise<string | null> {
+  const { userId, sessionId, meta } = opts;
+  if (!meta.poses?.length) return null;
 
-  if (meta.poses?.length) {
-    const { path, error } = await uploadActivityPoses(supabase, {
-      userId,
-      sessionId,
-      poses: meta.poses,
-      frameIntervalSec: meta.frameIntervalSec ?? null,
-    });
-    if (error || !path) {
-      console.error("Failed to upload activity poses", error);
-      warnings.push(POSES_WARNING);
-    } else {
-      const { error: pathError } = await supabase
-        .from("activity_sessions")
-        .update({ poses_path: path })
-        .eq("id", sessionId);
-      if (pathError) {
-        console.error("Failed to link activity poses", pathError.message);
-        warnings.push(POSES_WARNING);
-      }
-    }
+  const { path, error } = await uploadActivityPoses(supabase, {
+    userId,
+    sessionId,
+    poses: meta.poses,
+    frameIntervalSec: meta.frameIntervalSec ?? null,
+  });
+  if (error || !path) {
+    console.error("Failed to upload activity poses", error);
+    return POSES_WARNING;
   }
+  const { error: pathError } = await supabase
+    .from("activity_sessions")
+    .update({ poses_path: path })
+    .eq("id", sessionId);
+  if (pathError) {
+    console.error("Failed to link activity poses", pathError.message);
+    return POSES_WARNING;
+  }
+  return null;
+}
 
-  // Free tier keeps metrics and analysis; video storage is Pro only.
-  if (!hasProAccess || !meta.videoUrl) return warnings;
-
+async function attachVideo(
+  supabase: SupabaseClient,
+  opts: {
+    userId: string;
+    sessionId: string;
+    meta: ActivityPersistAnalysisMeta;
+  }
+): Promise<string | null> {
+  const { userId, sessionId, meta } = opts;
   try {
-    const raw = await fetchBlobFromUrl(meta.videoUrl);
-    if (!raw) {
-      warnings.push(VIDEO_WARNING);
-      return warnings;
-    }
-    const contentType = raw.type || "video/webm";
-    const extension = contentType.includes("mp4") ? "mp4" : "webm";
+    const raw = await resolveVideoBlobForUpload({
+      videoBlob: meta.videoBlob,
+      videoUrl: meta.videoUrl,
+    });
+    if (!raw) return VIDEO_WARNING;
+
+    const { contentType, extension } = videoUploadFormatForBlob(
+      raw,
+      meta.videoFileName
+    );
     const { path, error: uploadError } = await uploadActivityVideo(supabase, {
       userId,
       sessionId,
@@ -82,8 +96,7 @@ async function attachPosesAndMaybeVideo(
     });
     if (uploadError || !path) {
       console.error("Failed to upload activity video", uploadError);
-      warnings.push(VIDEO_WARNING);
-      return warnings;
+      return VIDEO_WARNING;
     }
     const durationMs = await getVideoBlobDurationMs(raw);
     const { error: videoError } = await updateActivitySessionVideo(supabase, sessionId, {
@@ -92,14 +105,42 @@ async function attachPosesAndMaybeVideo(
     });
     if (videoError) {
       console.error("Failed to link activity video", videoError);
-      warnings.push(VIDEO_WARNING);
+      return VIDEO_WARNING;
     }
+    return null;
   } catch (err) {
     console.error("Pro video save failed", err);
-    warnings.push(VIDEO_WARNING);
+    return VIDEO_WARNING;
+  }
+}
+
+async function attachPosesAndMaybeVideo(
+  supabase: SupabaseClient,
+  opts: {
+    userId: string;
+    sessionId: string;
+    meta: ActivityPersistAnalysisMeta;
+    hasProAccess: boolean;
+  }
+): Promise<{ warnings: string[]; videoUploadFailed: boolean }> {
+  const { userId, sessionId, meta, hasProAccess } = opts;
+  const warnings: string[] = [];
+
+  const posesWarn = await attachPoses(supabase, { userId, sessionId, meta });
+  if (posesWarn) warnings.push(posesWarn);
+
+  // Free tier keeps metrics and analysis; video storage is Pro only.
+  const hasVideoSource = Boolean(meta.videoBlob || meta.videoUrl);
+  if (!hasProAccess || !hasVideoSource) {
+    return { warnings, videoUploadFailed: false };
   }
 
-  return warnings;
+  const videoWarn = await attachVideo(supabase, { userId, sessionId, meta });
+  if (videoWarn) {
+    warnings.push(videoWarn);
+    return { warnings, videoUploadFailed: true };
+  }
+  return { warnings, videoUploadFailed: false };
 }
 
 export async function persistMiniAppActivitySession(
@@ -131,19 +172,29 @@ export async function persistMiniAppActivitySession(
   });
 
   if (error || !activity) {
-    return { activityId: null, error: error ?? "Create failed", warning: null };
+    return {
+      activityId: null,
+      error: error ?? "Create failed",
+      warning: null,
+      videoUploadFailed: false,
+    };
   }
 
-  const warnings = meta
+  const { warnings, videoUploadFailed } = meta
     ? await attachPosesAndMaybeVideo(supabase, {
         userId,
         sessionId: activity.id,
         meta,
         hasProAccess,
       })
-    : [];
+    : { warnings: [] as string[], videoUploadFailed: false };
 
-  return { activityId: activity.id, error: null, warning: warnings[0] ?? null };
+  return {
+    activityId: activity.id,
+    error: null,
+    warning: warnings[0] ?? null,
+    videoUploadFailed,
+  };
 }
 
 export async function persistOpenMoveStudioActivitySession(
@@ -170,15 +221,42 @@ export async function persistOpenMoveStudioActivitySession(
   });
 
   if (error || !activity) {
-    return { activityId: null, error: error ?? "Create failed", warning: null };
+    return {
+      activityId: null,
+      error: error ?? "Create failed",
+      warning: null,
+      videoUploadFailed: false,
+    };
   }
 
-  const warnings = await attachPosesAndMaybeVideo(supabase, {
+  const { warnings, videoUploadFailed } = await attachPosesAndMaybeVideo(supabase, {
     userId,
     sessionId: activity.id,
     meta,
     hasProAccess,
   });
 
-  return { activityId: activity.id, error: null, warning: warnings[0] ?? null };
+  return {
+    activityId: activity.id,
+    error: null,
+    warning: warnings[0] ?? null,
+    videoUploadFailed,
+  };
+}
+
+/** In-session retry after analysis saved but video upload failed. */
+export async function retryActivitySessionVideo(
+  supabase: SupabaseClient,
+  opts: {
+    userId: string;
+    sessionId: string;
+    meta: Pick<ActivityPersistAnalysisMeta, "videoBlob" | "videoUrl" | "videoFileName">;
+  }
+): Promise<{ error: string | null }> {
+  const videoWarn = await attachVideo(supabase, {
+    userId: opts.userId,
+    sessionId: opts.sessionId,
+    meta: opts.meta,
+  });
+  return { error: videoWarn };
 }
