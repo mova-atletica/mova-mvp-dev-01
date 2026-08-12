@@ -63,7 +63,7 @@ export default function HomeToolsHero({
         display: "flex",
         flexDirection: "column",
         alignItems: "stretch",
-        gap: "12px",
+        gap: "0px",
         width: "100%",
       };
 
@@ -122,6 +122,20 @@ export default function HomeToolsHero({
       style={HOME_TOOLS_HERO_LAYOUT_STYLE}
       aria-label="Archive tools"
     >
+      <header className="mb-5 sm:mb-6">
+        <p
+          className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]"
+        >
+          Mova Atlética
+        </p>
+        <h1
+          className="text-xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-xl md:text-xl"
+          style={{ fontFamily: "var(--font-roboto-mono), ui-monospace, monospace" }}
+        >
+          Analyze. Understand.
+        </h1>
+      </header>
+
       <div style={rowStyle} aria-label="Studio and leaderboards">
         <div style={studioColumnStyle}>
           <div style={tileSlotStyle}>

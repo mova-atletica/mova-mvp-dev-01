@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { LayoutDashboard } from "lucide-react";
+import { Camera, LayoutDashboard } from "lucide-react";
 
 const DEFAULT_STUDIO_TILE_IMAGE = "/images/sports/studio.jpg";
 const DEFAULT_STUDIO_TILE_VIDEO = "/images/sports/studio.mp4";
@@ -61,6 +61,8 @@ export default function MovaStudioHeroTile({
         minHeight: isDesktop ? undefined : "12rem",
         height: "100%",
         boxSizing: "border-box",
+        border: "none",
+        boxShadow: "none",
       }}
       aria-label={`${OPEN_MOVE_TITLE} — record or upload any movement`}
     >
@@ -131,7 +133,10 @@ export default function MovaStudioHeroTile({
               <p className="mini-app-glass-photo-studio-description">
                 Easily add overlays to your videos to visualize your body's movement!
               </p>
-              <span className="mini-app-glass-photo-studio-cta">Open</span>
+              <span className="mini-app-glass-photo-studio-cta gap-2">
+                <Camera size={14} aria-hidden />
+                Open
+              </span>
             </>
           ) : (
             <>
@@ -157,13 +162,14 @@ export default function MovaStudioHeroTile({
                 Record or upload any movement. Motion overlays &amp; export.
               </p>
               <span
-                className="inline-flex w-full items-center justify-center rounded-lg text-xs font-medium"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg text-xs font-medium"
                 style={{
                   backgroundColor: "var(--mini-app-glass-cta-bg)",
                   color: "var(--mini-app-glass-cta-text)",
-                  padding: "10px 12px",
+                  padding: "12px 12px",
                 }}
               >
+                <Camera size={14} aria-hidden />
                 Open
               </span>
             </>

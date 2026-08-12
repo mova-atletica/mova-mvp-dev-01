@@ -7,8 +7,9 @@ module.exports = {
     theme: {
       extend: {
         fontFamily: {
-          sans: ['var(--font-roboto)', 'sans-serif'],
-          roboto: ['var(--font-roboto)', 'sans-serif'],
+          sans: ['var(--font-roboto-mono)', 'ui-monospace', 'monospace'],
+          mono: ['var(--font-roboto-mono)', 'ui-monospace', 'monospace'],
+          roboto: ['var(--font-roboto-mono)', 'ui-monospace', 'monospace'],
         },
         colors: {
           // Stoic Onyx

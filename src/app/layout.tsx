@@ -1,42 +1,31 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./mova-popover.css";
 import "./effect-config-range.css";
 import "./mini-app-glass.css";
 import "./homepage-background.css";
-import { Roboto, Roboto_Mono } from 'next/font/google'
-import AppShell from '../components/AppShell'
-import { ThemeProvider } from '../contexts/ThemeContext'
-import { MockAuthProvider } from '../contexts/MockAuthContext'
-import { LocaleProvider } from '../i18n/LocaleProvider'
-import { MockEntitlementsProvider } from '../contexts/MockEntitlementsContext'
-import GlobalAccountModals from '../components/GlobalAccountModals'
-import ErrorBoundary from '../components/ErrorBoundary'
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  weight: ['100', '300', '400', '500', '700', '900'],
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  weight: ['100', '300', '400', '500', '700', '900'],
-  subsets: ["latin"],
-});
+import { Roboto, Roboto_Mono } from "next/font/google";
+import AppShell from "../components/AppShell";
+import { ThemeProvider } from "../contexts/ThemeContext";
+import { MockAuthProvider } from "../contexts/MockAuthContext";
+import { LocaleProvider } from "../i18n/LocaleProvider";
+import { MockEntitlementsProvider } from "../contexts/MockEntitlementsContext";
+import GlobalAccountModals from "../components/GlobalAccountModals";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 const roboto = Roboto({
-  subsets: ['latin'],
-  weight: ['100', '300', '400', '500', '700', '900'],
-  variable: '--font-roboto',
-})
+  subsets: ["latin"],
+  weight: ["100", "300", "400", "500", "700", "900"],
+  variable: "--font-roboto",
+  display: "swap",
+});
 
 const robotoMono = Roboto_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500', '700'],
-  variable: '--font-roboto-mono',
-})
+  subsets: ["latin"],
+  weight: ["100", "300", "400", "500", "700"],
+  variable: "--font-roboto-mono",
+  display: "swap",
+});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.mova-atletica.xyz";
 
@@ -82,8 +71,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${roboto.variable} ${robotoMono.variable} antialiased`}>
-      <body className="font-roboto">
+    <html
+      lang="en"
+      className={`${roboto.variable} ${robotoMono.variable} antialiased`}
+    >
+      <body className={`${robotoMono.className} antialiased`}>
         <ErrorBoundary>
           <ThemeProvider>
             <MockAuthProvider>

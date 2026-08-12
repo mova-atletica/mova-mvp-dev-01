@@ -301,33 +301,35 @@ export default function LibraryShell({
         }
       >
         <div className="open-move-studio-panel-scroll min-h-0 min-w-0 flex-1 overflow-y-auto">
-        {!showSideRail ? (
-          <div
-            className="flex items-center gap-2 bg-transparent pb-1 pt-4"
-            style={ARCHIVE_CONTENT_LAYOUT_STYLE}
-          >
-            <Link
-              href="/"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-transparent"
-              aria-label="Mova Archive home"
-              title="Mova Archive"
-            >
-              <Image
-                src="/images/brand/logo/Logo_Contained.svg"
-                alt="Mova Archive"
-                width={24}
-                height={24}
-                className="h-8 w-8"
-                style={{ filter: "var(--logo-color)" }}
-              />
-            </Link>
-            <AppMegaMenu activeApp="archive" iconOnly ghost />
-          </div>
-        ) : null}
+          {!showSideRail ? (
+            <div className="sticky top-0 z-10 bg-[var(--header-bg)] backdrop-blur-xl">
+              <div
+                className="flex items-center gap-2 py-2"
+                style={ARCHIVE_CONTENT_LAYOUT_STYLE}
+              >
+                <Link
+                  href="/"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-transparent"
+                  aria-label="Mova Archive home"
+                  title="Mova Archive"
+                >
+                  <Image
+                    src="/images/brand/logo/Logo_Contained.svg"
+                    alt="Mova Archive"
+                    width={24}
+                    height={24}
+                    className="h-8 w-8"
+                    style={{ filter: "var(--logo-color)" }}
+                  />
+                </Link>
+                <AppMegaMenu activeApp="archive" iconOnly ghost />
+              </div>
+            </div>
+          ) : null}
 
-        {children}
+          {children}
 
-        {!showSideRail ? <RailFooter compact /> : null}
+          {!showSideRail ? <RailFooter compact /> : null}
         </div>
       </div>
     </div>

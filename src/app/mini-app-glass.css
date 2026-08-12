@@ -313,6 +313,14 @@
   text-shadow: none;
 }
 
+/* Studio hero — no glass rim / border */
+.mini-app-glass-surface--studio-hero,
+.mini-app-glass-surface--studio-hero:hover,
+.mini-app-glass-surface--studio-hero:focus-visible {
+  border: none;
+  box-shadow: none;
+}
+
 /* Studio hero — poster at rest, muted video on hover */
 .mini-app-glass-surface--studio-hero .mini-app-glass-media-video {
   position: absolute;

@@ -947,7 +947,7 @@ export function renderJointAngles(
   const scaleFactor = statsCanvasScaleFactor(ctx);
   const scaledAngleSize = Math.round((config.angleSize || 18) * scaleFactor);
   
-  ctx.font = `bold ${scaledAngleSize}px 'Roboto', sans-serif`;
+  ctx.font = `bold ${scaledAngleSize}px 'Roboto Mono', monospace`;
   ctx.textAlign = 'center';
   
   for (const joint of jointAngles) {
@@ -1003,7 +1003,7 @@ export function renderROMStats(
   const scaleFactor = statsCanvasScaleFactor(ctx);
   const scaledAngleSize = Math.round((config.angleSize || 16) * scaleFactor);
   
-  ctx.font = `bold ${scaledAngleSize}px 'Roboto', sans-serif`;
+  ctx.font = `bold ${scaledAngleSize}px 'Roboto Mono', monospace`;
   ctx.textAlign = 'center';
   
   for (const rom of romData) {

@@ -1,16 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
-import { Trophy } from "lucide-react";
 import { QUICK_ANALYSIS_MOVEMENTS } from "../data/quickAnalysisMovements";
 import { getCountryFlag } from "../data/countries";
-import {
-  leaderboardAvatarTone,
-  leaderboardInitials,
-} from "../data/mockLeaderboards";
 import { useAccount } from "../contexts/MockAuthContext";
-import ExportPanelSelect from "./ExportPanelSelect";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
@@ -39,75 +32,66 @@ export default function HomeLeaderboardBlock({
     [getLeaderboard, sportSlug]
   );
 
-  const uniqueCountries = useMemo(() => {
-    const codes = new Set(entries.map((e) => e.countryCode).filter(Boolean));
-    return codes.size;
-  }, [entries]);
-
   const isHero = variant === "hero";
-
-  const sportOptions = useMemo(
-    () => QUICK_ANALYSIS_MOVEMENTS.map((m) => ({ value: m.slug, label: m.title })),
-    []
-  );
 
   const panel = (
     <div
       className={`mini-app-glass-surface flex min-h-0 flex-col overflow-hidden rounded-2xl p-3 sm:p-4 ${
         isHero ? "h-full" : ""
       }`}
-      style={borderAllTheme}
+      style={{ border: "none", boxShadow: "var(--mini-app-glass-shadow, 0 8px 32px rgba(23, 21, 15, 0.08))" }}
     >
       <div className="mini-app-glass-content relative z-10 flex min-h-0 flex-1 flex-col">
-        <div
-          className={`mb-3 flex shrink-0 flex-col gap-2 ${isHero ? "" : "sm:flex-row sm:items-center sm:justify-between"}`}
-        >
-          <div className="flex items-center gap-2.5">
-            {movement ? (
-              <div
-                className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg sm:h-10 sm:w-10"
-                style={borderAllTheme}
-              >
-                <Image
-                  src={movement.tileImage}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="40px"
-                />
-              </div>
-            ) : (
-              <Trophy
-                size={isHero ? 16 : 18}
-                className="text-[color:var(--section-title)]"
-                aria-hidden
-              />
-            )}
-            <div className="min-w-0">
-              <h2
-                className={`font-bold leading-tight ${isHero ? "text-md" : "text-base sm:text-lg"}`}
-                style={{ color: "var(--section-title)" }}
-              >
-                Leaderboards
-              </h2>
-              {movement ? (
-                <p className="truncate text-[10px] sm:text-[11px]" style={{ color: "var(--section-subtitle)" }}>
-                  Top {movement.primaryMetric.toLowerCase()} · {movement.title}
-                  {uniqueCountries > 0 ? ` · ${uniqueCountries} countries` : ""}
-                </p>
-              ) : null}
-            </div>
+        <div className="mb-3 flex shrink-0 flex-col gap-2.5">
+          <h2
+            className="text-lg font-bold leading-tight sm:text-xl"
+            style={{
+              color: "var(--section-title)",
+              fontFamily: "var(--font-roboto-mono), ui-monospace, monospace",
+            }}
+          >
+            Leaderboard
+          </h2>
+
+          <div
+            className="flex gap-2 overflow-x-auto pb-0.5 open-move-studio-panel-scroll"
+            role="tablist"
+            aria-label="Leaderboard sport"
+          >
+            {QUICK_ANALYSIS_MOVEMENTS.map((m) => {
+              const selected = m.slug === sportSlug;
+              return (
+                <button
+                  key={m.slug}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setSportSlug(m.slug)}
+                  className="shrink-0 rounded-full px-4 py-1.5 text-[10px] font-medium transition-colors sm:px-5 sm:text-[11px]"
+                  style={{
+                    fontFamily: "var(--font-roboto-mono), ui-monospace, monospace",
+                    ...(selected
+                      ? {
+                          background: "var(--foreground)",
+                          color: "var(--background)",
+                        }
+                      : {
+                          background: "color-mix(in srgb, var(--foreground) 10%, transparent)",
+                          color: "var(--muted-foreground)",
+                        }),
+                  }}
+                >
+                  {m.title}
+                </button>
+              );
+            })}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <ExportPanelSelect
-              value={sportSlug}
-              options={sportOptions}
-              onSelect={setSportSlug}
-              aria-label="Select sport"
-              triggerClassName="w-auto min-w-[8.5rem] max-w-[11rem] sm:min-w-[9.5rem]"
-            />
-          </div>
+          {movement ? (
+            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--section-subtitle)" }}>
+              Top {movement.primaryMetric.toLowerCase()} · {movement.title}
+            </p>
+          ) : null}
         </div>
 
         <div
@@ -120,7 +104,6 @@ export default function HomeLeaderboardBlock({
           >
             #
           </span>
-          <span className="h-7 w-7 shrink-0 sm:h-8 sm:w-8" aria-hidden />
           <span
             className="w-[6.5rem] shrink-0 text-[9px] font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)] sm:w-[8rem] sm:text-[10px]"
             role="columnheader"
@@ -158,7 +141,6 @@ export default function HomeLeaderboardBlock({
           ) : (
             entries.map((entry, index) => {
               const podium = index < 3 ? PODIUM_STYLES[index] : null;
-              const tone = leaderboardAvatarTone(entry.displayName);
               const isMe = Boolean(profile?.id && entry.userId === profile.id);
 
               return (
@@ -183,13 +165,6 @@ export default function HomeLeaderboardBlock({
                     }}
                   >
                     {index + 1}
-                  </span>
-                  <span
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold sm:h-8 sm:w-8 sm:text-[11px]"
-                    style={{ backgroundColor: tone.bg, color: tone.fg }}
-                    aria-hidden
-                  >
-                    {leaderboardInitials(entry.displayName)}
                   </span>
                   <span className="w-[6.5rem] min-w-0 shrink-0 truncate text-xs font-medium text-[color:var(--foreground)] sm:w-[8rem] sm:text-sm">
                     {entry.displayName}
@@ -230,9 +205,6 @@ export default function HomeLeaderboardBlock({
           >
             Try {movement?.title ?? "sport"}
           </button>
-          <p className="text-center text-[10px] text-[color:var(--muted-foreground)] sm:text-[11px]">
-            Tracked sessions · public ranks · {entries.length || 0} athletes shown
-          </p>
         </div>
       </div>
     </div>

@@ -679,7 +679,7 @@ export default function CoreVideoPlayer({
                     {/* Time Display */}
                     <div 
                       style={{
-                        fontFamily: 'Roboto, sans-serif',
+                        fontFamily: "var(--font-roboto-mono), ui-monospace, monospace",
                         fontWeight: 'bold',
                         fontSize: '9px',
                         color: 'white',
