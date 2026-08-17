@@ -119,9 +119,9 @@ function isRailPopoverContentOpen(): boolean {
 }
 
 /** Desktop analysis drawer: fixed cap so landscape video keeps room in the stage row. */
-const DESKTOP_ANALYSIS_DRAWER_WIDTH = "clamp(16rem, 36vw, 32rem)";
+const DESKTOP_ANALYSIS_DRAWER_WIDTH = "clamp(20rem, 42vw, 40rem)";
 /** Slightly narrower in the homepage modal so the drawer isn't clipped by modal inset. */
-const DESKTOP_ANALYSIS_DRAWER_WIDTH_EMBEDDED = "clamp(14rem, 26vw, 22rem)";
+const DESKTOP_ANALYSIS_DRAWER_WIDTH_EMBEDDED = "clamp(18rem, 32vw, 28rem)";
 const FEATURED_VIDEO_MP4_PATH = "/featured/featured.mp4";
 const FEATURED_KEYPOINTS_PATH = "/featured/featured-keypoints.json";
 const FEATURED_FRAME_INTERVAL_SEC = 0.1;
@@ -262,6 +262,8 @@ function AssetVideoSessionBridge({
     sportMetricsSnapshot,
     restrictMiniAppOverlays,
     watermarkExports,
+    poseTimestamps: session.poseTimestamps,
+    frameIntervalSec: session.frameIntervalSec,
   });
   const hydratedVisualRef = useRef(false);
 
@@ -372,6 +374,8 @@ type SessionState = {
   angles: ReturnType<typeof computeAngleSeriesFromOpenMovePoses> | null;
   /** Time between pose samples (seconds); matches MoveNet video scan interval. */
   frameIntervalSec: number | null;
+  /** ARKit Live mp4 timeline; null for web/Vision uniform sampling. */
+  poseTimestamps: number[] | null;
   /** UI label for current clip */
   sessionLabel: string;
   /** featured | upload | live */
@@ -386,6 +390,7 @@ const initialSession: SessionState = {
   poses: [],
   angles: null,
   frameIntervalSec: null,
+  poseTimestamps: null,
   sessionLabel: "",
   source: "featured",
 };
@@ -397,6 +402,7 @@ const idleSession: SessionState = {
   poses: [],
   angles: null,
   frameIntervalSec: null,
+  poseTimestamps: null,
   sessionLabel: "",
   source: "upload",
 };
@@ -434,6 +440,7 @@ export default function OpenMoveStudio({
         poses: initialHydration.poses,
         angles: initialHydration.angles,
         frameIntervalSec: initialHydration.frameIntervalSec,
+        poseTimestamps: initialHydration.poseTimestamps,
         sessionLabel: initialHydration.sessionLabel,
         source: "upload",
       };
@@ -525,6 +532,7 @@ export default function OpenMoveStudio({
       angles: NonNullable<SessionState["angles"]>;
       poses: any[];
       frameIntervalSec: number;
+      poseTimestamps?: number[] | null;
       sessionLabel: string | null;
     };
   } | null>(null);
@@ -577,6 +585,9 @@ export default function OpenMoveStudio({
   const canRecordLive = hasCoachAccess;
   const restrictMiniAppOverlays = isQuickAnalysis && !hasProAccess;
   const watermarkExports = isQuickAnalysis && !hasProAccess;
+  /** Post only after Activity save finishes (and Pro video upload succeeds when required). */
+  const canOfferLeaderboardPost =
+    saveState === "saved" && !(hasProAccess && videoUploadFailed);
   const [isDesktop, setIsDesktop] = useState(false);
   const [viewportResolved, setViewportResolved] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -963,6 +974,7 @@ export default function OpenMoveStudio({
             angles,
             poses,
             frameIntervalSec,
+            poseTimestamps: session.poseTimestamps,
             sportAnalysisKind: kind,
             sportAnalysis,
             visualConfig: visualConfigRef.current ?? defaultOpenMoveVisualOverlayPreset(),
@@ -1202,6 +1214,7 @@ export default function OpenMoveStudio({
           angles,
           poses,
           frameIntervalSec,
+          poseTimestamps: session.poseTimestamps ?? null,
           sessionLabel,
         },
       });
@@ -1292,6 +1305,7 @@ export default function OpenMoveStudio({
         poses: [],
         angles: null,
         frameIntervalSec: null,
+        poseTimestamps: null,
         sessionLabel: label,
         source,
         errorMessage: undefined,
@@ -1344,6 +1358,7 @@ export default function OpenMoveStudio({
       errorMessage: undefined,
       angles: null,
       frameIntervalSec: null,
+      poseTimestamps: null,
       poses: [],
     }));
     setTfProgress(0);
@@ -1363,6 +1378,7 @@ export default function OpenMoveStudio({
         poses: optimized,
         angles,
         frameIntervalSec,
+        poseTimestamps: null,
         sessionLabel: session.sessionLabel,
         source: session.source,
       });
@@ -1385,6 +1401,7 @@ export default function OpenMoveStudio({
         poses: [],
         angles: null,
         frameIntervalSec: null,
+        poseTimestamps: null,
       }));
     }
   }, [
@@ -1435,6 +1452,7 @@ export default function OpenMoveStudio({
         poses: optimized,
         angles,
         frameIntervalSec,
+        poseTimestamps: null,
         sessionLabel: label,
         source,
       });
@@ -1476,6 +1494,7 @@ export default function OpenMoveStudio({
         source,
         angles: null,
         frameIntervalSec: null,
+        poseTimestamps: null,
         poses: [],
       }));
       setTfProgress(0);
@@ -1892,17 +1911,6 @@ export default function OpenMoveStudio({
                   <X size={13} />
                 </button>
               </div>
-              {videoUploadFailed && savedActivityId && hasProAccess ? (
-                <button
-                  type="button"
-                  disabled={videoRetrying}
-                  onClick={() => void retryFailedVideoUpload()}
-                  className="self-start rounded-md px-2.5 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-                  style={{ background: "var(--accent,#3b82f6)" }}
-                >
-                  {videoRetrying ? "Retrying video upload…" : "Retry video upload"}
-                </button>
-              ) : null}
             </div>
           ) : null}
 
@@ -2147,7 +2155,7 @@ export default function OpenMoveStudio({
                       ) : null}
                     </div>
                   ) : null}
-                  {leaderboardScore && hasAnalyzed ? (
+                  {leaderboardScore && hasAnalyzed && canOfferLeaderboardPost ? (
                     <div style={borderTopTheme} className="space-y-2 pb-4 pt-2">
                       <p className="text-[11px] font-normal uppercase tracking-wider text-[color:var(--muted-foreground)]">
                         Post to leaderboard
@@ -2625,6 +2633,7 @@ export default function OpenMoveStudio({
                                     angles={session.angles}
                                     videoUrl={session.videoUrl}
                                     frameIntervalSec={session.frameIntervalSec}
+                                    poseTimestamps={session.poseTimestamps}
                                     onRequestClose={() => setAnalyticsDrawerOpen(false)}
                                     {...sportAnalysisPanelProps}
                                   />
@@ -2730,10 +2739,10 @@ export default function OpenMoveStudio({
             }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--card-bg)] p-4 text-[color:var(--foreground)] shadow-2xl outline-none"
           >
-            <Dialog.Title className="text-base font-medium">Desktop recommended</Dialog.Title>
+            <Dialog.Title className="text-base font-medium">Desktop now · iOS soon</Dialog.Title>
             <Dialog.Description className="mt-2 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-              For the smoothest video analysis and feedback, use Open Movement Viz on desktop. Mobile works, but playback
-              and charts may feel slower.
+              Open Movement Viz runs best on desktop. Mobile web is for browsing for now — full analysis
+              stays on desktop until the iOS app ships.
             </Dialog.Description>
             <button
               type="button"
@@ -2822,6 +2831,7 @@ export default function OpenMoveStudio({
                     angles={session.angles}
                     videoUrl={session.videoUrl}
                     frameIntervalSec={session.frameIntervalSec}
+                    poseTimestamps={session.poseTimestamps}
                     syncPlaybackFrame={false}
                     {...sportAnalysisPanelProps}
                   />

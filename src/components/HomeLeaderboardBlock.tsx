@@ -17,11 +17,18 @@ interface HomeLeaderboardBlockProps {
   onTrySport: (sportSlug: string) => void;
   /** Fits the tools hero column beside Mova Studio (no outer section margins). */
   variant?: "standalone" | "hero";
+  /** Mobile browse gate: do not open mini apps; point to desktop / account. */
+  analysisCtaMode?: "open" | "desktop-gate";
+  isAuthenticated?: boolean;
+  onRequestAccount?: () => void;
 }
 
 export default function HomeLeaderboardBlock({
   onTrySport,
   variant = "standalone",
+  analysisCtaMode = "open",
+  isAuthenticated = false,
+  onRequestAccount,
 }: HomeLeaderboardBlockProps) {
   const { getLeaderboard, profile } = useAccount();
   const [sportSlug, setSportSlug] = useState(QUICK_ANALYSIS_MOVEMENTS[0]?.slug ?? "plank");
@@ -33,6 +40,17 @@ export default function HomeLeaderboardBlock({
   );
 
   const isHero = variant === "hero";
+  const desktopGate = analysisCtaMode === "desktop-gate";
+
+  const handleAnalysisCta = () => {
+    if (!desktopGate) {
+      onTrySport(sportSlug);
+      return;
+    }
+    if (!isAuthenticated) {
+      onRequestAccount?.();
+    }
+  };
 
   const panel = (
     <div
@@ -194,16 +212,37 @@ export default function HomeLeaderboardBlock({
         <div className="mt-3 flex shrink-0 flex-col gap-2 pt-1">
           <button
             type="button"
-            onClick={() => onTrySport(sportSlug)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold tracking-wide transition-opacity hover:opacity-90 sm:py-4 sm:text-base"
+            onClick={handleAnalysisCta}
+            className="flex w-full flex-col items-center justify-center gap-1 rounded-xl px-4 py-3.5 text-center transition-opacity hover:opacity-90 sm:py-4"
             style={{
-              background: "var(--primary-button-bg)",
-              color: "var(--primary-button-text)",
-              border: "2px solid var(--primary-button-border)",
-              boxShadow: "0 8px 24px color-mix(in srgb, var(--primary-button-bg) 35%, transparent)",
+              background: desktopGate
+                ? "color-mix(in srgb, var(--foreground) 8%, transparent)"
+                : "var(--primary-button-bg)",
+              color: desktopGate ? "var(--foreground)" : "var(--primary-button-text)",
+              border: desktopGate
+                ? "1px solid var(--border-secondary)"
+                : "2px solid var(--primary-button-border)",
+              boxShadow: desktopGate
+                ? "none"
+                : "0 8px 24px color-mix(in srgb, var(--primary-button-bg) 35%, transparent)",
             }}
           >
-            Try {movement?.title ?? "sport"}
+            {desktopGate ? (
+              <>
+                <span className="text-sm font-semibold tracking-wide sm:text-base">
+                  Complete analysis on desktop to see your score on the leaderboard
+                </span>
+                <span className="text-[11px] font-medium leading-snug text-[color:var(--muted-foreground)] sm:text-xs">
+                  {isAuthenticated
+                    ? "iOS coming soon for mobile"
+                    : "iOS coming soon · Sign up to stay tuned"}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm font-semibold tracking-wide sm:text-base">
+                Try {movement?.title ?? "sport"}
+              </span>
+            )}
           </button>
         </div>
       </div>

@@ -33,6 +33,7 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
     profile,
     hasProAccess,
     hasCoachAccess,
+    openSignIn,
   } = useAccount();
   const [modalTarget, setModalTarget] = useState<OpenMoveStudioModalTarget | null>(null);
   const modalOpen = modalTarget !== null;
@@ -117,9 +118,11 @@ export default function HomeArchiveClient({ children }: HomeArchiveClientProps) 
       <HomeToolsHero
         hasStudio={MINI_APPS.some((app) => app.id === MOVA_STUDIO_MINI_APP.id)}
         showCoachStudio={hasCoachAccess}
+        isAuthenticated={isAuthenticated}
         onOpenStudio={openStudioModal}
         onOpenCoachStudio={openCoachStudio}
         onTrySport={openSportBySlug}
+        onCreateAccount={openSignIn}
       />
 
       {children}

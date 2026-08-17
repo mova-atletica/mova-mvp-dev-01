@@ -46,6 +46,7 @@ export default function ActivityReplayModal({
   const [poses, setPoses] = useState<any[]>([]);
   const [angles, setAngles] = useState<OpenMoveAngleSeries | null>(null);
   const [frameIntervalSec, setFrameIntervalSec] = useState<number | null>(null);
+  const [poseTimestamps, setPoseTimestamps] = useState<number[] | null>(null);
 
   useEffect(() => {
     if (!open || !activity) {
@@ -53,6 +54,7 @@ export default function ActivityReplayModal({
       setPoses([]);
       setAngles(null);
       setFrameIntervalSec(null);
+      setPoseTimestamps(null);
       setError(null);
       setLoading(false);
       return;
@@ -76,6 +78,7 @@ export default function ActivityReplayModal({
             console.warn(loaded.error);
           } else {
             nextPoses = loaded.poses;
+            setPoseTimestamps(loaded.timestamps);
             if (loaded.frameIntervalSec != null) {
               setFrameIntervalSec(loaded.frameIntervalSec);
             }
@@ -83,6 +86,7 @@ export default function ActivityReplayModal({
         }
         if (!nextPoses.length && nextAngles?.leftKneeAngles?.length) {
           nextPoses = stubPoses(nextAngles.leftKneeAngles.length);
+          if (!cancelled) setPoseTimestamps(null);
         }
         if (!cancelled) setPoses(nextPoses);
 
@@ -241,6 +245,7 @@ export default function ActivityReplayModal({
                     angles={angles}
                     videoUrl={videoUrl ?? ""}
                     frameIntervalSec={frameIntervalSec}
+                    poseTimestamps={poseTimestamps}
                     syncPlaybackFrame={Boolean(videoUrl)}
                     {...sportProps}
                   />

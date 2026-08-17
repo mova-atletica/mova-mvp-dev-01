@@ -1907,7 +1907,10 @@ export default function ResultsPage() {
         exercise.exerciseType, // Pass exercise type
         exerciseAnalysisData?.poseAnalysis, // Pass pose analysis data
         {
-          video_duration: poses.length / 30, // Assuming 30fps
+          video_duration:
+            videoDuration && Number.isFinite(parseFloat(videoDuration))
+              ? parseFloat(videoDuration)
+              : undefined,
           frame_count: poses.length,
         }
       );

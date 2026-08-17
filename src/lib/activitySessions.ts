@@ -7,6 +7,7 @@ import type {
 } from "../types/accountActivity";
 import type { VisualOverlayPreset } from "./visualOverlayPreset";
 import { parseVisualOverlayPreset } from "./visualOverlayPreset";
+import { normalizePoseTimestamps } from "./poseIndexAtTime";
 
 export const ACTIVITY_SESSIONS_BUCKET = "activity-sessions";
 
@@ -301,12 +302,15 @@ export async function uploadActivityPoses(
     sessionId: string;
     poses: unknown[];
     frameIntervalSec: number | null;
+    timestamps?: number[] | null;
   }
 ): Promise<{ path: string | null; error: string | null }> {
   const path = activityVideoObjectPath(opts.userId, opts.sessionId, "poses.json");
+  const timestamps = normalizePoseTimestamps(opts.timestamps, opts.poses.length);
   const body = JSON.stringify({
     version: 1,
     frameIntervalSec: opts.frameIntervalSec,
+    ...(timestamps ? { timestamps } : {}),
     poses: opts.poses,
   });
   const { error } = await supabase.storage.from(ACTIVITY_SESSIONS_BUCKET).upload(path, body, {
@@ -339,23 +343,40 @@ export async function createSignedActivityVideoUrl(
 export async function fetchActivityPosesJson(
   supabase: SupabaseClient,
   path: string
-): Promise<{ poses: any[]; frameIntervalSec: number | null; error: string | null }> {
+): Promise<{
+  poses: any[];
+  frameIntervalSec: number | null;
+  timestamps: number[] | null;
+  error: string | null;
+}> {
   const { data, error } = await supabase.storage.from(ACTIVITY_SESSIONS_BUCKET).download(path);
   if (error || !data) {
-    return { poses: [], frameIntervalSec: null, error: error?.message ?? "Download failed" };
+    return {
+      poses: [],
+      frameIntervalSec: null,
+      timestamps: null,
+      error: error?.message ?? "Download failed",
+    };
   }
   try {
     const text = await data.text();
-    const parsed = JSON.parse(text) as { poses?: any[]; frameIntervalSec?: number | null };
+    const parsed = JSON.parse(text) as {
+      poses?: any[];
+      frameIntervalSec?: number | null;
+      timestamps?: unknown;
+    };
+    const poses = Array.isArray(parsed.poses) ? parsed.poses : [];
     return {
-      poses: Array.isArray(parsed.poses) ? parsed.poses : [],
+      poses,
       frameIntervalSec: parsed.frameIntervalSec ?? null,
+      timestamps: normalizePoseTimestamps(parsed.timestamps, poses.length),
       error: null,
     };
   } catch (err) {
     return {
       poses: [],
       frameIntervalSec: null,
+      timestamps: null,
       error: err instanceof Error ? err.message : "Invalid poses JSON",
     };
   }

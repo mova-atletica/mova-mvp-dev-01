@@ -51,6 +51,7 @@ async function attachPoses(
     sessionId,
     poses: meta.poses,
     frameIntervalSec: meta.frameIntervalSec ?? null,
+    timestamps: meta.poseTimestamps ?? null,
   });
   if (error || !path) {
     console.error("Failed to upload activity poses", error);

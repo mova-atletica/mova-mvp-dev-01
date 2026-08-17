@@ -33,6 +33,7 @@ import {
 } from "../../lib/angleSeriesSmoothing";
 import { angleSeriesStats, pairSymmetryScore } from "../../lib/sessionMovementMetrics";
 import { useOptionalAssetVideoEngine } from "./assetVideoEngineContext";
+import { poseIndexAtTime, timeSecForPoseIndex } from "../../lib/poseIndexAtTime";
 
 interface MotionAnalysisPanelProps {
   poses: any[];
@@ -50,6 +51,8 @@ interface MotionAnalysisPanelProps {
   videoUrl: string;
   /** Seconds between pose samples (for sport charts / rep times). */
   frameIntervalSec?: number | null;
+  /** ARKit Live: seconds on the mp4 timeline. */
+  poseTimestamps?: number[] | null;
   /** When set (e.g. desktop analysis drawer), shows a control to collapse the panel. */
   onRequestClose?: () => void;
   /** Disable live video playhead syncing for constrained/mobile panel contexts. */
@@ -122,11 +125,59 @@ const CHART_AXIS_TICK = {
   fontFamily: "inherit",
 } as const;
 
+const ROM_JOINT_ABBREV: Record<string, string> = {
+  Knee: "Knee",
+  Hip: "Hip",
+  Elbow: "Elbow",
+  Shoulder: "Shld",
+};
+
+function splitRomJointTick(label: string): { side: string; name: string } {
+  if (label.startsWith("Left ")) {
+    const joint = label.slice(5);
+    return { side: "L", name: ROM_JOINT_ABBREV[joint] ?? joint.slice(0, 4) };
+  }
+  if (label.startsWith("Right ")) {
+    const joint = label.slice(6);
+    return { side: "R", name: ROM_JOINT_ABBREV[joint] ?? joint.slice(0, 4) };
+  }
+  return { side: "", name: ROM_JOINT_ABBREV[label] ?? label };
+}
+
+function RomXAxisTick({
+  x = 0,
+  y = 0,
+  payload,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string };
+}) {
+  const { side, name } = splitRomJointTick(String(payload?.value ?? ""));
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        textAnchor="middle"
+        fill={CHART_AXIS_TICK.fill}
+        fontSize={10}
+        fontWeight={CHART_AXIS_TICK.fontWeight}
+        fontFamily={CHART_AXIS_TICK.fontFamily}
+      >
+        {side ? <tspan x={0} dy={10}>{side}</tspan> : null}
+        <tspan x={0} dy={side ? 12 : 10}>
+          {name}
+        </tspan>
+      </text>
+    </g>
+  );
+}
+
 export default function MotionAnalysisPanel({
   poses,
   angles,
   videoUrl,
   frameIntervalSec = null,
+  poseTimestamps = null,
   onRequestClose,
   syncPlaybackFrame = true,
   enableSportAnalysisTab = false,
@@ -180,8 +231,11 @@ export default function MotionAnalysisPanel({
 
     const sync = () => {
       const d = video.duration;
-      if (!d || !Number.isFinite(d) || d <= 0) return;
-      const idx = Math.min(n - 1, Math.max(0, Math.floor(video.currentTime * (n / d))));
+      const idx = poseIndexAtTime(video.currentTime, n, {
+        timestamps: poseTimestamps,
+        frameIntervalSec,
+        durationSec: d,
+      });
       if (idx !== lastSyncedPlaybackFrameRef.current) {
         lastSyncedPlaybackFrameRef.current = idx;
         setPlaybackFrame(idx);
@@ -197,7 +251,7 @@ export default function MotionAnalysisPanel({
       video.removeEventListener("seeked", sync);
       video.removeEventListener("loadedmetadata", sync);
     };
-  }, [activeTab, engine, poses.length, syncPlaybackFrame]);
+  }, [activeTab, engine, poses.length, syncPlaybackFrame, poseTimestamps, frameIntervalSec]);
 
   const seekVideoToFrame = useCallback(
     (frame: number) => {
@@ -206,13 +260,15 @@ export default function MotionAnalysisPanel({
       const n = poses.length;
       const f = Math.min(n - 1, Math.max(0, Math.floor(frame)));
       const d = video.duration;
-      if (d && Number.isFinite(d) && d > 0) {
-        video.currentTime = (f / n) * d;
-      }
+      video.currentTime = timeSecForPoseIndex(f, n, {
+        timestamps: poseTimestamps,
+        frameIntervalSec,
+        durationSec: d,
+      });
       lastSyncedPlaybackFrameRef.current = f;
       setPlaybackFrame(f);
     },
-    [engine, poses.length]
+    [engine, poses.length, poseTimestamps, frameIntervalSec]
   );
 
   const handleJointChartClick = useCallback(
@@ -1486,11 +1542,34 @@ export default function MotionAnalysisPanel({
       <div>
         <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>Range of Motion</h4>
         {romData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={romData}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={romData} margin={{ top: 8, right: 8, bottom: 20, left: 12 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.45} />
-              <XAxis dataKey="joint" tick={CHART_AXIS_TICK} stroke="var(--border)" />
-              <YAxis tick={CHART_AXIS_TICK} stroke="var(--border)" />
+              <XAxis
+                dataKey="joint"
+                tick={<RomXAxisTick />}
+                interval={0}
+                height={36}
+                stroke="var(--border)"
+              />
+              <YAxis
+                tick={CHART_AXIS_TICK}
+                stroke="var(--border)"
+                width={52}
+                label={{
+                  value: "Degrees",
+                  angle: -90,
+                  position: "insideLeft",
+                  offset: 8,
+                  style: {
+                    fill: "var(--foreground)",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    fontFamily: "inherit",
+                    textAnchor: "middle",
+                  },
+                }}
+              />
               <Tooltip 
                 contentStyle={{ 
                   background: 'var(--results-chart-tooltip-bg)', 
@@ -1687,7 +1766,7 @@ export default function MotionAnalysisPanel({
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart
                       data={chartData}
-                      margin={{ top: 8, right: 8, bottom: 8, left: 0 }}
+                      margin={{ top: 8, right: 8, bottom: 8, left: 12 }}
                       onMouseMove={handleChartMouseMove}
                       onMouseLeave={handleChartMouseLeave}
                       onClick={handleJointChartClick}
@@ -1705,15 +1784,18 @@ export default function MotionAnalysisPanel({
                       <YAxis
                         tick={CHART_AXIS_TICK}
                         stroke="var(--border)"
+                        width={52}
                         label={{
-                          value: "Degrees °",
+                          value: "Degrees",
                           angle: -90,
                           position: "insideLeft",
+                          offset: 8,
                           style: {
-                            fill: "var(--muted-foreground)",
-                            fontSize: 12,
+                            fill: "var(--foreground)",
+                            fontSize: 11,
                             fontWeight: 500,
                             fontFamily: "inherit",
+                            textAnchor: "middle",
                           },
                         }}
                       />

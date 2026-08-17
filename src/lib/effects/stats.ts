@@ -9,6 +9,7 @@ import {
   drawLabelChipBackground,
   type LabelChipBg,
 } from "../canvasGlassChip";
+import { poseIndexAtTime, type PoseTimeline } from "../poseIndexAtTime";
 
 // PoseNet keypoint name to index mapping (COCO-17 format)
 const KEYPOINT_NAME_TO_INDEX: { [key: string]: number } = {
@@ -390,13 +391,15 @@ export function renderJointAngleTraceOverlay(
   poses: any[],
   config: Partial<StatsConfig>,
   frameTime: number,
-  isExport = false
+  isExport = false,
+  timeline?: PoseTimeline | null
 ): void {
   if (!poses?.length) return;
-  const totalDuration = video.duration || 1;
-  const totalFrames = poses.length;
-  const framesPerSecond = totalFrames / totalDuration;
-  const currentFrameIndex = Math.floor(frameTime * framesPerSecond);
+  const currentFrameIndex = poseIndexAtTime(frameTime, poses.length, {
+    timestamps: timeline?.timestamps,
+    frameIntervalSec: timeline?.frameIntervalSec,
+    durationSec: video.duration,
+  });
   if (currentFrameIndex >= poses.length) return;
   renderJointAngleChart(
     ctx,
@@ -1343,15 +1346,16 @@ export function renderStats(
   poses: any[],
   config: Partial<StatsConfig> = {},
   frameTime: number = 0,
-  isExport: boolean = false
+  isExport: boolean = false,
+  timeline?: PoseTimeline | null
 ): void {
   if (!poses || poses.length === 0) return;
   
-  // Calculate current frame index
-  const totalDuration = video.duration || 1;
-  const totalFrames = poses.length;
-  const framesPerSecond = totalFrames / totalDuration;
-  const currentFrameIndex = Math.floor(frameTime * framesPerSecond);
+  const currentFrameIndex = poseIndexAtTime(frameTime, poses.length, {
+    timestamps: timeline?.timestamps,
+    frameIntervalSec: timeline?.frameIntervalSec,
+    durationSec: video.duration,
+  });
   
   if (currentFrameIndex >= poses.length) return;
   

@@ -13,6 +13,8 @@ export interface OpenMoveActivityHydration {
   poses: any[];
   angles: OpenMoveAngleSeries;
   frameIntervalSec: number | null;
+  /** ARKit Live: seconds on the mp4 timeline; same length as poses. */
+  poseTimestamps: number[] | null;
   sessionLabel: string;
   /** Rail header: activity title, plus metric when present (e.g. "Pull-up set: 3"). */
   headerTitle: string;
@@ -77,17 +79,20 @@ export async function loadActivityHydration(
 
   let poses: any[] = [];
   let frameIntervalSec = activity.frameIntervalSec ?? null;
+  let poseTimestamps: number[] | null = null;
   if (activity.posesPath) {
     const loaded = await fetchActivityPosesJson(supabase, activity.posesPath);
     if (loaded.error) {
       console.warn("Activity poses load failed", loaded.error);
     } else {
       poses = loaded.poses;
+      poseTimestamps = loaded.timestamps;
       if (loaded.frameIntervalSec != null) frameIntervalSec = loaded.frameIntervalSec;
     }
   }
   if (!poses.length) {
     poses = stubPoses(angles.leftKneeAngles.length);
+    poseTimestamps = null;
   }
 
   return {
@@ -97,6 +102,7 @@ export async function loadActivityHydration(
       poses,
       angles,
       frameIntervalSec,
+      poseTimestamps,
       sessionLabel: activity.subtitle?.trim() || activity.title || "Saved session",
       headerTitle: formatHydrationHeaderTitle(activity.title, activity.metricValue),
       sportAnalysisKind: asSportKind(activity.sportAnalysisKind ?? activity.sportSlug),

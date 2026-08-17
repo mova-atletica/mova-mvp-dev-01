@@ -31,6 +31,9 @@ export interface AssetVideoPlayerProps {
   restrictMiniAppOverlays?: boolean;
   /** Watermark free exports (mini-app free tier). */
   watermarkExports?: boolean;
+  poseTimestamps?: number[] | null;
+  /** Seconds between pose samples (web MoveNet / Vision). */
+  frameIntervalSec?: number | null;
 }
 
 export interface Effect {

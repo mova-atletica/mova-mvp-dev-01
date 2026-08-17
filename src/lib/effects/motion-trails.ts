@@ -1,4 +1,4 @@
-// PoseNet keypoint name to index mapping (COCO-17 format)
+import { poseIndexAtTime, type PoseTimeline } from "../poseIndexAtTime";
 const KEYPOINT_NAME_TO_INDEX: { [key: string]: number } = {
   'nose': 0,
   'left_eye': 1, 'right_eye': 2,
@@ -44,7 +44,8 @@ export function renderMotionTrails(
   poses: any[],
   config: Partial<MotionTrailsConfig> = {},
   frameTime: number = 0,
-  isExport: boolean = false
+  isExport: boolean = false,
+  timeline?: PoseTimeline | null
 ) {
   const {
     trailLength = 10,
@@ -60,14 +61,12 @@ export function renderMotionTrails(
 
   if (!poses || poses.length === 0) return;
 
-  // Calculate frame indices based on actual video timing
-  // Assuming poses array contains frames at regular intervals
-  const totalDuration = video.duration || 1;
   const totalFrames = poses.length;
-  const framesPerSecond = totalFrames / totalDuration;
-  
-  // Find the current frame index based on actual video time
-  const currentFrameIndex = Math.floor(frameTime * framesPerSecond);
+  const currentFrameIndex = poseIndexAtTime(frameTime, totalFrames, {
+    timestamps: timeline?.timestamps,
+    frameIntervalSec: timeline?.frameIntervalSec,
+    durationSec: video.duration,
+  });
   const startFrame = Math.max(0, currentFrameIndex - trailLength);
   const endFrame = Math.min(totalFrames - 1, currentFrameIndex);
 

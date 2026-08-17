@@ -12,28 +12,41 @@ import {
 } from "../lib/archiveLayout";
 import CoachStudioToolsTile from "./CoachStudioToolsTile";
 import HomeLeaderboardBlock from "./HomeLeaderboardBlock";
+import MobileDesktopBrowseBanner from "./MobileDesktopBrowseBanner";
+import MobileDesktopInterstitial, {
+  type MobileDesktopInterstitialKind,
+} from "./MobileDesktopInterstitial";
 import MovaStudioHeroTile from "./MovaStudioHeroTile";
 
 interface HomeToolsHeroProps {
   hasStudio: boolean;
   showCoachStudio: boolean;
+  isAuthenticated: boolean;
   onOpenStudio: () => void;
   onOpenCoachStudio: () => void;
   onTrySport: (sportSlug: string) => void;
+  onCreateAccount: () => void;
 }
 
 export default function HomeToolsHero({
   hasStudio,
   showCoachStudio,
+  isAuthenticated,
   onOpenStudio,
   onOpenCoachStudio,
   onTrySport,
+  onCreateAccount,
 }: HomeToolsHeroProps) {
   const [isDesktop, setIsDesktop] = useState(false);
+  const [viewportResolved, setViewportResolved] = useState(false);
+  const [interstitial, setInterstitial] = useState<MobileDesktopInterstitialKind | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
-    const onChange = () => setIsDesktop(mq.matches);
+    const onChange = () => {
+      setIsDesktop(mq.matches);
+      setViewportResolved(true);
+    };
     onChange();
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
@@ -63,7 +76,7 @@ export default function HomeToolsHero({
         display: "flex",
         flexDirection: "column",
         alignItems: "stretch",
-        gap: "0px",
+        gap: `${HOME_TOOLS_HERO_GAP.row}px`,
         width: "100%",
       };
 
@@ -116,6 +129,22 @@ export default function HomeToolsHero({
     flex: showCoachStudio ? undefined : 1,
   };
 
+  const handleStudioOpen = () => {
+    if (!viewportResolved || isDesktop) {
+      onOpenStudio();
+      return;
+    }
+    setInterstitial("studio");
+  };
+
+  const handleCoachOpen = () => {
+    if (!viewportResolved || isDesktop) {
+      onOpenCoachStudio();
+      return;
+    }
+    setInterstitial("coach");
+  };
+
   return (
     <section
       className={ARCHIVE_HERO_SECTION_CLASS}
@@ -132,15 +161,22 @@ export default function HomeToolsHero({
           className="text-xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-xl md:text-xl"
           style={{ fontFamily: "var(--font-roboto-mono), ui-monospace, monospace" }}
         >
-          Analyze. Understand.
+          See. Analyze. Understand.
         </h1>
       </header>
+
+      {viewportResolved && !isDesktop ? (
+        <MobileDesktopBrowseBanner
+          isAuthenticated={isAuthenticated}
+          onCreateAccount={onCreateAccount}
+        />
+      ) : null}
 
       <div style={rowStyle} aria-label="Studio and leaderboards">
         <div style={studioColumnStyle}>
           <div style={tileSlotStyle}>
             <MovaStudioHeroTile
-              onOpen={onOpenStudio}
+              onOpen={handleStudioOpen}
               mediaSrc={MOVA_STUDIO_MINI_APP.tileImage}
               videoSrc={MOVA_STUDIO_MINI_APP.tileVideo}
               layout={isDesktop ? "desktop" : "mobile"}
@@ -149,16 +185,32 @@ export default function HomeToolsHero({
           {showCoachStudio ? (
             <div style={tileSlotStyle}>
               <CoachStudioToolsTile
-                onOpen={onOpenCoachStudio}
+                onOpen={handleCoachOpen}
                 layout={isDesktop ? "desktop" : "mobile"}
               />
             </div>
           ) : null}
         </div>
         <div style={leaderboardColumnStyle}>
-          <HomeLeaderboardBlock variant="hero" onTrySport={onTrySport} />
+          <HomeLeaderboardBlock
+            variant="hero"
+            onTrySport={onTrySport}
+            analysisCtaMode={viewportResolved && !isDesktop ? "desktop-gate" : "open"}
+            isAuthenticated={isAuthenticated}
+            onRequestAccount={onCreateAccount}
+          />
         </div>
       </div>
+
+      <MobileDesktopInterstitial
+        open={interstitial !== null}
+        onOpenChange={(open) => {
+          if (!open) setInterstitial(null);
+        }}
+        kind={interstitial ?? "studio"}
+        isAuthenticated={isAuthenticated}
+        onCreateAccount={onCreateAccount}
+      />
     </section>
   );
 }

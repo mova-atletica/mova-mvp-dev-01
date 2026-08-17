@@ -1,6 +1,7 @@
 // Export service for asset generation
 // Handles rendering effects to high-quality output and exporting
 
+import { poseIndexAtTime, type PoseTimeline } from "./poseIndexAtTime";
 import { renderMotionTrails } from './effects/motion-trails';
 import { renderMuybridgeFromCanvas, preExtractKeyFrames } from './effects/muybridge';
 import { renderMuybridgeTileEffects } from './effects/muybridgeTileRenderer';
@@ -18,6 +19,13 @@ const logEffectError = (message: string, error: unknown) => {
   }
   // In production, silently continue - these are non-critical effect rendering failures
 };
+
+function poseTimelineFromExportConfig(config: ExportConfig): PoseTimeline {
+  return {
+    timestamps: config.poseTimestamps ?? null,
+    frameIntervalSec: config.frameIntervalSec ?? null,
+  };
+}
 
 export interface ExportConfig {
   format: 'png' | 'webm';
@@ -44,6 +52,8 @@ export interface ExportConfig {
     poseFlexibilityTorsoDeg?: number | null;
     poseFlexibilityShouldersDeg?: number | null;
   } | null;
+  poseTimestamps?: number[] | null;
+  frameIntervalSec?: number | null;
 }
 
 export interface ExportResult {
@@ -125,6 +135,7 @@ async function renderEffectsToCanvas(
   activeEffects: any[],
   config: ExportConfig & { videoVisibility?: { showVideo: boolean; opacity: number; blendMode: GlobalCompositeOperation } }
 ): Promise<HTMLCanvasElement> {
+  const timeline = poseTimelineFromExportConfig(config);
   const firstStatsConfig = activeEffects.find((e) =>
     e.enabled &&
     (
@@ -200,12 +211,15 @@ async function renderEffectsToCanvas(
       
       switch (effect.effect.id) {
         case 'motion-trails':
-          renderMotionTrails(ctx, video, poses, effect.config, video.currentTime, true); // isExport = true
+          renderMotionTrails(ctx, video, poses, effect.config, video.currentTime, true, timeline);
           break;
         case 'skeleton-overlay':
           // Render skeleton overlay for image export
           if (poses && poses.length > 0) {
-            const currentFrameIndex = Math.floor(video.currentTime * (poses.length / (video.duration || 1)));
+            const currentFrameIndex = poseIndexAtTime(video.currentTime, poses.length, {
+              ...timeline,
+              durationSec: video.duration,
+            });
             if (currentFrameIndex < poses.length) {
               const pose = poses[currentFrameIndex];
               if (pose && pose.keypoints) {
@@ -291,7 +305,8 @@ async function renderEffectsToCanvas(
             poses,
             effect.config,
             video.currentTime,
-            true
+            true,
+            timeline
           );
           break;
         case 'joint-angles':
@@ -304,8 +319,9 @@ async function renderEffectsToCanvas(
             poses,
             { ...effect.config, ...sharedStatsSnapshot, isExport: true },
             video.currentTime,
-            true
-          ); // isExport = true
+            true,
+            timeline
+          );
           break;
         default:
           // Skip non-stats effects
@@ -327,6 +343,7 @@ async function renderEffectsToCanvas(
             activeEffects,
             sharedStatsSnapshot,
             isExport: true,
+            timeline,
           });
         } catch (error) {
           logEffectError('Failed to render Muybridge tile effects for export frame:', error);
@@ -396,6 +413,7 @@ async function exportAsVideo(
   config: ExportConfig & { videoVisibility?: { showVideo: boolean; opacity: number; blendMode: GlobalCompositeOperation } }
 ): Promise<ExportResult> {
   try {
+    const timeline = poseTimelineFromExportConfig(config);
     const firstStatsConfig = activeEffects.find((e) =>
       e.enabled &&
       (
@@ -506,6 +524,7 @@ async function exportAsVideo(
               activeEffects,
               sharedStatsSnapshot,
               isExport: true,
+              timeline,
             });
           } catch (error) {
             logEffectError('Failed to render Muybridge tile effects for video export frame:', error);
@@ -599,12 +618,15 @@ async function exportAsVideo(
             
             switch (effect.effect.id) {
               case 'motion-trails':
-                renderMotionTrails(ctx, video, poses, effect.config, frameTime, true); // isExport = true
+                renderMotionTrails(ctx, video, poses, effect.config, frameTime, true, timeline);
                 break;
               case 'skeleton-overlay':
                 // Render skeleton overlay for video export
                 if (poses && poses.length > 0) {
-                  const currentFrameIndex = Math.floor(frameTime * (poses.length / (video.duration || 1)));
+                  const currentFrameIndex = poseIndexAtTime(frameTime, poses.length, {
+                    ...timeline,
+                    durationSec: video.duration,
+                  });
                   if (currentFrameIndex < poses.length) {
                     const pose = poses[currentFrameIndex];
                     if (pose && pose.keypoints) {
@@ -690,7 +712,8 @@ async function exportAsVideo(
                   poses,
                   effect.config,
                   frameTime,
-                  true
+                  true,
+                  timeline
                 );
                 break;
               case 'joint-angles':
@@ -703,8 +726,9 @@ async function exportAsVideo(
                   poses,
                   { ...effect.config, ...sharedStatsSnapshot, isExport: true },
                   frameTime,
-                  true
-                ); // isExport = true
+                  true,
+                  timeline
+                );
                 break;
               default:
                 // Skip non-stats effects

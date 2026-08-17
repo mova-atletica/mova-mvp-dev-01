@@ -16,6 +16,7 @@ import type { AssetVideoPlayerProps, Effect, ActiveEffect, EffectType } from "./
 import { availableEffects } from "./assetVideoTypes";
 import { getDefaultConfigForEffect } from "./effectDefaultConfig";
 import { isFreeMiniAppEffect } from "../../lib/proAccess";
+import { poseIndexAtTime, type PoseTimeline } from "../../lib/poseIndexAtTime";
 
 export function useAssetVideoEngine({
   videoUrl,
@@ -26,6 +27,8 @@ export function useAssetVideoEngine({
   sportMetricsSnapshot = null,
   restrictMiniAppOverlays = false,
   watermarkExports = false,
+  poseTimestamps = null,
+  frameIntervalSec = null,
 }: AssetVideoPlayerProps) {
   const [activeEffects, setActiveEffects] = useState<ActiveEffect[]>([]);
   
@@ -300,6 +303,8 @@ export function useAssetVideoEngine({
         sportAnalysisKind,
         sportMetricsSnapshot,
         watermark: watermarkExports,
+        poseTimestamps,
+        frameIntervalSec,
       });
       
       if (result.success && result.data instanceof Blob && result.filename) {
@@ -335,6 +340,10 @@ export function useAssetVideoEngine({
         const ctx = canvas.getContext('2d');
         if (ctx) {
           const currentTime = video.currentTime;
+          const poseTimeline: PoseTimeline = {
+            timestamps: poseTimestamps,
+            frameIntervalSec,
+          };
           
           // Optimization: only redraw if time changed significantly or config changed
           const configHash = JSON.stringify(activeEffects.map(e => ({ id: e.effect.id, enabled: e.enabled, config: e.config })));
@@ -404,6 +413,7 @@ export function useAssetVideoEngine({
                   activeEffects,
                   sharedStatsSnapshot: { sportAnalysisKind, sportMetricsSnapshot },
                   isExport: false,
+                  timeline: poseTimeline,
                 });
               };
               
@@ -422,13 +432,16 @@ export function useAssetVideoEngine({
                 case 'motion-trails':
                   if (effectModulesRef.current.renderMotionTrails) {
                     // No transformation needed - canvas is now at video natural size
-                    effectModulesRef.current.renderMotionTrails(ctx, video, poses, effect.config, currentTime);
+                    effectModulesRef.current.renderMotionTrails(ctx, video, poses, effect.config, currentTime, false, poseTimeline);
                   }
                   break;
                 case 'skeleton-overlay':
                   // Reuse the existing skeleton rendering logic from VideoPlayer
                   if (poses && poses.length > 0) {
-                    const currentFrameIndex = Math.floor(currentTime * (poses.length / (video.duration || 1)));
+                    const currentFrameIndex = poseIndexAtTime(currentTime, poses.length, {
+                      ...poseTimeline,
+                      durationSec: video.duration,
+                    });
                     if (currentFrameIndex < poses.length) {
                       const pose = poses[currentFrameIndex];
                       if (pose && pose.keypoints) {
@@ -530,7 +543,7 @@ export function useAssetVideoEngine({
                   if (poses && poses.length > 0) {
                     try {
                       ctx.save();
-                      renderJointAngleTraceOverlay(ctx, video, poses, effect.config, currentTime);
+                      renderJointAngleTraceOverlay(ctx, video, poses, effect.config, currentTime, false, poseTimeline);
                       ctx.restore();
                     } catch (error) {
                       console.error(`Error rendering ${effect.effect.name}:`, error);
@@ -557,7 +570,9 @@ export function useAssetVideoEngine({
                           sportAnalysisKind,
                           sportMetricsSnapshot,
                         },
-                        currentTime
+                        currentTime,
+                        false,
+                        poseTimeline
                       );
                       // Restore canvas state after rendering effect
                       ctx.restore();
@@ -588,7 +603,7 @@ export function useAssetVideoEngine({
         cancelAnimationFrame(rafId);
       }
     };
-  }, [activeEffects, poses, videoVisibility, videoUrl, sportAnalysisKind, sportMetricsSnapshot]);
+  }, [activeEffects, poses, videoVisibility, videoUrl, sportAnalysisKind, sportMetricsSnapshot, poseTimestamps, frameIntervalSec]);
 
   // Sync canvas size after layout (useLayoutEffect) so containerRef is set; retry ResizeObserver if ref was late.
   useLayoutEffect(() => {

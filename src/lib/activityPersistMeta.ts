@@ -16,6 +16,7 @@ export interface ActivityPersistAnalysisMeta {
   angles?: OpenMoveAngleSeries | null;
   poses?: any[] | null;
   frameIntervalSec?: number | null;
+  poseTimestamps?: number[] | null;
   sportAnalysisKind?: SportAnalysisKind | null;
   /** Matching sport analysis result object (plank / squat / pullups / …). */
   sportAnalysis?: unknown | null;

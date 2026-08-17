@@ -28,6 +28,7 @@ export default function ExerciseCompareEngineBridge({
     exerciseTitle: userSession.sessionLabel,
     sportAnalysisKind: "pullups",
     sportMetricsSnapshot: null,
+    frameIntervalSec: userSession.frameIntervalSec,
   });
 
   const referenceEngine = useAssetVideoEngine({
@@ -36,6 +37,7 @@ export default function ExerciseCompareEngineBridge({
     exerciseTitle: referenceSession.sessionLabel,
     sportAnalysisKind: "pullups",
     sportMetricsSnapshot: null,
+    frameIntervalSec: referenceSession.frameIntervalSec,
   });
 
   const userEffectsKey = JSON.stringify(

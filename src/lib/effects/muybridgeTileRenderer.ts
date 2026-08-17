@@ -1,6 +1,7 @@
 import { renderMotionTrails } from './motion-trails';
 import { sortEffectsByOverlayDrawOrder } from './overlayDrawOrder';
 import { renderJointAngleTraceOverlay, renderStats, type StatsConfig } from './stats';
+import { poseIndexAtTime, type PoseTimeline } from '../poseIndexAtTime';
 
 export interface MuybridgeTileRendererOptions {
   activeEffects: Array<{
@@ -10,6 +11,7 @@ export interface MuybridgeTileRendererOptions {
   }>;
   sharedStatsSnapshot?: Pick<StatsConfig, 'sportAnalysisKind' | 'sportMetricsSnapshot'>;
   isExport?: boolean;
+  timeline?: PoseTimeline | null;
 }
 
 function renderSkeletonOverlayForTile(
@@ -17,13 +19,16 @@ function renderSkeletonOverlayForTile(
   frameVideo: HTMLVideoElement,
   framePoses: any[],
   frameTime: number,
-  config: Record<string, unknown>
+  config: Record<string, unknown>,
+  timeline?: PoseTimeline | null
 ): void {
   if (!framePoses?.length) return;
 
-  const currentFrameIndex = Math.floor(
-    frameTime * (framePoses.length / (frameVideo.duration || 1))
-  );
+  const currentFrameIndex = poseIndexAtTime(frameTime, framePoses.length, {
+    timestamps: timeline?.timestamps,
+    frameIntervalSec: timeline?.frameIntervalSec,
+    durationSec: frameVideo.duration,
+  });
   if (currentFrameIndex >= framePoses.length) return;
 
   const pose = framePoses[currentFrameIndex];
@@ -92,7 +97,7 @@ export function renderMuybridgeTileEffects(
   frameTime: number,
   options: MuybridgeTileRendererOptions
 ): void {
-  const { activeEffects, sharedStatsSnapshot = {}, isExport = false } = options;
+  const { activeEffects, sharedStatsSnapshot = {}, isExport = false, timeline = null } = options;
 
   for (const effect of activeEffects) {
     if (!effect.enabled || effect.effect.id === 'muybridge') continue;
@@ -105,7 +110,8 @@ export function renderMuybridgeTileEffects(
           framePoses,
           effect.config,
           frameTime,
-          isExport
+          isExport,
+          timeline
         );
         break;
       case 'skeleton-overlay':
@@ -114,7 +120,8 @@ export function renderMuybridgeTileEffects(
           frameVideo,
           framePoses,
           frameTime,
-          effect.config
+          effect.config,
+          timeline
         );
         break;
       default:
@@ -134,7 +141,8 @@ export function renderMuybridgeTileEffects(
             framePoses,
             effect.config,
             frameTime,
-            isExport
+            isExport,
+            timeline
           );
         }
         break;
@@ -149,7 +157,8 @@ export function renderMuybridgeTileEffects(
             framePoses,
             { ...effect.config, ...sharedStatsSnapshot },
             frameTime,
-            isExport
+            isExport,
+            timeline
           );
         }
         break;

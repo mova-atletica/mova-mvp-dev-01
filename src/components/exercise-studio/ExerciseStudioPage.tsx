@@ -126,6 +126,7 @@ function AssetVideoSessionBridge({
     exerciseTitle: session.sessionLabel,
     sportAnalysisKind: "pullups",
     sportMetricsSnapshot: null,
+    frameIntervalSec: session.frameIntervalSec,
   });
   return <AssetVideoEngineProvider engine={engine}>{children}</AssetVideoEngineProvider>;
 }
