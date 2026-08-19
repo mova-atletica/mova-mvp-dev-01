@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpenMoveAngleSeries } from "./openMoveAngleSeries";
+import type { SessionMovementMetrics } from "../types/accountActivity";
 import type { SportAnalysisKind } from "./sportAnalysis/pullUpsTypes";
 import {
   createSignedActivityVideoUrl,
@@ -15,6 +16,7 @@ export interface OpenMoveActivityHydration {
   frameIntervalSec: number | null;
   /** ARKit Live: seconds on the mp4 timeline; same length as poses. */
   poseTimestamps: number[] | null;
+  metrics: SessionMovementMetrics | null;
   sessionLabel: string;
   /** Rail header: activity title, plus metric when present (e.g. "Pull-up set: 3"). */
   headerTitle: string;
@@ -103,6 +105,7 @@ export async function loadActivityHydration(
       angles,
       frameIntervalSec,
       poseTimestamps,
+      metrics: activity.metrics ?? null,
       sessionLabel: activity.subtitle?.trim() || activity.title || "Saved session",
       headerTitle: formatHydrationHeaderTitle(activity.title, activity.metricValue),
       sportAnalysisKind: asSportKind(activity.sportAnalysisKind ?? activity.sportSlug),

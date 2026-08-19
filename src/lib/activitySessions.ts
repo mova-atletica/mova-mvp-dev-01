@@ -8,6 +8,7 @@ import type {
 import type { VisualOverlayPreset } from "./visualOverlayPreset";
 import { parseVisualOverlayPreset } from "./visualOverlayPreset";
 import { normalizePoseTimestamps } from "./poseIndexAtTime";
+import { parseSessionMovementMetrics } from "./sessionMovementMetrics";
 
 export const ACTIVITY_SESSIONS_BUCKET = "activity-sessions";
 
@@ -64,7 +65,7 @@ export function mapActivitySessionRow(row: ActivitySessionRow): AccountActivityI
     tags: row.tags ?? undefined,
     metricLabel: row.metric_label ?? undefined,
     metricValue: row.metric_value_text ?? undefined,
-    metrics: row.metrics ?? undefined,
+    metrics: parseSessionMovementMetrics(row.metrics),
     sportSlug: row.sport_slug,
     sportAnalysisKind: row.sport_analysis_kind,
     frameIntervalSec: row.frame_interval_sec,

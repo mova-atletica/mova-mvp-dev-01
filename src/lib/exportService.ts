@@ -220,7 +220,7 @@ async function renderEffectsToCanvas(
               ...timeline,
               durationSec: video.duration,
             });
-            if (currentFrameIndex < poses.length) {
+            if (currentFrameIndex != null && currentFrameIndex < poses.length) {
               const pose = poses[currentFrameIndex];
               if (pose && pose.keypoints) {
                 const keypoints = pose.keypoints;
@@ -627,7 +627,7 @@ async function exportAsVideo(
                     ...timeline,
                     durationSec: video.duration,
                   });
-                  if (currentFrameIndex < poses.length) {
+                  if (currentFrameIndex != null && currentFrameIndex < poses.length) {
                     const pose = poses[currentFrameIndex];
                     if (pose && pose.keypoints) {
                       const keypoints = pose.keypoints;

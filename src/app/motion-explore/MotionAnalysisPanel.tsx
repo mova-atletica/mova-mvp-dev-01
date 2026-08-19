@@ -32,6 +32,7 @@ import {
   smoothOpenMoveAngleSeries,
 } from "../../lib/angleSeriesSmoothing";
 import { angleSeriesStats, pairSymmetryScore } from "../../lib/sessionMovementMetrics";
+import type { PanelJointStats } from "../../types/accountActivity";
 import { useOptionalAssetVideoEngine } from "./assetVideoEngineContext";
 import { poseIndexAtTime, timeSecForPoseIndex } from "../../lib/poseIndexAtTime";
 
@@ -53,6 +54,8 @@ interface MotionAnalysisPanelProps {
   frameIntervalSec?: number | null;
   /** ARKit Live: seconds on the mp4 timeline. */
   poseTimestamps?: number[] | null;
+  /** Stored panel ROM / symmetry — skip recalc when opening a saved activity. */
+  panelJointStats?: PanelJointStats | null;
   /** When set (e.g. desktop analysis drawer), shows a control to collapse the panel. */
   onRequestClose?: () => void;
   /** Disable live video playhead syncing for constrained/mobile panel contexts. */
@@ -178,6 +181,7 @@ export default function MotionAnalysisPanel({
   videoUrl,
   frameIntervalSec = null,
   poseTimestamps = null,
+  panelJointStats = null,
   onRequestClose,
   syncPlaybackFrame = true,
   enableSportAnalysisTab = false,
@@ -205,8 +209,8 @@ export default function MotionAnalysisPanel({
   const [jointLineVisible, setJointLineVisible] =
     useState<Record<ChartJointKey, boolean>>(() => ({ ...DEFAULT_JOINT_LINE_VISIBLE }));
   const engine = useOptionalAssetVideoEngine();
-  const [playbackFrame, setPlaybackFrame] = useState(0);
-  const lastSyncedPlaybackFrameRef = useRef(0);
+  const [playbackFrame, setPlaybackFrame] = useState(-1);
+  const lastSyncedPlaybackFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!enableSportAnalysisTab && activeTab === "sport") setActiveTab("overview");
@@ -218,8 +222,8 @@ export default function MotionAnalysisPanel({
 
   /** Reset playhead when clip length changes. */
   useEffect(() => {
-    lastSyncedPlaybackFrameRef.current = 0;
-    setPlaybackFrame(0);
+    lastSyncedPlaybackFrameRef.current = null;
+    setPlaybackFrame(-1);
   }, [poses.length]);
 
   /** Video → chart: only `setPlaybackFrame` when the integer pose index changes (avoids axis churn). */
@@ -236,9 +240,10 @@ export default function MotionAnalysisPanel({
         frameIntervalSec,
         durationSec: d,
       });
-      if (idx !== lastSyncedPlaybackFrameRef.current) {
-        lastSyncedPlaybackFrameRef.current = idx;
-        setPlaybackFrame(idx);
+      const marker = idx ?? -1;
+      if (marker !== lastSyncedPlaybackFrameRef.current) {
+        lastSyncedPlaybackFrameRef.current = marker;
+        setPlaybackFrame(marker);
       }
     };
 
@@ -313,7 +318,12 @@ export default function MotionAnalysisPanel({
     const calculateROM = (raw: (number | null)[], display: number[]) =>
       hasMeasuredSamples(raw) ? angleSeriesStats(display) : null;
 
-    const jointStats = {
+    const calculateSymmetry = (
+      left: { avg: number } | null,
+      right: { avg: number } | null
+    ) => (left && right ? pairSymmetryScore(left.avg, right.avg) : null);
+
+    const computedJointStats = {
       leftKnee: calculateROM(angles.leftKneeAngles, displayAngles.leftKneeAngles),
       rightKnee: calculateROM(angles.rightKneeAngles, displayAngles.rightKneeAngles),
       leftHip: calculateROM(angles.leftHipAngles, displayAngles.leftHipAngles),
@@ -331,17 +341,28 @@ export default function MotionAnalysisPanel({
       trunk: calculateROM(angles.trunkAngles, displayAngles.trunkAngles),
     };
 
-    const calculateSymmetry = (
-      left: { avg: number } | null,
-      right: { avg: number } | null
-    ) => (left && right ? pairSymmetryScore(left.avg, right.avg) : null);
+    const jointStats = panelJointStats
+      ? {
+          leftKnee: panelJointStats.leftKnee,
+          rightKnee: panelJointStats.rightKnee,
+          leftHip: panelJointStats.leftHip,
+          rightHip: panelJointStats.rightHip,
+          leftElbow: panelJointStats.leftElbow,
+          rightElbow: panelJointStats.rightElbow,
+          leftShoulder: panelJointStats.leftShoulder,
+          rightShoulder: panelJointStats.rightShoulder,
+          trunk: panelJointStats.trunk,
+        }
+      : computedJointStats;
 
-    const symmetry = {
-      knee: calculateSymmetry(jointStats.leftKnee, jointStats.rightKnee),
-      hip: calculateSymmetry(jointStats.leftHip, jointStats.rightHip),
-      elbow: calculateSymmetry(jointStats.leftElbow, jointStats.rightElbow),
-      shoulder: calculateSymmetry(jointStats.leftShoulder, jointStats.rightShoulder)
-    };
+    const symmetry = panelJointStats
+      ? panelJointStats.symmetry
+      : {
+          knee: calculateSymmetry(jointStats.leftKnee, jointStats.rightKnee),
+          hip: calculateSymmetry(jointStats.leftHip, jointStats.rightHip),
+          elbow: calculateSymmetry(jointStats.leftElbow, jointStats.rightElbow),
+          shoulder: calculateSymmetry(jointStats.leftShoulder, jointStats.rightShoulder),
+        };
 
     return {
       totalFrames,
@@ -350,7 +371,7 @@ export default function MotionAnalysisPanel({
       jointStats,
       symmetry
     };
-  }, [poses, angles, displayAngles]);
+  }, [poses, angles, displayAngles, panelJointStats]);
 
   /**
    * Display-smoothed, continuous lines. Untracked joints stay null so an
@@ -1814,7 +1835,7 @@ export default function MotionAnalysisPanel({
                             />
                           ) : null
                       )}
-                      {syncPlaybackFrame && engine && chartData.length > 0 ? (
+                      {syncPlaybackFrame && engine && chartData.length > 0 && playbackFrame >= 0 ? (
                         <ReferenceLine
                           x={playbackFrame}
                           stroke="var(--foreground)"

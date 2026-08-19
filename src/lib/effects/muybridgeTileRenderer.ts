@@ -29,7 +29,7 @@ function renderSkeletonOverlayForTile(
     frameIntervalSec: timeline?.frameIntervalSec,
     durationSec: frameVideo.duration,
   });
-  if (currentFrameIndex >= framePoses.length) return;
+  if (currentFrameIndex == null || currentFrameIndex >= framePoses.length) return;
 
   const pose = framePoses[currentFrameIndex];
   if (!pose?.keypoints) return;

@@ -400,7 +400,7 @@ export function renderJointAngleTraceOverlay(
     frameIntervalSec: timeline?.frameIntervalSec,
     durationSec: video.duration,
   });
-  if (currentFrameIndex >= poses.length) return;
+  if (currentFrameIndex == null || currentFrameIndex >= poses.length) return;
   renderJointAngleChart(
     ctx,
     poses,
@@ -1357,7 +1357,7 @@ export function renderStats(
     durationSec: video.duration,
   });
   
-  if (currentFrameIndex >= poses.length) return;
+  if (currentFrameIndex == null || currentFrameIndex >= poses.length) return;
   
   // Extract joint angles (positions from current frame; values display-smoothed)
   const jointAngles = extractJointAngles(poses, currentFrameIndex).map((joint) => {

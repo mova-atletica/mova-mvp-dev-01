@@ -3,6 +3,33 @@ export type AccountActivityKind = "studio" | "mini-app" | "program" | "coach";
 /** Joints derivable from `OpenMoveAngleSeries` — no ankle series exists. */
 export type MovementJoint = "knee" | "hip" | "shoulder" | "spine" | "elbow";
 
+/** Per-side min/max/range/avg shown in the analysis panel. */
+export interface PanelJointStat {
+  min: number;
+  max: number;
+  range: number;
+  avg: number;
+}
+
+/** Analysis-panel ROM / Joint Movements / symmetry — persist so iOS and web match. */
+export interface PanelJointStats {
+  leftKnee: PanelJointStat | null;
+  rightKnee: PanelJointStat | null;
+  leftHip: PanelJointStat | null;
+  rightHip: PanelJointStat | null;
+  leftElbow: PanelJointStat | null;
+  rightElbow: PanelJointStat | null;
+  leftShoulder: PanelJointStat | null;
+  rightShoulder: PanelJointStat | null;
+  trunk: PanelJointStat | null;
+  symmetry: {
+    knee: number | null;
+    hip: number | null;
+    elbow: number | null;
+    shoulder: number | null;
+  };
+}
+
 /** Measured from a session's tracked joint angles — see `deriveSessionMovementMetrics`. */
 export interface SessionMovementMetrics {
   /** Mean ROM across tracked joints (degrees) */
@@ -13,6 +40,8 @@ export interface SessionMovementMetrics {
   symmetryScore: number | null;
   /** Peak ROM per joint; omits joints without usable tracking */
   jointRom: Partial<Record<MovementJoint, number>>;
+  /** Nested in metrics JSONB — no migration. Omitted on older rows. */
+  panelJointStats?: PanelJointStats;
 }
 
 export interface AccountActivityItem {

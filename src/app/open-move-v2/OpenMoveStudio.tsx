@@ -88,6 +88,7 @@ import OpenMoveSportSetupFields, {
 import { EmbeddedModalPopoverProvider } from "../../contexts/EmbeddedModalPopoverContext";
 import { useAccount } from "../../contexts/MockAuthContext";
 import type { LeaderboardScorePayload } from "../../types/account";
+import type { SessionMovementMetrics } from "../../types/accountActivity";
 import {
   getSportAnalysisLabel,
   type OpenMoveStudioProps,
@@ -376,6 +377,8 @@ type SessionState = {
   frameIntervalSec: number | null;
   /** ARKit Live mp4 timeline; null for web/Vision uniform sampling. */
   poseTimestamps: number[] | null;
+  /** Saved Insights + panel ROM; used when opening an activity (no recalc). */
+  metrics: SessionMovementMetrics | null;
   /** UI label for current clip */
   sessionLabel: string;
   /** featured | upload | live */
@@ -391,6 +394,7 @@ const initialSession: SessionState = {
   angles: null,
   frameIntervalSec: null,
   poseTimestamps: null,
+  metrics: null,
   sessionLabel: "",
   source: "featured",
 };
@@ -403,6 +407,7 @@ const idleSession: SessionState = {
   angles: null,
   frameIntervalSec: null,
   poseTimestamps: null,
+  metrics: null,
   sessionLabel: "",
   source: "upload",
 };
@@ -441,6 +446,7 @@ export default function OpenMoveStudio({
         angles: initialHydration.angles,
         frameIntervalSec: initialHydration.frameIntervalSec,
         poseTimestamps: initialHydration.poseTimestamps,
+        metrics: initialHydration.metrics,
         sessionLabel: initialHydration.sessionLabel,
         source: "upload",
       };
@@ -1306,6 +1312,7 @@ export default function OpenMoveStudio({
         angles: null,
         frameIntervalSec: null,
         poseTimestamps: null,
+        metrics: null,
         sessionLabel: label,
         source,
         errorMessage: undefined,
@@ -1359,6 +1366,7 @@ export default function OpenMoveStudio({
       angles: null,
       frameIntervalSec: null,
       poseTimestamps: null,
+      metrics: null,
       poses: [],
     }));
     setTfProgress(0);
@@ -1379,6 +1387,7 @@ export default function OpenMoveStudio({
         angles,
         frameIntervalSec,
         poseTimestamps: null,
+        metrics: null,
         sessionLabel: session.sessionLabel,
         source: session.source,
       });
@@ -1402,6 +1411,7 @@ export default function OpenMoveStudio({
         angles: null,
         frameIntervalSec: null,
         poseTimestamps: null,
+        metrics: null,
       }));
     }
   }, [
@@ -1453,6 +1463,7 @@ export default function OpenMoveStudio({
         angles,
         frameIntervalSec,
         poseTimestamps: null,
+        metrics: null,
         sessionLabel: label,
         source,
       });
@@ -1495,6 +1506,7 @@ export default function OpenMoveStudio({
         angles: null,
         frameIntervalSec: null,
         poseTimestamps: null,
+        metrics: null,
         poses: [],
       }));
       setTfProgress(0);
@@ -2634,6 +2646,7 @@ export default function OpenMoveStudio({
                                     videoUrl={session.videoUrl}
                                     frameIntervalSec={session.frameIntervalSec}
                                     poseTimestamps={session.poseTimestamps}
+                                    panelJointStats={session.metrics?.panelJointStats}
                                     onRequestClose={() => setAnalyticsDrawerOpen(false)}
                                     {...sportAnalysisPanelProps}
                                   />
@@ -2832,6 +2845,7 @@ export default function OpenMoveStudio({
                     videoUrl={session.videoUrl}
                     frameIntervalSec={session.frameIntervalSec}
                     poseTimestamps={session.poseTimestamps}
+                    panelJointStats={session.metrics?.panelJointStats}
                     syncPlaybackFrame={false}
                     {...sportAnalysisPanelProps}
                   />

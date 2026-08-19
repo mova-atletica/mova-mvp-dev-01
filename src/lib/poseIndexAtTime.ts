@@ -2,6 +2,8 @@
  * Map video playhead time → pose index.
  *
  * ARKit Live writes `timestamps` on the mp4 timeline (not uniform across duration).
+ * Before the first timestamp there is no pose yet — return null and skip overlays
+ * (do not clamp to pose 0; that paints the first tracked body on the walk-in).
  * Web MoveNet / Vision sample along the file, so N/duration (or t / dt) stays correct.
  */
 
@@ -48,17 +50,23 @@ export function indexAtOrBefore(timestamps: number[], t: number): number {
   return ans;
 }
 
+/**
+ * Video playhead → pose index.
+ * `null` = no sample yet (t before first iOS timestamp). Callers must skip drawing;
+ * do not treat null as 0 (`null < n` is true in JS and would paint pose 0).
+ */
 export function poseIndexAtTime(
   currentTime: number,
   poseCount: number,
   opts: PoseTimeline & { durationSec?: number | null } = {}
-): number {
+): number | null {
   const n = poseCount;
-  if (n <= 0) return 0;
+  if (n <= 0) return null;
   const t = Number.isFinite(currentTime) ? currentTime : 0;
   const timestamps = normalizePoseTimestamps(opts.timestamps, n);
 
   if (timestamps) {
+    if (t < timestamps[0]) return null;
     return indexAtOrBefore(timestamps, t);
   }
 

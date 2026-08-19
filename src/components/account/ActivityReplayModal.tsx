@@ -246,6 +246,7 @@ export default function ActivityReplayModal({
                     videoUrl={videoUrl ?? ""}
                     frameIntervalSec={frameIntervalSec}
                     poseTimestamps={poseTimestamps}
+                    panelJointStats={activity?.metrics?.panelJointStats}
                     syncPlaybackFrame={Boolean(videoUrl)}
                     {...sportProps}
                   />

@@ -4,11 +4,17 @@
  */
 import {
   DISPLAY_ANGLE_SMOOTH_PRESET,
+  hasMeasuredSamples,
   smoothOpenMoveAngleSeries,
   type DisplayAngleSeries,
 } from "./angleSeriesSmoothing";
 import type { OpenMoveAngleSeries } from "./openMoveAngleSeries";
-import type { MovementJoint, SessionMovementMetrics } from "../types/accountActivity";
+import type {
+  MovementJoint,
+  PanelJointStat,
+  PanelJointStats,
+  SessionMovementMetrics,
+} from "../types/accountActivity";
 
 /** Too few confidently tracked frames to call anything a range of motion. */
 const MIN_VALID_SAMPLES = 5;
@@ -139,6 +145,141 @@ function mean(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+const PANEL_SIDE_KEYS = [
+  "leftKnee",
+  "rightKnee",
+  "leftHip",
+  "rightHip",
+  "leftElbow",
+  "rightElbow",
+  "leftShoulder",
+  "rightShoulder",
+  "trunk",
+] as const;
+
+type PanelSideKey = (typeof PANEL_SIDE_KEYS)[number];
+
+const PANEL_SERIES: { key: PanelSideKey; series: keyof DisplayAngleSeries }[] = [
+  { key: "leftKnee", series: "leftKneeAngles" },
+  { key: "rightKnee", series: "rightKneeAngles" },
+  { key: "leftHip", series: "leftHipAngles" },
+  { key: "rightHip", series: "rightHipAngles" },
+  { key: "leftElbow", series: "leftElbowAngles" },
+  { key: "rightElbow", series: "rightElbowAngles" },
+  { key: "leftShoulder", series: "leftShoulderAbdAngles" },
+  { key: "rightShoulder", series: "rightShoulderAbdAngles" },
+  { key: "trunk", series: "trunkAngles" },
+];
+
+function panelStatFromSeries(
+  raw: (number | null)[] | undefined,
+  display: number[] | undefined
+): PanelJointStat | null {
+  if (!hasMeasuredSamples(raw) || !display?.length) return null;
+  const stats = angleSeriesStats(display);
+  if (!stats) return null;
+  return { min: stats.min, max: stats.max, range: stats.range, avg: stats.avg };
+}
+
+function pairPanelSymmetry(
+  left: PanelJointStat | null,
+  right: PanelJointStat | null
+): number | null {
+  return left && right ? pairSymmetryScore(left.avg, right.avg) : null;
+}
+
+/** Same formula as MotionAnalysisPanel ROM / Joint Movements (any valid sample). */
+export function buildPanelJointStats(angles: OpenMoveAngleSeries): PanelJointStats {
+  const smoothed = smoothOpenMoveAngleSeries(angles, DISPLAY_ANGLE_SMOOTH_PRESET);
+  const sides = {} as Record<PanelSideKey, PanelJointStat | null>;
+  for (const { key, series } of PANEL_SERIES) {
+    sides[key] = panelStatFromSeries(angles[series], smoothed[series]);
+  }
+  return {
+    ...sides,
+    symmetry: {
+      knee: pairPanelSymmetry(sides.leftKnee, sides.rightKnee),
+      hip: pairPanelSymmetry(sides.leftHip, sides.rightHip),
+      elbow: pairPanelSymmetry(sides.leftElbow, sides.rightElbow),
+      shoulder: pairPanelSymmetry(sides.leftShoulder, sides.rightShoulder),
+    },
+  };
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+export function parsePanelJointStat(raw: unknown): PanelJointStat | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (
+    !isFiniteNumber(o.min) ||
+    !isFiniteNumber(o.max) ||
+    !isFiniteNumber(o.range) ||
+    !isFiniteNumber(o.avg)
+  ) {
+    return null;
+  }
+  return { min: o.min, max: o.max, range: o.range, avg: o.avg };
+}
+
+export function parsePanelJointStats(raw: unknown): PanelJointStats | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  const symRaw = o.symmetry;
+  const sym =
+    symRaw && typeof symRaw === "object"
+      ? (symRaw as Record<string, unknown>)
+      : {};
+  const parsedSym = (v: unknown) => (isFiniteNumber(v) ? v : null);
+  return {
+    leftKnee: parsePanelJointStat(o.leftKnee),
+    rightKnee: parsePanelJointStat(o.rightKnee),
+    leftHip: parsePanelJointStat(o.leftHip),
+    rightHip: parsePanelJointStat(o.rightHip),
+    leftElbow: parsePanelJointStat(o.leftElbow),
+    rightElbow: parsePanelJointStat(o.rightElbow),
+    leftShoulder: parsePanelJointStat(o.leftShoulder),
+    rightShoulder: parsePanelJointStat(o.rightShoulder),
+    trunk: parsePanelJointStat(o.trunk),
+    symmetry: {
+      knee: parsedSym(sym.knee),
+      hip: parsedSym(sym.hip),
+      elbow: parsedSym(sym.elbow),
+      shoulder: parsedSym(sym.shoulder),
+    },
+  };
+}
+
+export function parseSessionMovementMetrics(raw: unknown): SessionMovementMetrics | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  const panelJointStats = parsePanelJointStats(o.panelJointStats);
+  const jointRom: Partial<Record<MovementJoint, number>> = {};
+  if (o.jointRom && typeof o.jointRom === "object") {
+    for (const [key, value] of Object.entries(o.jointRom as Record<string, unknown>)) {
+      if (isFiniteNumber(value)) jointRom[key as MovementJoint] = value;
+    }
+  }
+  const avgRomDegrees = isFiniteNumber(o.avgRomDegrees) ? o.avgRomDegrees : null;
+  const peakRomDegrees = isFiniteNumber(o.peakRomDegrees) ? o.peakRomDegrees : null;
+  if (avgRomDegrees == null && peakRomDegrees == null && !panelJointStats) {
+    return undefined;
+  }
+  return {
+    avgRomDegrees: avgRomDegrees ?? 0,
+    peakRomDegrees: peakRomDegrees ?? 0,
+    symmetryScore: isFiniteNumber(o.symmetryScore) ? o.symmetryScore : null,
+    jointRom,
+    ...(panelJointStats ? { panelJointStats } : {}),
+  };
+}
+
+function panelHasAnyStat(panel: PanelJointStats): boolean {
+  return PANEL_SIDE_KEYS.some((key) => panel[key] != null);
+}
+
 /**
  * Peak ROM per joint plus session-level ROM and left/right symmetry.
  * Returns null when no joint was tracked well enough to measure.
@@ -149,6 +290,7 @@ export function deriveSessionMovementMetrics(
   if (!angles) return null;
 
   const smoothed = smoothOpenMoveAngleSeries(angles, DISPLAY_ANGLE_SMOOTH_PRESET);
+  const panelJointStats = buildPanelJointStats(angles);
   const jointRom: Partial<Record<MovementJoint, number>> = {};
   const symmetryScores: number[] = [];
 
@@ -172,12 +314,13 @@ export function deriveSessionMovementMetrics(
   const romValues = Object.values(jointRom).filter(
     (value): value is number => typeof value === "number"
   );
-  if (romValues.length === 0) return null;
+  if (romValues.length === 0 && !panelHasAnyStat(panelJointStats)) return null;
 
   return {
-    avgRomDegrees: Math.round(mean(romValues)),
-    peakRomDegrees: Math.max(...romValues),
+    avgRomDegrees: romValues.length > 0 ? Math.round(mean(romValues)) : 0,
+    peakRomDegrees: romValues.length > 0 ? Math.max(...romValues) : 0,
     symmetryScore: symmetryScores.length > 0 ? Math.round(mean(symmetryScores)) : null,
     jointRom,
+    panelJointStats,
   };
 }

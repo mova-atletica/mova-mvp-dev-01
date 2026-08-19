@@ -67,6 +67,7 @@ export function renderMotionTrails(
     frameIntervalSec: timeline?.frameIntervalSec,
     durationSec: video.duration,
   });
+  if (currentFrameIndex == null) return;
   const startFrame = Math.max(0, currentFrameIndex - trailLength);
   const endFrame = Math.min(totalFrames - 1, currentFrameIndex);
 
