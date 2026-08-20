@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import HomeArchiveClient from "../components/HomeArchiveClient";
+import HomepageCanvasPortal from "../components/HomepageCanvasPortal";
 import LibraryShell, { LibraryMobileFilterSection } from "../components/LibraryShell";
 import ProgramCarousel from "../components/ProgramCarousel";
 import { PROGRAM_BROWSE_LIST } from "../data/programs";
@@ -42,14 +43,16 @@ export default function Home() {
 
   return (
     <LibraryShell
+      homepageCanvas
       filters={filters}
       onFiltersChange={setFilters}
       muscleGroupOptions={filterOptions.muscleGroups}
       equipmentOptions={filterOptions.equipment}
       showFilters={PHASE_B_ENABLED}
     >
-      <main className="homepage-canvas">
-        <div className="homepage-canvas-backdrop" aria-hidden>
+      <HomepageCanvasPortal />
+      <main className="homepage-canvas homepage-canvas-in-shell">
+        <div className="homepage-canvas-backdrop homepage-canvas-backdrop--inline" aria-hidden>
           <div className="homepage-canvas-gradient" />
           <div className="homepage-canvas-noise" />
           <div className="homepage-canvas-dots" />

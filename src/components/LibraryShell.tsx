@@ -13,7 +13,8 @@ const RAIL_WIDTH_OPEN = "17.5rem";
 const RAIL_WIDTH_COLLAPSED = "3rem";
 const RAIL_WIDTH_TRANSITION = "width 0.35s ease-in-out, margin-left 0.35s ease-in-out";
 
-const borderRightTheme = { borderRight: "1px solid var(--border)" } as const;
+const borderRightTheme = { borderRight: "1px solid var(--mega-menu-border)" } as const;
+const mobileTopRailBorder = { borderBottom: "1px solid var(--mega-menu-border)" } as const;
 const borderBottomTheme = { borderBottom: "1px solid var(--border)" } as const;
 const borderTopTheme = { borderTop: "1px solid var(--border)" } as const;
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
@@ -40,6 +41,8 @@ interface LibraryShellProps {
   equipmentOptions: string[];
   /** When false, keep rail chrome (logo / mega menu) but hide filter controls. */
   showFilters?: boolean;
+  /** Home uses a decorative canvas; keep the scroll column transparent on mobile so glass tiles can blur it. */
+  homepageCanvas?: boolean;
 }
 
 export function LibraryMobileFilterSection({
@@ -165,10 +168,13 @@ export default function LibraryShell({
   muscleGroupOptions,
   equipmentOptions,
   showFilters = true,
+  homepageCanvas = false,
 }: LibraryShellProps) {
   const [panelOpen, setPanelOpen] = useState(false);
   /** Side rail from tablet up; phone-only uses top bar. */
   const [showSideRail, setShowSideRail] = useState(false);
+  /** Home mobile uses body scroll so glass tiles can blur the fixed canvas mount. */
+  const [homepageMobileCanvas, setHomepageMobileCanvas] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -178,19 +184,38 @@ export default function LibraryShell({
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  // Match OpenMoveStudio: page scroll lives in the main column, not on body/html.
+  useEffect(() => {
+    if (!homepageCanvas) {
+      setHomepageMobileCanvas(false);
+      return;
+    }
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const update = () => setHomepageMobileCanvas(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [homepageCanvas]);
+
+  const shellMobileCanvas = homepageCanvas && homepageMobileCanvas;
+
+  // Match OpenMoveStudio: page scroll lives in the main column — except home mobile (body scroll for glass blur).
   useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
     const prevHtmlOverflow = html.style.overflow;
     const prevBodyOverflow = body.style.overflow;
-    html.style.overflow = "hidden";
-    body.style.overflow = "hidden";
+    if (!shellMobileCanvas) {
+      html.style.overflow = "hidden";
+      body.style.overflow = "hidden";
+    } else {
+      html.style.overflow = "";
+      body.style.overflow = "";
+    }
     return () => {
       html.style.overflow = prevHtmlOverflow;
       body.style.overflow = prevBodyOverflow;
     };
-  }, []);
+  }, [shellMobileCanvas]);
 
   const railWidth = showFilters && panelOpen ? RAIL_WIDTH_OPEN : RAIL_WIDTH_COLLAPSED;
 
@@ -275,10 +300,18 @@ export default function LibraryShell({
 
   return (
     <LibraryShellContext.Provider value={{ showRailFilters: showFilters && showSideRail }}>
-      <div className="flex h-[100dvh] w-full overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
+      <div
+        className={`flex w-full text-[var(--foreground)]${
+          shellMobileCanvas
+            ? " library-shell--homepage-mobile relative z-[1]"
+            : ` h-[100dvh] overflow-hidden bg-[var(--background)]${
+                homepageCanvas ? " max-lg:bg-transparent" : ""
+              }`
+        }`}
+      >
         {showSideRail ? (
           <aside
-            className="fixed left-0 top-0 z-20 flex h-[100dvh] max-h-[100dvh] min-h-0 min-w-0 flex-shrink-0 flex-col overflow-hidden bg-[var(--header-bg)] backdrop-blur-xl"
+            className="fixed left-0 top-0 z-20 flex h-[100dvh] max-h-[100dvh] min-h-0 min-w-0 flex-shrink-0 flex-col overflow-hidden bg-[var(--mega-menu-bg)] shadow-2xl backdrop-blur-xl"
             style={{
               width: railWidth,
               transition: RAIL_WIDTH_TRANSITION,
@@ -290,7 +323,9 @@ export default function LibraryShell({
         ) : null}
 
       <div
-        className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+        className={`library-shell-column relative flex min-h-0 min-w-0 flex-1 flex-col${
+          homepageCanvas && !shellMobileCanvas ? " max-lg:bg-transparent" : ""
+        }`}
         style={
           showSideRail
             ? {
@@ -300,9 +335,18 @@ export default function LibraryShell({
             : undefined
         }
       >
-        <div className="open-move-studio-panel-scroll min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <div
+          className={`library-shell-scroll open-move-studio-panel-scroll min-h-0 min-w-0 flex-1${
+            shellMobileCanvas
+              ? ""
+              : " overflow-y-auto"
+          }${homepageCanvas && !shellMobileCanvas ? " max-lg:bg-transparent" : ""}`}
+        >
           {!showSideRail ? (
-            <div className="sticky top-0 z-10 bg-[var(--header-bg)] backdrop-blur-xl">
+            <div
+              className="sticky top-0 z-10 bg-[var(--mega-menu-bg)] shadow-2xl backdrop-blur-xl"
+              style={mobileTopRailBorder}
+            >
               <div
                 className="flex items-center gap-2 py-2"
                 style={ARCHIVE_CONTENT_LAYOUT_STYLE}

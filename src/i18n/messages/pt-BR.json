@@ -9,7 +9,7 @@
   },
   "signInModal": {
     "tryForFreeTitle": "Experimente grátis",
-    "tryForFreeBody": "Entre ou crie uma conta com seu e-mail. O plano gratuito inclui mini apps; Open Movement Viz é Pro.",
+    "tryForFreeBody": "Entre ou crie uma conta com seu e-mail. O plano gratuito inclui mini apps; Motion Studio é Pro.",
     "checkEmailTitle": "Confira seu e-mail",
     "checkEmailBody": "Enviamos um link de acesso e um código de 6 dígitos. Clique no link ou digite o código abaixo.",
     "codeSentTo": "Código enviado para",
@@ -84,7 +84,7 @@
     "movaPro": "Mova Pro",
     "proActive": "Ativo",
     "proFree": "Plano grátis",
-    "proActiveHint": "Open Movement Viz e armazenamento de vídeo desbloqueados.",
+    "proActiveHint": "Motion Studio e armazenamento de vídeo desbloqueados.",
     "proGrandfatherHint": "O acesso Pro está ativo na sua conta.",
     "proFreeHint": "Assine para Studio, overlays completos, exportações limpas e vídeo.",
     "upgradePro": "Assinar Pro",
@@ -120,8 +120,8 @@
   },
   "proPaywall": {
     "title": "Mova Pro",
-    "subtitle": "Desbloqueie Open Movement Viz, overlays completos, exportações limpas e armazenamento de vídeo.",
-    "featureStudio": "Open Movement Viz — todos os overlays de movimento em qualquer vídeo",
+    "subtitle": "Desbloqueie Motion Studio, overlays completos, exportações limpas e armazenamento de vídeo.",
+    "featureStudio": "Motion Studio — todos os overlays de movimento em qualquer vídeo",
     "featureExport": "Exportações limpas sem marca d'água",
     "featureSessions": "Salve o vídeo com suas sessões e reabra depois",
     "monthlyLabel": "Mensal",

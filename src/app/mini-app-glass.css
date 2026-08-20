@@ -35,6 +35,29 @@
     -webkit-backdrop-filter 0.25s ease;
 }
 
+/* Mobile Motion Studio hero — simple translucent surface (no backdrop-filter). */
+.mini-app-glass-surface--mobile-simple {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  --mini-app-glass-tag-bg: rgba(255, 255, 255, 0.06);
+}
+
+.mini-app-glass-surface--mobile-simple .mini-app-glass-mobile-tag {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.mini-app-glass-surface--mobile-simple .mini-app-glass-mobile-cta {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--mini-app-glass-text) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
 /* Fine frost grain — texture only, no fill gradient */
 .mini-app-glass-surface::before {
   content: "";

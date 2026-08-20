@@ -229,8 +229,8 @@ export default function HomeLeaderboardBlock({
           >
             {desktopGate ? (
               <>
-                <span className="text-sm font-semibold tracking-wide sm:text-base">
-                  Complete analysis on desktop to see your score on the leaderboard
+                <span className="text-xs font-semibold tracking-wide sm:text-base">
+                  Upload video on desktop to analyze form and post to the leaderboard.
                 </span>
                 <span className="text-[11px] font-medium leading-snug text-[color:var(--muted-foreground)] sm:text-xs">
                   {isAuthenticated

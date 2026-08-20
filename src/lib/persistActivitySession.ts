@@ -207,7 +207,7 @@ export async function persistOpenMoveStudioActivitySession(
   }
 ): Promise<PersistActivityResult> {
   const { userId, meta, hasProAccess } = opts;
-  const label = meta.sessionLabel?.trim() || "Open Movement Viz session";
+  const label = meta.sessionLabel?.trim() || "Motion Studio session";
   const title = meta.sessionTitle?.trim() || defaultOpenMoveSessionTitle();
   const { data: activity, error } = await createActivitySession(supabase, {
     userId,

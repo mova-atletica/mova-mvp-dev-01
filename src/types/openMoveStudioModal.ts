@@ -34,8 +34,8 @@ export function openMoveModalTargetFromMiniApp(app: MiniApp): OpenMoveStudioModa
 }
 
 export function openMoveModalTitle(target: OpenMoveStudioModalTarget | null): string {
-  if (!target) return "Open Movement Viz";
-  if (target.type === "studio") return "Open Movement Viz";
-  if (target.type === "hydrate") return target.title?.trim() || "Open Movement Viz";
+  if (!target) return "Motion Studio";
+  if (target.type === "studio") return "Motion Studio";
+  if (target.type === "hydrate") return target.title?.trim() || "Motion Studio";
   return target.analysisTitle;
 }

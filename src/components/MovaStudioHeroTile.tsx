@@ -6,8 +6,8 @@ import { Camera, LayoutDashboard } from "lucide-react";
 const DEFAULT_STUDIO_TILE_IMAGE = "/images/sports/studio.jpg";
 const DEFAULT_STUDIO_TILE_VIDEO = "/images/sports/studio.mp4";
 
-const OPEN_MOVE_TITLE = "Open Movement Viz";
-const OPEN_MOVE_TAG = "Viz";
+const MOTION_STUDIO_TITLE = "Motion Studio";
+const MOTION_STUDIO_TAG = "Studio";
 
 interface MovaStudioHeroTileProps {
   layout?: "desktop" | "mobile";
@@ -26,8 +26,9 @@ export default function MovaStudioHeroTile({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [imageFailed, setImageFailed] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
-  const showPhoto = Boolean(mediaSrc) && !imageFailed;
+  const showPhoto = isDesktop && Boolean(mediaSrc) && !imageFailed;
   const showVideo = showPhoto && Boolean(videoSrc) && !videoFailed;
+  const mobileSimple = !isDesktop && !showPhoto;
 
   const playPreview = useCallback(() => {
     const video = videoRef.current;
@@ -53,18 +54,21 @@ export default function MovaStudioHeroTile({
       onMouseLeave={pausePreview}
       onFocus={playPreview}
       onBlur={pausePreview}
-      className={`mini-app-glass-surface home-tools-sports-tile-hover block h-full min-h-0 w-full cursor-pointer border-0 p-0 text-left${
-        showPhoto ? " mini-app-glass-surface--photo mini-app-glass-surface--studio-hero" : ""
+      className={`block h-full min-h-0 w-full cursor-pointer p-0 text-left${
+        mobileSimple
+          ? " mini-app-glass-surface--mobile-simple"
+          : ` mini-app-glass-surface home-tools-sports-tile-hover${
+              showPhoto ? " mini-app-glass-surface--photo mini-app-glass-surface--studio-hero border-0" : ""
+            }`
       }`}
       style={{
         position: "relative",
         minHeight: isDesktop ? undefined : "12rem",
         height: "100%",
         boxSizing: "border-box",
-        border: "none",
-        boxShadow: "none",
+        ...(showPhoto ? { border: "none", boxShadow: "none" } : {}),
       }}
-      aria-label={`${OPEN_MOVE_TITLE} — record or upload any movement`}
+      aria-label={`${MOTION_STUDIO_TITLE} — record or upload any movement`}
     >
       {showPhoto && mediaSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -105,18 +109,20 @@ export default function MovaStudioHeroTile({
         {showPhoto ? (
           <span className="mini-app-glass-photo-studio-tag">
             <LayoutDashboard size={12} aria-hidden />
-            {OPEN_MOVE_TAG}
+            {MOTION_STUDIO_TAG}
           </span>
         ) : (
           <span
-            className="inline-flex w-fit items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            className={`inline-flex w-fit items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide${
+              mobileSimple ? " mini-app-glass-mobile-tag" : ""
+            }`}
             style={{
               backgroundColor: "var(--mini-app-glass-tag-bg)",
               color: "var(--mini-app-glass-text)",
             }}
           >
             <LayoutDashboard size={12} aria-hidden />
-            {OPEN_MOVE_TAG}
+            {MOTION_STUDIO_TAG}
           </span>
         )}
 
@@ -129,9 +135,9 @@ export default function MovaStudioHeroTile({
         <div>
           {showPhoto ? (
             <>
-              <h2 className="mini-app-glass-photo-studio-title">{OPEN_MOVE_TITLE}</h2>
+              <h2 className="mini-app-glass-photo-studio-title">{MOTION_STUDIO_TITLE}</h2>
               <p className="mini-app-glass-photo-studio-description">
-                Easily add overlays to your videos to visualize your body's movement!
+              Upload a video. Add overlays to vizualize your form. Export &amp; share.
               </p>
               <span className="mini-app-glass-photo-studio-cta gap-2">
                 <Camera size={14} aria-hidden />
@@ -149,7 +155,7 @@ export default function MovaStudioHeroTile({
                   color: "var(--mini-app-glass-text)",
                 }}
               >
-                {OPEN_MOVE_TITLE}
+                {MOTION_STUDIO_TITLE}
               </h2>
               <p
                 style={{
@@ -159,10 +165,12 @@ export default function MovaStudioHeroTile({
                   color: "var(--mini-app-glass-text-muted)",
                 }}
               >
-                Record or upload any movement. Motion overlays &amp; export.
+                Upload a video. Add overlays to vizualize your form. Export &amp; share.
               </p>
               <span
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg text-xs font-medium"
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-lg text-xs font-medium${
+                  mobileSimple ? " mini-app-glass-mobile-cta" : ""
+                }`}
                 style={{
                   backgroundColor: "var(--mini-app-glass-cta-bg)",
                   color: "var(--mini-app-glass-cta-text)",

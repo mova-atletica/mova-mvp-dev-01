@@ -29,7 +29,7 @@ function formatHydrationHeaderTitle(
   title: string,
   metricValue?: string | null
 ): string {
-  const base = title.trim() || "Open Movement Viz";
+  const base = title.trim() || "Motion Studio";
   const metric = metricValue?.trim();
   return metric ? `${base}: ${metric}` : base;
 }

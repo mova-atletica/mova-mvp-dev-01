@@ -28,8 +28,9 @@ export default function CoachStudioToolsTile({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [imageFailed, setImageFailed] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
-  const showPhoto = Boolean(mediaSrc) && !imageFailed;
+  const showPhoto = isDesktop && Boolean(mediaSrc) && !imageFailed;
   const showVideo = showPhoto && Boolean(videoSrc) && !videoFailed;
+  const mobileSimple = !isDesktop && !showPhoto;
 
   const playPreview = useCallback(() => {
     const video = videoRef.current;
@@ -55,14 +56,19 @@ export default function CoachStudioToolsTile({
       onMouseLeave={pausePreview}
       onFocus={playPreview}
       onBlur={pausePreview}
-      className={`mini-app-glass-surface home-tools-sports-tile-hover block h-full min-h-0 w-full cursor-pointer border-0 p-0 text-left${
-        showPhoto ? " mini-app-glass-surface--photo mini-app-glass-surface--studio-hero" : ""
+      className={`block h-full min-h-0 w-full cursor-pointer p-0 text-left${
+        mobileSimple
+          ? " mini-app-glass-surface--mobile-simple"
+          : ` mini-app-glass-surface home-tools-sports-tile-hover${
+              showPhoto ? " mini-app-glass-surface--photo mini-app-glass-surface--studio-hero border-0" : ""
+            }`
       }`}
       style={{
         position: "relative",
         minHeight: isDesktop ? undefined : "12rem",
         height: "100%",
         boxSizing: "border-box",
+        ...(showPhoto ? { border: "none", boxShadow: "none" } : {}),
       }}
       aria-label={`${t("coachStudio.title")} — ${t("coachStudio.toolsTileSubtitle")}`}
     >
@@ -109,7 +115,9 @@ export default function CoachStudioToolsTile({
           </span>
         ) : (
           <span
-            className="inline-flex w-fit items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            className={`inline-flex w-fit items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide${
+              mobileSimple ? " mini-app-glass-mobile-tag" : ""
+            }`}
             style={{
               backgroundColor: "var(--mini-app-glass-tag-bg)",
               color: "var(--mini-app-glass-text)",
@@ -155,7 +163,9 @@ export default function CoachStudioToolsTile({
                 {t("coachStudio.toolsTileSubtitle")}
               </p>
               <span
-                className="inline-flex w-full items-center justify-center rounded-lg text-xs font-medium"
+                className={`inline-flex w-full items-center justify-center rounded-lg text-xs font-medium${
+                  mobileSimple ? " mini-app-glass-mobile-cta" : ""
+                }`}
                 style={{
                   backgroundColor: "var(--mini-app-glass-cta-bg)",
                   color: "var(--mini-app-glass-cta-text)",

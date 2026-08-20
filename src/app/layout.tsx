@@ -76,18 +76,21 @@ export default function RootLayout({
       className={`${roboto.variable} ${robotoMono.variable} antialiased`}
     >
       <body className={`${robotoMono.className} antialiased`}>
-        <ErrorBoundary>
-          <ThemeProvider>
-            <MockAuthProvider>
-              <MockEntitlementsProvider>
-                <LocaleProvider>
-                  <AppShell>{children}</AppShell>
-                  <GlobalAccountModals />
-                </LocaleProvider>
-              </MockEntitlementsProvider>
-            </MockAuthProvider>
-          </ThemeProvider>
-        </ErrorBoundary>
+        <div id="homepage-canvas-mount" aria-hidden="true" />
+        <div id="app-root">
+          <ErrorBoundary>
+            <ThemeProvider>
+              <MockAuthProvider>
+                <MockEntitlementsProvider>
+                  <LocaleProvider>
+                    <AppShell>{children}</AppShell>
+                    <GlobalAccountModals />
+                  </LocaleProvider>
+                </MockEntitlementsProvider>
+              </MockAuthProvider>
+            </ThemeProvider>
+          </ErrorBoundary>
+        </div>
       </body>
     </html>
   );

@@ -1843,12 +1843,12 @@ export default function OpenMoveStudio({
             <div className="min-w-0 flex-1">
               <h1 className="font-light uppercase tracking-wider text-[color:var(--muted-foreground)]" style={{ fontSize: "18px" }}>
                 {isHydrated
-                  ? initialHydration?.headerTitle || "Open Movement Viz"
+                  ? initialHydration?.headerTitle || "Motion Studio"
                   : savedSessionTitle
                     ? savedSessionTitle
                     : isQuickAnalysis
                       ? analysisTitle ?? getSportAnalysisLabel(sportAnalysisKind)
-                      : "Open Movement Viz"}
+                      : "Motion Studio"}
               </h1>
               <p className="mt-0 text-xs font-normal leading-relaxed text-[color:var(--muted)]">
                 {isHydrated ? (
@@ -2754,7 +2754,7 @@ export default function OpenMoveStudio({
           >
             <Dialog.Title className="text-base font-medium">Desktop now · iOS soon</Dialog.Title>
             <Dialog.Description className="mt-2 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-              Open Movement Viz runs best on desktop. Mobile web is for browsing for now — full analysis
+              Motion Studio runs best on desktop. Mobile web is for browsing for now — full analysis
               stays on desktop until the iOS app ships.
             </Dialog.Description>
             <button

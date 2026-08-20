@@ -28,9 +28,9 @@ export interface MiniApp {
 export const MOVA_STUDIO_MINI_APP: MiniApp = {
   id: "mova-studio",
   kind: "studio",
-  title: "Open Movement Viz",
+  title: "Motion Studio",
   subtitle: "Record or upload any movement",
-  badge: "Open",
+  badge: "Studio",
   primaryMetric: "Motion visuals",
   ctaLabel: "Open",
   gradient: "linear-gradient(145deg, #0f172a 0%, #1e1b4b 42%, #312e81 72%, #4338ca 100%)",

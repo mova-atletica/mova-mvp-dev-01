@@ -3,12 +3,25 @@
  * ThemeContext sets --homepage-* tokens on documentElement.
  */
 
+#homepage-canvas-mount {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background-color: var(--homepage-canvas-base, var(--background));
+}
+
+#homepage-canvas-mount:empty {
+  display: none;
+}
+
 .homepage-canvas {
   position: relative;
   isolation: isolate;
 }
 
-/* Stays pinned in the scroll column while content moves over it */
+/* Stays pinned in the scroll column while content moves over it (desktop). */
 .homepage-canvas-backdrop {
   position: sticky;
   top: 0;
@@ -39,6 +52,13 @@
     );
 }
 
+#homepage-canvas-mount .homepage-canvas-gradient,
+#homepage-canvas-mount .homepage-canvas-noise,
+#homepage-canvas-mount .homepage-canvas-dots {
+  position: absolute;
+  inset: 0;
+}
+
 .homepage-canvas-noise {
   position: absolute;
   inset: 0;
@@ -63,4 +83,50 @@
 .homepage-canvas-content {
   position: relative;
   z-index: 1;
+}
+
+@media (max-width: 1023px) {
+  /* Sit above the fixed canvas mount so mobile glass can sample it. */
+  #app-root {
+    position: relative;
+    z-index: 1;
+  }
+
+  .homepage-canvas-in-shell {
+    isolation: auto;
+    background: transparent;
+  }
+
+  .homepage-canvas-in-shell .homepage-canvas-backdrop--inline {
+    display: none;
+  }
+
+  .homepage-canvas-in-shell .homepage-canvas-content {
+    position: relative;
+    z-index: 1;
+    background: transparent;
+  }
+
+  /*
+   * Home mobile: body scroll + no overflow trap — required for backdrop-filter
+   * to sample #homepage-canvas-mount (Safari breaks blur inside overflow:auto).
+   */
+  .library-shell--homepage-mobile {
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+    background: transparent;
+  }
+
+  .library-shell--homepage-mobile .library-shell-scroll {
+    overflow: visible;
+    height: auto;
+    flex: none;
+    background: transparent;
+  }
+
+  .library-shell--homepage-mobile .library-shell-column {
+    overflow: visible;
+    background: transparent;
+  }
 }

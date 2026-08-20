@@ -20,7 +20,7 @@ const COPY: Record<
   { title: string; guestBody: string; signedInBody: string }
 > = {
   studio: {
-    title: "Open Movement Viz on desktop",
+    title: "Motion Studio on desktop",
     guestBody:
       "Full video analysis runs best on desktop. iOS is coming soon — create a free account to stay updated.",
     signedInBody: "Full video analysis runs best on desktop. iOS is coming soon.",
@@ -46,26 +46,28 @@ export default function MobileDesktopInterstitial({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[80] bg-black/55" />
+        <Dialog.Overlay className="fixed inset-0 z-[400] bg-black/65" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-[81] w-[min(calc(100vw-2rem),22rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-[var(--card-bg)] p-5 text-[color:var(--foreground)] shadow-2xl outline-none"
+          className="fixed left-1/2 top-1/2 z-[410] w-[min(calc(100vw-2rem),22rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-[var(--card-bg)] p-5 text-[color:var(--foreground)] shadow-2xl outline-none"
           style={{ border: "1px solid var(--border-secondary)" }}
         >
-          <div className="mb-4 flex items-start justify-between gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={IOS_GLASS_ICON}
-              alt=""
-              width={52}
-              height={52}
-              className="h-[52px] w-[52px] object-contain"
-            />
+          <div className="relative mb-4">
             <Dialog.Close
-              className="rounded p-1 text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
+              className="absolute right-0 top-0 rounded p-1 text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
               aria-label="Close"
             >
               <X size={18} />
             </Dialog.Close>
+            <div className="flex justify-center pt-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={IOS_GLASS_ICON}
+                alt=""
+                width={52}
+                height={52}
+                className="h-[52px] w-[52px] object-contain"
+              />
+            </div>
           </div>
           <Dialog.Title className="text-base font-semibold leading-snug">
             {copy.title}

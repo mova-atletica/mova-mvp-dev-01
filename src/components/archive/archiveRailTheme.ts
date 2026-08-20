@@ -1,6 +1,6 @@
 export const ARCHIVE_RAIL_WIDTH_COLLAPSED = "3rem";
 
-export const archiveBorderRight = { borderRight: "1px solid var(--border)" } as const;
+export const archiveBorderRight = { borderRight: "1px solid var(--mega-menu-border)" } as const;
 export const archiveBorderBottom = { borderBottom: "1px solid var(--border)" } as const;
 export const archiveBorderTop = { borderTop: "1px solid var(--border)" } as const;
 export const archiveBorderAll = { border: "1px solid var(--border-secondary)" } as const;
