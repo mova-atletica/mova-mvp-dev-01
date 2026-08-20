@@ -1,13 +1,12 @@
 /**
  * Fixed paint order for Open Move overlay effects (back → front).
- * Joint angles / ROM stay on top for legibility in preview and export.
+ * Joint angles stay on top for legibility in preview and export.
  */
 const OVERLAY_DRAW_Z: Record<string, number> = {
   "mobility-geometry": 10,
   "joint-angle-trace": 20,
   "metrics-chips": 30,
   "joint-angles": 40,
-  "range-of-motion": 50,
 };
 
 export function overlayDrawZIndex(effectId: string): number {

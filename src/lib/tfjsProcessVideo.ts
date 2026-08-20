@@ -40,11 +40,19 @@ export async function createMoveNetDetector(): Promise<poseDetection.PoseDetecto
   }
 }
 
+export type ProcessVideoPosesResult = {
+  poses: any[];
+  frameIntervalSec: number;
+  /** Intrinsic pixel size of the element MoveNet estimated on (`HTMLVideoElement.videoWidth`). */
+  videoWidth: number;
+  videoHeight: number;
+};
+
 export async function processVideoUrlForPoses(
   detector: poseDetection.PoseDetector,
   url: string,
   onProgress?: (percent: number) => void
-): Promise<{ poses: any[]; frameIntervalSec: number }> {
+): Promise<ProcessVideoPosesResult> {
   const tempVideo = document.createElement("video");
   tempVideo.src = url;
   tempVideo.muted = true;
@@ -80,6 +88,10 @@ export async function processVideoUrlForPoses(
     tempVideo.load();
     checkReady();
   });
+
+  // Capture before the seek loop; same pixel space as keypoint.x / keypoint.y.
+  const videoWidth = tempVideo.videoWidth;
+  const videoHeight = tempVideo.videoHeight;
 
   const poses: any[] = [];
   let duration = tempVideo.duration;
@@ -125,5 +137,5 @@ export async function processVideoUrlForPoses(
 
   tempVideo.src = "";
   tempVideo.load();
-  return { poses, frameIntervalSec: frameInterval };
+  return { poses, frameIntervalSec: frameInterval, videoWidth, videoHeight };
 }

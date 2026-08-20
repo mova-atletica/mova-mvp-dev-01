@@ -13,6 +13,9 @@ import {
 export interface CoachKeypointsFile {
   version: 1;
   frameIntervalSec: number;
+  /** Intrinsic pixel size at estimatePoses time (iOS keypoint normalize). */
+  videoWidth?: number;
+  videoHeight?: number;
   poses: Pose[];
   /** ISO timestamp when tracking completed. */
   trackedAt?: string;
@@ -22,13 +25,26 @@ export function coachKeypointsObjectPath(userId: string, sessionId: string): str
   return coachSourceObjectPath(userId, sessionId, "keypoints.json");
 }
 
+/** Include only when > 1 (omit rather than writing 0). */
+function optionalVideoPixelSize(
+  videoWidth?: number | null,
+  videoHeight?: number | null
+): { videoWidth?: number; videoHeight?: number } {
+  const out: { videoWidth?: number; videoHeight?: number } = {};
+  if (typeof videoWidth === "number" && videoWidth > 1) out.videoWidth = videoWidth;
+  if (typeof videoHeight === "number" && videoHeight > 1) out.videoHeight = videoHeight;
+  return out;
+}
+
 export function buildCoachKeypointsFile(
   poses: Pose[],
-  frameIntervalSec: number
+  frameIntervalSec: number,
+  videoSize?: { videoWidth?: number | null; videoHeight?: number | null }
 ): CoachKeypointsFile {
   return {
     version: 1,
     frameIntervalSec,
+    ...optionalVideoPixelSize(videoSize?.videoWidth, videoSize?.videoHeight),
     poses,
     trackedAt: new Date().toISOString(),
   };
@@ -51,10 +67,15 @@ export function parseCoachKeypointsFile(
     typeof obj.frameIntervalSec === "number" && obj.frameIntervalSec > 0
       ? obj.frameIntervalSec
       : 0.1;
+  const size = optionalVideoPixelSize(
+    typeof obj.videoWidth === "number" ? obj.videoWidth : null,
+    typeof obj.videoHeight === "number" ? obj.videoHeight : null
+  );
   return {
     data: {
       version: 1,
       frameIntervalSec,
+      ...size,
       poses: obj.poses as Pose[],
       trackedAt: typeof obj.trackedAt === "string" ? obj.trackedAt : undefined,
     },
@@ -102,10 +123,15 @@ export async function saveCoachKeypoints(
     sessionId: string;
     poses: Pose[];
     frameIntervalSec: number;
+    videoWidth?: number | null;
+    videoHeight?: number | null;
   }
 ): Promise<{ path: string | null; session: CoachSession | null; error: string | null }> {
   const path = coachKeypointsObjectPath(opts.userId, opts.sessionId);
-  const file = buildCoachKeypointsFile(opts.poses, opts.frameIntervalSec);
+  const file = buildCoachKeypointsFile(opts.poses, opts.frameIntervalSec, {
+    videoWidth: opts.videoWidth,
+    videoHeight: opts.videoHeight,
+  });
   const body = new Blob([JSON.stringify(file)], { type: "application/json" });
 
   const { error: uploadError } = await supabase.storage

@@ -375,6 +375,9 @@ type SessionState = {
   angles: ReturnType<typeof computeAngleSeriesFromOpenMovePoses> | null;
   /** Time between pose samples (seconds); matches MoveNet video scan interval. */
   frameIntervalSec: number | null;
+  /** Intrinsic pixel size at estimatePoses time (Storage poses.json / iOS normalize). */
+  videoWidth: number | null;
+  videoHeight: number | null;
   /** ARKit Live mp4 timeline; null for web/Vision uniform sampling. */
   poseTimestamps: number[] | null;
   /** Saved Insights + panel ROM; used when opening an activity (no recalc). */
@@ -393,6 +396,8 @@ const initialSession: SessionState = {
   poses: [],
   angles: null,
   frameIntervalSec: null,
+  videoWidth: null,
+  videoHeight: null,
   poseTimestamps: null,
   metrics: null,
   sessionLabel: "",
@@ -406,6 +411,8 @@ const idleSession: SessionState = {
   poses: [],
   angles: null,
   frameIntervalSec: null,
+  videoWidth: null,
+  videoHeight: null,
   poseTimestamps: null,
   metrics: null,
   sessionLabel: "",
@@ -445,6 +452,8 @@ export default function OpenMoveStudio({
         poses: initialHydration.poses,
         angles: initialHydration.angles,
         frameIntervalSec: initialHydration.frameIntervalSec,
+        videoWidth: null,
+        videoHeight: null,
         poseTimestamps: initialHydration.poseTimestamps,
         metrics: initialHydration.metrics,
         sessionLabel: initialHydration.sessionLabel,
@@ -538,6 +547,8 @@ export default function OpenMoveStudio({
       angles: NonNullable<SessionState["angles"]>;
       poses: any[];
       frameIntervalSec: number;
+      videoWidth?: number | null;
+      videoHeight?: number | null;
       poseTimestamps?: number[] | null;
       sessionLabel: string | null;
     };
@@ -935,7 +946,8 @@ export default function OpenMoveStudio({
       angles: NonNullable<SessionState["angles"]>,
       poses: any[],
       frameIntervalSec: number,
-      setup: AnalyzedSetupSnapshot
+      setup: AnalyzedSetupSnapshot,
+      videoSize?: { videoWidth?: number | null; videoHeight?: number | null }
     ) => {
       setLeaderboardScore(null);
       setLeaderboardPosted(false);
@@ -980,6 +992,8 @@ export default function OpenMoveStudio({
             angles,
             poses,
             frameIntervalSec,
+            videoWidth: videoSize?.videoWidth ?? null,
+            videoHeight: videoSize?.videoHeight ?? null,
             poseTimestamps: session.poseTimestamps,
             sportAnalysisKind: kind,
             sportAnalysis,
@@ -1205,7 +1219,8 @@ export default function OpenMoveStudio({
       poses: any[],
       frameIntervalSec: number,
       videoUrl: string | null,
-      sessionLabel: string | null
+      sessionLabel: string | null,
+      videoSize?: { videoWidth?: number | null; videoHeight?: number | null }
     ) => {
       if (isQuickAnalysis || !onStudioSessionPersist) return;
       const key = `${videoUrl ?? ""}:${poses.length}:${frameIntervalSec}`;
@@ -1220,6 +1235,8 @@ export default function OpenMoveStudio({
           angles,
           poses,
           frameIntervalSec,
+          videoWidth: videoSize?.videoWidth ?? null,
+          videoHeight: videoSize?.videoHeight ?? null,
           poseTimestamps: session.poseTimestamps ?? null,
           sessionLabel,
         },
@@ -1311,6 +1328,8 @@ export default function OpenMoveStudio({
         poses: [],
         angles: null,
         frameIntervalSec: null,
+        videoWidth: null,
+        videoHeight: null,
         poseTimestamps: null,
         metrics: null,
         sessionLabel: label,
@@ -1336,7 +1355,8 @@ export default function OpenMoveStudio({
         session.angles,
         session.poses,
         session.frameIntervalSec,
-        currentSetup
+        currentSetup,
+        { videoWidth: session.videoWidth, videoHeight: session.videoHeight }
       );
       setLastAnalyzedSetup(currentSetup);
       return;
@@ -1365,6 +1385,8 @@ export default function OpenMoveStudio({
       errorMessage: undefined,
       angles: null,
       frameIntervalSec: null,
+      videoWidth: null,
+      videoHeight: null,
       poseTimestamps: null,
       metrics: null,
       poses: [],
@@ -1372,7 +1394,7 @@ export default function OpenMoveStudio({
     setTfProgress(0);
 
     try {
-      const { poses, frameIntervalSec } = await processVideoUrlForPoses(
+      const { poses, frameIntervalSec, videoWidth, videoHeight } = await processVideoUrlForPoses(
         detector,
         videoUrl,
         (p) => setTfProgress(p)
@@ -1386,12 +1408,17 @@ export default function OpenMoveStudio({
         poses: optimized,
         angles,
         frameIntervalSec,
+        videoWidth,
+        videoHeight,
         poseTimestamps: null,
         metrics: null,
         sessionLabel: session.sessionLabel,
         source: session.source,
       });
-      applySportAnalysisFromData(angles, optimized, frameIntervalSec, currentSetup);
+      applySportAnalysisFromData(angles, optimized, frameIntervalSec, currentSetup, {
+        videoWidth,
+        videoHeight,
+      });
       setHasAnalyzed(true);
       setLastAnalyzedSetup(currentSetup);
       persistStudioSessionIfNeeded(
@@ -1399,7 +1426,8 @@ export default function OpenMoveStudio({
         optimized,
         frameIntervalSec,
         videoUrl,
-        session.sessionLabel ?? null
+        session.sessionLabel ?? null,
+        { videoWidth, videoHeight }
       );
     } catch (e) {
       console.error(e);
@@ -1410,6 +1438,8 @@ export default function OpenMoveStudio({
         poses: [],
         angles: null,
         frameIntervalSec: null,
+        videoWidth: null,
+        videoHeight: null,
         poseTimestamps: null,
         metrics: null,
       }));
@@ -1419,6 +1449,8 @@ export default function OpenMoveStudio({
     session.status,
     session.angles,
     session.frameIntervalSec,
+    session.videoWidth,
+    session.videoHeight,
     session.poses,
     session.sessionLabel,
     session.source,
@@ -1437,7 +1469,8 @@ export default function OpenMoveStudio({
       poses: any[],
       label: string,
       source: SessionState["source"],
-      frameIntervalSec: number
+      frameIntervalSec: number,
+      videoSize?: { videoWidth?: number | null; videoHeight?: number | null }
     ) => {
       const optimized = optimizeOpenMovePosesForClient(poses);
       const angles = computeAngleSeriesFromOpenMovePoses(optimized);
@@ -1462,12 +1495,21 @@ export default function OpenMoveStudio({
         poses: optimized,
         angles,
         frameIntervalSec,
+        videoWidth: videoSize?.videoWidth ?? null,
+        videoHeight: videoSize?.videoHeight ?? null,
         poseTimestamps: null,
         metrics: null,
         sessionLabel: label,
         source,
       });
-      persistStudioSessionIfNeeded(angles, optimized, frameIntervalSec, videoUrl, label);
+      persistStudioSessionIfNeeded(
+        angles,
+        optimized,
+        frameIntervalSec,
+        videoUrl,
+        label,
+        videoSize
+      );
     },
     [persistStudioSessionIfNeeded]
   );
@@ -1505,18 +1547,23 @@ export default function OpenMoveStudio({
         source,
         angles: null,
         frameIntervalSec: null,
+        videoWidth: null,
+        videoHeight: null,
         poseTimestamps: null,
         metrics: null,
         poses: [],
       }));
       setTfProgress(0);
       try {
-        const { poses, frameIntervalSec } = await processVideoUrlForPoses(
+        const { poses, frameIntervalSec, videoWidth, videoHeight } = await processVideoUrlForPoses(
           detector,
           videoUrl,
           (p) => setTfProgress(p)
         );
-        applyProcessedVideo(videoUrl, null, poses, label, source, frameIntervalSec);
+        applyProcessedVideo(videoUrl, null, poses, label, source, frameIntervalSec, {
+          videoWidth,
+          videoHeight,
+        });
       } catch (e) {
         console.error(e);
         setSession((s) => ({
@@ -1596,11 +1643,14 @@ export default function OpenMoveStudio({
       session.angles,
       session.poses,
       session.frameIntervalSec,
-      currentSetup
+      currentSetup,
+      { videoWidth: session.videoWidth, videoHeight: session.videoHeight }
     );
   }, [
     session.angles,
     session.frameIntervalSec,
+    session.videoWidth,
+    session.videoHeight,
     session.poses,
     currentSetup,
     applySportAnalysisFromData,

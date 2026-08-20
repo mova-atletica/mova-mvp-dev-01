@@ -58,18 +58,6 @@ export function getDefaultConfigForEffect(effect: Effect): Record<string, unknow
         jointAngleChartInterpolateGaps: true,
         jointAngleChartMaxInterpGapFrames: 20,
       };
-    case "range-of-motion":
-      return {
-        showJointAngles: false,
-        enabledJoints: [],
-        showROM: true,
-        romJoints: ["left_knee", "right_knee", "left_hip", "right_hip"],
-        romDisplayStyle: "min_max",
-        romColor: "#ff6b35",
-        angleSize: 16,
-        safeZoneEnabled: false,
-        ...DEFAULT_LABEL_CHIP,
-      };
     case "metrics-chips":
       return {
         showJointAngles: false,

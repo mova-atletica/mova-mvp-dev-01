@@ -7,7 +7,6 @@ import { MotionTrailsEffectConfig } from "./MotionTrailsEffectConfig";
 import { MetricsChipsEffectConfig } from "./MetricsChipsEffectConfig";
 import { MobilityGeometryEffectConfig } from "./MobilityGeometryEffectConfig";
 import { MuybridgeEffectConfig } from "./MuybridgeEffectConfig";
-import { RangeOfMotionEffectConfig } from "./RangeOfMotionEffectConfig";
 import { SkeletonOverlayEffectConfig } from "./SkeletonOverlayEffectConfig";
 import type { EffectConfigPanelProps } from "./types";
 
@@ -58,9 +57,6 @@ export function EffectConfigPanel({
       break;
     case "joint-angles":
       body = <JointAnglesEffectConfig {...formProps} />;
-      break;
-    case "range-of-motion":
-      body = <RangeOfMotionEffectConfig {...formProps} />;
       break;
     case "metrics-chips":
       body = <MetricsChipsEffectConfig {...formProps} />;

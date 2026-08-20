@@ -60,20 +60,6 @@ const availableEffects: Effect[] = [
       renderOrder: 'after'
     }
   },
-  { 
-    id: "range-of-motion", 
-    name: "Range of Motion", 
-    description: "Track joint ROM statistics", 
- 
-    preview: "ROM tracking", 
-    category: "Stats",
-    videoConfig: {
-      shouldRenderVideo: true,
-      videoOpacity: 0.9,
-      blendMode: 'normal',
-      renderOrder: 'after'
-    }
-  },
 ];
 
 // Add SVG icon components for effect types
@@ -308,7 +294,7 @@ export default function AssetGenerationModal({
     if (category === 'export') return [];
     return availableEffects.filter(effect => {
       if (category === 'Motion') return ['muybridge', 'motion-trails'].includes(effect.id);
-      if (category === 'Stats') return ['joint-angles', 'range-of-motion'].includes(effect.id);
+      if (category === 'Stats') return ['joint-angles'].includes(effect.id);
       return false;
     });
   };
@@ -354,21 +340,6 @@ export default function AssetGenerationModal({
         showROM: false,
         romJoints: [],
         safeZoneEnabled: true,
-        labelBg: 'glass',
-        labelBgColor: '#ffffff',
-        labelBgOpacity: 0.22,
-        labelBlurPx: 14,
-      };
-    } else if (effect.id === 'range-of-motion') {
-      defaultConfig = {
-        showJointAngles: false,
-        enabledJoints: [],
-        showROM: true,
-        romJoints: ['left_knee', 'right_knee', 'left_hip', 'right_hip'],
-        romDisplayStyle: 'min_max',
-        romColor: '#ff6b35',
-        angleSize: 16,
-        safeZoneEnabled: false,
         labelBg: 'glass',
         labelBgColor: '#ffffff',
         labelBgOpacity: 0.22,
@@ -650,8 +621,7 @@ export default function AssetGenerationModal({
                   
                   switch (effect.effect.id) {
                     case 'joint-angles':
-                    case 'range-of-motion':
-                      // Only render joint angles and ROM in individual tiles
+                      // Only render joint angles in individual tiles
                       if (effectModulesRef.current.renderStats) {
                         effectModulesRef.current.renderStats(frameCtx, frameVideo, framePoses, effect.config, frameTime);
                       }
@@ -692,7 +662,6 @@ export default function AssetGenerationModal({
               
               switch (effect.effect.id) {
                 case 'joint-angles':
-                case 'range-of-motion':
                   if (effectModulesRef.current.renderStats) {
                     effectModulesRef.current.renderStats(ctx, video, poses, effect.config, currentTime);
                   }
@@ -1227,187 +1196,8 @@ export default function AssetGenerationModal({
           </div>
         )}
 
-        {/* Range of Motion-specific configuration */}
-        {effect.effect.id === 'range-of-motion' && (
-          <div className="space-y-3">
-            {/* ROM Joint Selection */}
-            <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>ROM Tracking Joints</label>
-              
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: 'left_knee', label: 'Left Knee' },
-                  { key: 'right_knee', label: 'Right Knee' },
-                  { key: 'left_hip', label: 'Left Hip' },
-                  { key: 'right_hip', label: 'Right Hip' },
-                  { key: 'left_elbow', label: 'Left Elbow' },
-                  { key: 'right_elbow', label: 'Right Elbow' }
-                ].map(joint => (
-                  <label key={joint.key} className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={(effect.config.romJoints || []).includes(joint.key)}
-                      onChange={(e) => {
-                        const currentJoints = effect.config.romJoints || [];
-                        const newJoints = e.target.checked 
-                          ? [...currentJoints, joint.key]
-                          : currentJoints.filter((j: string) => j !== joint.key);
-                        updateEffectConfig(effect.id, { 
-                          ...effect.config, 
-                          romJoints: newJoints 
-                        });
-                      }}
-                      className="w-3 h-3"
-                    />
-                    <span className="text-xs" style={{ color: '#181A1A' }}>{joint.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* ROM Display Style */}
-            <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>ROM Display</label>
-              <select
-                value={effect.config.romDisplayStyle || 'min_max'}
-                className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                onChange={(e) => updateEffectConfig(effect.id, { 
-                  ...effect.config, 
-                  romDisplayStyle: e.target.value 
-                })}
-              >
-                <option value="min_max">Min/Max Values</option>
-                <option value="range_bar">Range Bar</option>
-                <option value="both">Both</option>
-              </select>
-            </div>
-
-            {/* ROM Appearance */}
-            <div>
-              <label className="text-xs font-medium mb-2 block" style={{ color: '#181A1A' }}>ROM Appearance</label>
-              
-              {/* Color */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Color</span>
-                <input
-                  type="color"
-                  value={effect.config.romColor || '#ff6b35'}
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    romColor: e.target.value 
-                  })}
-                  className="w-8 h-6 border border-gray-300 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={effect.config.romColor || '#ff6b35'}
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    romColor: e.target.value 
-                  })}
-                  className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded font-mono"
-                />
-              </div>
-
-              {/* Size */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs w-12" style={{ color: '#181A1A' }}>Size</span>
-                <input
-                  type="range"
-                  min="9"
-                  max="30"
-                  value={effect.config.angleSize || 16}
-                  className="flex-1 h-1"
-                  onChange={(e) => updateEffectConfig(effect.id, { 
-                    ...effect.config, 
-                    angleSize: parseInt(e.target.value) 
-                  })}
-                />
-                <span className="text-xs w-8" style={{ color: '#181A1A' }}>
-                  {effect.config.angleSize || 16}px
-                </span>
-              </div>
-
-              <div className="mt-2">
-                <span className="text-xs font-medium mb-1 block" style={{ color: '#181A1A' }}>Label background</span>
-                <div className="flex overflow-hidden rounded border border-gray-300 mb-2">
-                  {(['none', 'solid', 'glass'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      className="flex-1 px-2 py-1 text-xs capitalize"
-                      style={{
-                        background:
-                          (effect.config.labelBg || 'glass') === mode
-                            ? 'color-mix(in srgb, var(--accent, #3b82f6) 42%, transparent)'
-                            : 'transparent',
-                        color:
-                          (effect.config.labelBg || 'glass') === mode
-                            ? 'var(--foreground)'
-                            : 'var(--muted-foreground)',
-                        fontWeight: (effect.config.labelBg || 'glass') === mode ? 600 : 500,
-                      }}
-                      onClick={() => {
-                        const next: Record<string, unknown> = { labelBg: mode };
-                        if (mode === 'solid') {
-                          next.labelBgColor = '#000000';
-                          next.labelBgOpacity = 0.62;
-                        }
-                        if (mode === 'glass') {
-                          next.labelBgColor = '#ffffff';
-                          next.labelBgOpacity = 0.22;
-                          next.labelBlurPx = 14;
-                        }
-                        updateEffectConfig(effect.id, { ...effect.config, ...next });
-                      }}
-                    >
-                      {mode}
-                    </button>
-                  ))}
-                </div>
-                {(effect.config.labelBg || 'glass') !== 'none' && (
-                  <>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs w-12" style={{ color: '#181A1A' }}>Tint</span>
-                      <input
-                        type="color"
-                        value={(effect.config.labelBgColor || '#ffffff').slice(0, 7)}
-                        onChange={(e) => updateEffectConfig(effect.id, {
-                          ...effect.config,
-                          labelBgColor: e.target.value,
-                        })}
-                        className="w-8 h-6 border border-gray-300 rounded cursor-pointer"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs w-12" style={{ color: '#181A1A' }}>Opacity</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={effect.config.labelBgOpacity ?? 0.22}
-                        className="flex-1 h-1"
-                        onChange={(e) => updateEffectConfig(effect.id, {
-                          ...effect.config,
-                          labelBgOpacity: parseFloat(e.target.value),
-                        })}
-                      />
-                      <span className="text-xs w-10" style={{ color: '#181A1A' }}>
-                        {Math.round((effect.config.labelBgOpacity ?? 0.22) * 100)}%
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-
-          </div>
-        )}
-
         {/* Generic intensity control for other effects */}
-        {effect.effect.id !== 'muybridge' && effect.effect.id !== 'motion-trails' && effect.effect.id !== 'joint-angles' && effect.effect.id !== 'range-of-motion' && (
+        {effect.effect.id !== 'muybridge' && effect.effect.id !== 'motion-trails' && effect.effect.id !== 'joint-angles' && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium" style={{ color: '#181A1A' }}>Intensity</label>
@@ -1985,7 +1775,7 @@ export default function AssetGenerationModal({
                         {getEffectsForCategory(selectedCategory).map((effect) => {
                           const isActive = isEffectActive(effect.id);
                           const isComingSoon = effect.description.includes('Coming Soon');
-                          const isImplemented = ['joint-angles', 'range-of-motion'].includes(effect.id);
+                          const isImplemented = ['joint-angles'].includes(effect.id);
                           return (
             <button
                               key={effect.id}

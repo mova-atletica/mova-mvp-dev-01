@@ -551,7 +551,6 @@ export function useAssetVideoEngine({
                   }
                   break;
                 case 'joint-angles':
-                case 'range-of-motion':
                 case 'metrics-chips':
                 case 'mobility-geometry':
                   if (effectModulesRef.current.renderStats && poses && poses.length > 0) {

@@ -140,7 +140,6 @@ async function renderEffectsToCanvas(
     e.enabled &&
     (
       e.effect.id === 'joint-angles' ||
-      e.effect.id === 'range-of-motion' ||
       e.effect.id === 'metrics-chips' ||
       e.effect.id === 'mobility-geometry'
     )
@@ -310,7 +309,6 @@ async function renderEffectsToCanvas(
           );
           break;
         case 'joint-angles':
-        case 'range-of-motion':
         case 'metrics-chips':
         case 'mobility-geometry':
           renderStats(
@@ -418,7 +416,6 @@ async function exportAsVideo(
       e.enabled &&
       (
         e.effect.id === 'joint-angles' ||
-        e.effect.id === 'range-of-motion' ||
         e.effect.id === 'metrics-chips' ||
         e.effect.id === 'mobility-geometry'
       )
@@ -717,7 +714,6 @@ async function exportAsVideo(
                 );
                 break;
               case 'joint-angles':
-              case 'range-of-motion':
               case 'metrics-chips':
               case 'mobility-geometry':
                 renderStats(

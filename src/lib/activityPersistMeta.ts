@@ -16,6 +16,9 @@ export interface ActivityPersistAnalysisMeta {
   angles?: OpenMoveAngleSeries | null;
   poses?: any[] | null;
   frameIntervalSec?: number | null;
+  /** Intrinsic pixel size at estimatePoses time (for iOS keypoint normalize). */
+  videoWidth?: number | null;
+  videoHeight?: number | null;
   poseTimestamps?: number[] | null;
   sportAnalysisKind?: SportAnalysisKind | null;
   /** Matching sport analysis result object (plank / squat / pullups / …). */

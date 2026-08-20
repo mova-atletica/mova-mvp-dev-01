@@ -296,6 +296,17 @@ export async function uploadActivityVideo(
   return { path, error: null };
 }
 
+/** Include only when > 1 (omit rather than writing 0). */
+function optionalVideoPixelSize(
+  videoWidth?: number | null,
+  videoHeight?: number | null
+): { videoWidth?: number; videoHeight?: number } {
+  const out: { videoWidth?: number; videoHeight?: number } = {};
+  if (typeof videoWidth === "number" && videoWidth > 1) out.videoWidth = videoWidth;
+  if (typeof videoHeight === "number" && videoHeight > 1) out.videoHeight = videoHeight;
+  return out;
+}
+
 export async function uploadActivityPoses(
   supabase: SupabaseClient,
   opts: {
@@ -304,6 +315,8 @@ export async function uploadActivityPoses(
     poses: unknown[];
     frameIntervalSec: number | null;
     timestamps?: number[] | null;
+    videoWidth?: number | null;
+    videoHeight?: number | null;
   }
 ): Promise<{ path: string | null; error: string | null }> {
   const path = activityVideoObjectPath(opts.userId, opts.sessionId, "poses.json");
@@ -311,6 +324,7 @@ export async function uploadActivityPoses(
   const body = JSON.stringify({
     version: 1,
     frameIntervalSec: opts.frameIntervalSec,
+    ...optionalVideoPixelSize(opts.videoWidth, opts.videoHeight),
     ...(timestamps ? { timestamps } : {}),
     poses: opts.poses,
   });

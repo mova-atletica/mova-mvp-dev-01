@@ -147,7 +147,6 @@ export function renderMuybridgeTileEffects(
         }
         break;
       case 'joint-angles':
-      case 'range-of-motion':
       case 'metrics-chips':
       case 'mobility-geometry':
         if (framePoses?.length) {

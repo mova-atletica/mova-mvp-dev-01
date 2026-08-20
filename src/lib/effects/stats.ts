@@ -988,82 +988,6 @@ export function renderJointAngles(
   ctx.restore();
 }
 
-/**
- * Render ROM statistics
- */
-export function renderROMStats(
-  ctx: CanvasRenderingContext2D,
-  romData: ROMData[],
-  config: Partial<StatsConfig>,
-  glassSource?: CanvasImageSource | null
-): void {
-  if (!config.showROM) return;
-  
-  ctx.save();
-  ctx.fillStyle = config.romColor || '#ff6b35';
-
-  // Logical canvas size (undoes image-export resolutionMultiplier) so labels match preview/video.
-  const scaleFactor = statsCanvasScaleFactor(ctx);
-  const scaledAngleSize = Math.round((config.angleSize || 16) * scaleFactor);
-  
-  ctx.font = `bold ${scaledAngleSize}px 'Roboto Mono', monospace`;
-  ctx.textAlign = 'center';
-  
-  for (const rom of romData) {
-    if (!config.romJoints?.includes(rom.jointName)) continue;
-    
-    const { x, y } = rom.position;
-    
-    if (config.romDisplayStyle === 'min_max' || config.romDisplayStyle === 'both') {
-      const text = `ROM: ${rom.minAngle}° - ${rom.maxAngle}°`;
-      const textWidth = ctx.measureText(text).width;
-      const fontSize = scaledAngleSize;
-      const padding = Math.max(8, fontSize * 0.5); // Increased padding for larger text
-      const backgroundHeight = fontSize + padding * 2; // Full padding top and bottom
-      const borderRadius = Math.round(fontSize * 0.2);
-      
-      // Center the background properly - ensure text fits within container
-      const bgWidth = textWidth + padding * 2;
-      const bgX = x - bgWidth/2; // Center the entire container
-      const bgY = y + fontSize - backgroundHeight/2; // Position below joint, centered vertically
-      
-      drawLabelChipBackground(ctx, bgX, bgY, bgWidth, backgroundHeight, borderRadius, {
-        bg: config.labelBg,
-        bgColor: config.labelBgColor,
-        bgOpacity: config.labelBgOpacity,
-        blurPx: config.labelBlurPx,
-        glassSource,
-        scale: scaleFactor,
-      });
-      
-              // Draw ROM text - center within the background container
-        ctx.fillStyle = config.romColor || '#ff6b35';
-        ctx.fillText(text, x, y + fontSize + padding/2);
-    }
-    
-    if (config.romDisplayStyle === 'range_bar' || config.romDisplayStyle === 'both') {
-      // Draw range bar
-      const barWidth = 60 * scaleFactor;
-      const barHeight = 4 * scaleFactor;
-      const barX = x - barWidth/2;
-      const barY = y + 25 * scaleFactor;
-      
-      // Background bar
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.fillRect(barX, barY, barWidth, barHeight);
-      
-      // Progress bar
-      if (rom.range > 0) {
-        const progress = (rom.currentAngle - rom.minAngle) / rom.range;
-        ctx.fillStyle = config.romColor || '#ff6b35';
-        ctx.fillRect(barX, barY, barWidth * progress, barHeight);
-      }
-    }
-  }
-  
-  ctx.restore();
-}
-
 type MobilityPoint = { x: number; y: number };
 
 const MOBILITY_ANGLE_JOINTS: Record<string, [string, string, string]> = {
@@ -1372,9 +1296,9 @@ export function renderStats(
   // Update ROM tracking
   const romData = updateROMTracking(jointAngles);
 
-  // Back → front: geometry under chips; joint angles / ROM on top for legibility.
+  // Back → front: geometry under chips; joint angles on top for legibility.
+  // On-body ROM overlay retired — use metrics-chips `rom_joint` instead.
   renderMobilityGeometry(ctx, poses, config, currentFrameIndex);
   renderMetricChips(ctx, poses, romData, config, ctx.canvas);
   renderJointAngles(ctx, jointAngles, config, ctx.canvas);
-  renderROMStats(ctx, romData, config, ctx.canvas);
 } 

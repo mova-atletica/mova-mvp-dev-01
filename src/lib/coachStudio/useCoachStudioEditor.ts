@@ -271,7 +271,7 @@ export function useCoachStudioEditor(sessionId: string): CoachStudioEditor {
         const detector = await createMoveNetDetector();
         if (cancelled) return;
         setTrackStatus("tracking");
-        const { poses: detected, frameIntervalSec: interval } =
+        const { poses: detected, frameIntervalSec: interval, videoWidth, videoHeight } =
           await processVideoUrlForPoses(detector, videoUrl, (pct) => {
             if (!cancelled) setTrackProgress(pct);
           });
@@ -288,6 +288,8 @@ export function useCoachStudioEditor(sessionId: string): CoachStudioEditor {
           sessionId: sess.id,
           poses: nextPoses,
           frameIntervalSec: interval,
+          videoWidth,
+          videoHeight,
         });
         if (!cancelled && saved.session) setSession(saved.session);
       } catch {

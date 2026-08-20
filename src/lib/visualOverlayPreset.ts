@@ -8,6 +8,9 @@ import { getDefaultConfigForEffect } from "../app/motion-explore/effectDefaultCo
 
 export const VISUAL_OVERLAY_PRESET_VERSION = 1 as const;
 
+/** Retired overlay effect — ROM on video is metrics-chips `rom_joint` only. */
+const RETIRED_OVERLAY_EFFECT_IDS = new Set(["range-of-motion"]);
+
 export type VisualOverlayPresetEffect = {
   id: string;
   enabled: boolean;
@@ -27,12 +30,14 @@ export function serializeVisualOverlayPreset(
   return {
     version: VISUAL_OVERLAY_PRESET_VERSION,
     updatedAt: new Date().toISOString(),
-    effects: activeEffects.map((e, index) => ({
-      id: e.effect.id,
-      enabled: e.enabled,
-      order: typeof e.order === "number" ? e.order : index,
-      config: { ...(e.config as Record<string, unknown>) },
-    })),
+    effects: activeEffects
+      .filter((e) => !RETIRED_OVERLAY_EFFECT_IDS.has(e.effect.id))
+      .map((e, index) => ({
+        id: e.effect.id,
+        enabled: e.enabled,
+        order: typeof e.order === "number" ? e.order : index,
+        config: { ...(e.config as Record<string, unknown>) },
+      })),
   };
 }
 
@@ -67,6 +72,7 @@ export function parseVisualOverlayPreset(raw: unknown): VisualOverlayPreset | nu
   const effects: VisualOverlayPresetEffect[] = [];
   for (const item of obj.effects) {
     if (!isPresetEffect(item)) continue;
+    if (RETIRED_OVERLAY_EFFECT_IDS.has(item.id)) continue;
     effects.push({
       id: item.id,
       enabled: item.enabled,

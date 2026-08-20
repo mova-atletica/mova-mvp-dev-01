@@ -113,19 +113,6 @@ export const availableEffects: Effect[] = [
     },
   },
   {
-    id: "range-of-motion",
-    name: "Range of Motion",
-    description: "Track joint ROM statistics",
-    preview: "ROM tracking",
-    category: "Stats",
-    videoConfig: {
-      shouldRenderVideo: true,
-      videoOpacity: 0.9,
-      blendMode: "normal",
-      renderOrder: "after",
-    },
-  },
-  {
     id: "metrics-chips",
     name: "Metrics Chips",
     description: "Overlay up to 3 metric chips",
