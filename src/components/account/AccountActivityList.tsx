@@ -60,7 +60,8 @@ function isActivityClickable(item: AccountActivityItem): boolean {
 }
 
 function canRenameActivity(item: AccountActivityItem): boolean {
-  return item.kind === "studio" && !item.isSeed && !item.coachSessionId;
+  if (item.isSeed || item.coachSessionId) return false;
+  return item.kind === "studio" || item.kind === "mini-app";
 }
 
 export default function AccountActivityList() {

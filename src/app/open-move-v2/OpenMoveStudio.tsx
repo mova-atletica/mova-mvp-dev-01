@@ -77,6 +77,7 @@ import { buildLeaderboardScorePayload } from "../../lib/leaderboardScore";
 import { ProgramModalCloseButton } from "../../components/exercise-studio/ExerciseStudioProgramControls";
 import { openMoveSessionHasActiveWork } from "../../lib/openMoveSession";
 import { defaultOpenMoveSessionTitle } from "../../lib/openMoveSessionTitle";
+import { activityTitleForScore } from "../../lib/activityFromScore";
 import {
   ARCHIVE_RAIL_WIDTH_COLLAPSED,
   archiveCollapsedRailControlClass,
@@ -581,6 +582,8 @@ export default function OpenMoveStudio({
     score: LeaderboardScorePayload;
     meta: ActivityPersistAnalysisMeta;
   } | null>(null);
+  /** Draft Activity title for mini-app / quick-analysis save (defaults from sport). */
+  const [miniAppSessionTitleDraft, setMiniAppSessionTitleDraft] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const pendingSaveRef = useRef(pendingSave);
   pendingSaveRef.current = pendingSave;
@@ -952,6 +955,7 @@ export default function OpenMoveStudio({
       setLeaderboardScore(null);
       setLeaderboardPosted(false);
       setPendingSave(null);
+      setMiniAppSessionTitleDraft("");
       setSaveState("idle");
       setVideoUploadFailed(false);
 
@@ -983,6 +987,7 @@ export default function OpenMoveStudio({
         setLeaderboardPosted(false);
         setSaveError(null);
         // Held for an explicit save so re-analyzing a different side is free.
+        setMiniAppSessionTitleDraft(activityTitleForScore(payload));
         setPendingSave({
           score: payload,
           meta: {
@@ -1136,6 +1141,9 @@ export default function OpenMoveStudio({
       return;
     }
 
+    const sessionTitle =
+      miniAppSessionTitleDraft.trim() || activityTitleForScore(pending.score);
+
     setSaveState("saving");
     setSaveError(null);
     setVideoUploadFailed(false);
@@ -1143,6 +1151,7 @@ export default function OpenMoveStudio({
       ...pending.meta,
       videoBlob: videoBlobRef.current ?? pending.meta.videoBlob,
       videoFileName: videoFileNameRef.current ?? pending.meta.videoFileName,
+      sessionTitle,
     });
     if (res && (res.error || !res.activityId)) {
       setSaveState("idle");
@@ -1150,6 +1159,7 @@ export default function OpenMoveStudio({
       return;
     }
     setSaveState("saved");
+    setSavedSessionTitle(sessionTitle);
     if (res?.activityId) setSavedActivityId(res.activityId);
     if (res?.videoUploadFailed) {
       setVideoUploadFailed(true);
@@ -1158,7 +1168,12 @@ export default function OpenMoveStudio({
       setVideoUploadFailed(false);
       setSaveError(res?.warning ?? null);
     }
-  }, [isAuthenticated, openSignIn, onQuickAnalysisComplete]);
+  }, [
+    isAuthenticated,
+    openSignIn,
+    onQuickAnalysisComplete,
+    miniAppSessionTitleDraft,
+  ]);
 
   const retryFailedVideoUpload = useCallback(async () => {
     const activityId = savedActivityId;
@@ -2184,9 +2199,29 @@ export default function OpenMoveStudio({
                             ? "Analysis is in Activity, but the video still needs to upload."
                             : "Saved. Reopen it anytime from your Activity."
                           : hasProAccess
-                            ? "Saves your analysis and video clip to Activity. Re-analyze first if the tracked side looks wrong."
-                            : "Saves your analysis to Activity. Upgrade to Pro to keep the recording too."}
+                            ? "Name this session, then save your analysis and video clip to Activity."
+                            : "Name this session, then save your analysis to Activity. Upgrade to Pro to keep the recording too."}
                       </p>
+                      {saveState === "idle" ? (
+                        <input
+                          type="text"
+                          value={miniAppSessionTitleDraft}
+                          onChange={(event) => setMiniAppSessionTitleDraft(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void saveAnalysisToActivity();
+                            }
+                          }}
+                          className="w-full rounded-lg px-3 py-2 text-sm text-[color:var(--foreground)] outline-none"
+                          style={{
+                            border: "1px solid var(--border-secondary)",
+                            backgroundColor: "var(--background)",
+                          }}
+                          aria-label="Session name"
+                          placeholder="Session name"
+                        />
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => void saveAnalysisToActivity()}

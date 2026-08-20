@@ -159,7 +159,7 @@ export async function persistMiniAppActivitySession(
   const { data: activity, error } = await createActivitySession(supabase, {
     userId,
     kind: activityKindForMiniApp(),
-    title: activityTitleForScore(score),
+    title: meta?.sessionTitle?.trim() || activityTitleForScore(score),
     subtitle: activitySubtitleForScore(score),
     sportSlug: score.sportSlug,
     tags: [score.sportSlug],
