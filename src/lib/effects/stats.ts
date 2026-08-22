@@ -77,6 +77,11 @@ export interface StatsConfig {
   jointAngleChartInterpolateGaps?: boolean;
   /** Max consecutive missing frames to interpolate; larger gaps stay broken */
   jointAngleChartMaxInterpGapFrames?: number;
+  /**
+   * Vertical placement of the plot within the safe zone (0 = top, 0.5 = center, 1 = bottom).
+   * Missing => 0.5.
+   */
+  jointAngleChartVerticalOffset?: number;
 
   /** Text-only metrics chips overlay (preview/export parity; max 3 rendered). */
   showMetricChips?: boolean;
@@ -438,7 +443,12 @@ export function renderJointAngleChart(
   const plotW = safeZone.safeWidth * 0.72;
   const plotH = safeZone.safeHeight * 0.25;
   const plotLeft = safeZone.centerX - plotW / 2;
-  const plotTop = safeZone.centerY - plotH / 2;
+  const verticalOffsetRaw = config.jointAngleChartVerticalOffset;
+  const verticalOffset =
+    typeof verticalOffsetRaw === "number" && Number.isFinite(verticalOffsetRaw)
+      ? Math.max(0, Math.min(1, verticalOffsetRaw))
+      : 0.5;
+  const plotTop = safeZone.top + (safeZone.safeHeight - plotH) * verticalOffset;
 
   const n = poses.length;
   const xDenom = Math.max(1, n - 1);

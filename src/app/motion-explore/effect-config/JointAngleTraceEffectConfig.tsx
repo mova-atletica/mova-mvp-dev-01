@@ -15,6 +15,10 @@ export function JointAngleTraceEffectConfig({ config, updateConfig }: EffectConf
   const lineStyleB = (config.jointAngleChartLineStyleB as "solid" | "dashed") || "solid";
   const lineThickness =
     typeof config.jointAngleChartLineThickness === "number" ? config.jointAngleChartLineThickness : 2;
+  const verticalOffset =
+    typeof config.jointAngleChartVerticalOffset === "number"
+      ? Math.max(0, Math.min(1, config.jointAngleChartVerticalOffset))
+      : 0.5;
   const jointOptions = EFFECT_CONFIG_JOINT_OPTIONS.map((o) => ({ value: o.key, label: o.label }));
   const lineStyleOptions = [
     { value: "solid", label: "Solid" },
@@ -166,6 +170,17 @@ export function JointAngleTraceEffectConfig({ config, updateConfig }: EffectConf
           value={lineThickness}
           onChange={(n) => updateConfig({ jointAngleChartLineThickness: n })}
           displayValue={`${lineThickness}`}
+          marginBottom="6px"
+        />
+        <ConfigSliderRow
+          label="Vertical"
+          labelWidth="50px"
+          min={0}
+          max={1}
+          step={0.01}
+          value={verticalOffset}
+          onChange={(n) => updateConfig({ jointAngleChartVerticalOffset: n })}
+          displayValue={`${Math.round(verticalOffset * 100)}%`}
           marginBottom="6px"
         />
       </ConfigSection>

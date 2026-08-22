@@ -1,6 +1,11 @@
 import { renderMotionTrails } from './motion-trails';
 import { sortEffectsByOverlayDrawOrder } from './overlayDrawOrder';
 import { renderJointAngleTraceOverlay, renderStats, type StatsConfig } from './stats';
+import {
+  applyBoneLineStyle,
+  normalizeBoneLineStyle,
+  resetBoneLineStyle,
+} from './skeletonOverlay';
 import { poseIndexAtTime, type PoseTimeline } from '../poseIndexAtTime';
 
 export interface MuybridgeTileRendererOptions {
@@ -51,6 +56,7 @@ function renderSkeletonOverlayForTile(
   if (config.showBones) {
     frameCtx.strokeStyle = (config.boneColor as string) || '#00ff00';
     frameCtx.lineWidth = (config.boneWeight as number) || 2;
+    const boneLineStyle = normalizeBoneLineStyle(config.boneLineStyle);
 
     const selectedBones = config.selectedBones as string[] | undefined;
     allConnections.forEach(([start, end]) => {
@@ -61,10 +67,12 @@ function renderSkeletonOverlayForTile(
       const endPoint = keypoints[end];
 
       if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+        applyBoneLineStyle(frameCtx, boneLineStyle);
         frameCtx.beginPath();
         frameCtx.moveTo(startPoint.x, startPoint.y);
         frameCtx.lineTo(endPoint.x, endPoint.y);
         frameCtx.stroke();
+        resetBoneLineStyle(frameCtx);
       }
     });
   }

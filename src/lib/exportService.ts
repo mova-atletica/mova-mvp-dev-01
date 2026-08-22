@@ -7,6 +7,11 @@ import { renderMuybridgeFromCanvas, preExtractKeyFrames } from './effects/muybri
 import { renderMuybridgeTileEffects } from './effects/muybridgeTileRenderer';
 import { sortEffectsByOverlayDrawOrder } from './effects/overlayDrawOrder';
 import { renderJointAngleTraceOverlay, renderStats } from './effects/stats';
+import {
+  applyBoneLineStyle,
+  normalizeBoneLineStyle,
+  resetBoneLineStyle,
+} from './effects/skeletonOverlay';
 import { safeExportFps } from './videoFps';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -230,6 +235,7 @@ async function renderEffectsToCanvas(
                 if (effect.config.showBones) {
                   ctx.strokeStyle = effect.config.boneColor || '#00ff00';
                   ctx.lineWidth = effect.config.boneWeight || 2;
+                  const boneLineStyle = normalizeBoneLineStyle(effect.config.boneLineStyle);
                   
                   const allConnections = [
                     [5, 7], [7, 9], // Left arm
@@ -251,10 +257,12 @@ async function renderEffectsToCanvas(
                     const endPoint = keypoints[end];
                     
                     if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                      applyBoneLineStyle(ctx, boneLineStyle);
                       ctx.beginPath();
                       ctx.moveTo(startPoint.x, startPoint.y);
                       ctx.lineTo(endPoint.x, endPoint.y);
                       ctx.stroke();
+                      resetBoneLineStyle(ctx);
                     }
                   });
                 }
@@ -635,6 +643,7 @@ async function exportAsVideo(
                       if (effect.config.showBones) {
                         ctx.strokeStyle = effect.config.boneColor || '#00ff00';
                         ctx.lineWidth = effect.config.boneWeight || 2;
+                        const boneLineStyle = normalizeBoneLineStyle(effect.config.boneLineStyle);
                         
                         const allConnections = [
                           [5, 7], [7, 9], // Left arm
@@ -656,10 +665,12 @@ async function exportAsVideo(
                           const endPoint = keypoints[end];
                           
                           if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                            applyBoneLineStyle(ctx, boneLineStyle);
                             ctx.beginPath();
                             ctx.moveTo(startPoint.x, startPoint.y);
                             ctx.lineTo(endPoint.x, endPoint.y);
                             ctx.stroke();
+                            resetBoneLineStyle(ctx);
                           }
                         });
                       }

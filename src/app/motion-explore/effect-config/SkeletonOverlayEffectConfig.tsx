@@ -16,10 +16,20 @@ import {
   skeletonIndicesFromKeys,
   skeletonJointKeysFromIndices,
 } from "./jointOptions";
+import { TraceSelect } from "./TraceSelect";
+import type { BoneLineStyle } from "../../../lib/effects/skeletonOverlay";
+import { normalizeBoneLineStyle } from "../../../lib/effects/skeletonOverlay";
+
+const BONE_LINE_STYLE_OPTIONS = [
+  { value: "solid", label: "Solid" },
+  { value: "dashed", label: "Dashed" },
+  { value: "dotted", label: "Dotted" },
+];
 
 export function SkeletonOverlayEffectConfig({ config, updateConfig }: EffectConfigFormProps) {
   const boneColor = (config.boneColor as string) || "#00ff00";
   const jointColor = (config.jointColor as string) || "#00ff00";
+  const boneLineStyle = normalizeBoneLineStyle(config.boneLineStyle);
   const selectedJoints = skeletonJointKeysFromIndices((config.selectedJoints as number[]) || []);
   const selectedBones = (config.selectedBones as string[]) || [];
 
@@ -42,6 +52,24 @@ export function SkeletonOverlayEffectConfig({ config, updateConfig }: EffectConf
           onChange={(n) => updateConfig({ boneWeight: Math.round(n) })}
           displayValue={`${(config.boneWeight as number) || 2}px`}
         />
+        <div style={{ marginBottom: "6px" }}>
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 600,
+              color: "var(--foreground)",
+              display: "block",
+              marginBottom: "4px",
+            }}
+          >
+            Line style
+          </span>
+          <TraceSelect
+            value={boneLineStyle}
+            options={BONE_LINE_STYLE_OPTIONS}
+            onSelect={(v) => updateConfig({ boneLineStyle: v as BoneLineStyle })}
+          />
+        </div>
       </ConfigSection>
 
       <ConfigSection title="Bones">

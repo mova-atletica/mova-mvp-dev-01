@@ -12,6 +12,11 @@ import { renderMotionTrails } from "../../lib/effects/motion-trails";
 import { renderMuybridgeTileEffects } from "../../lib/effects/muybridgeTileRenderer";
 import { renderJointAngleTraceOverlay, renderStats } from "../../lib/effects/stats";
 import { sortEffectsByOverlayDrawOrder } from "../../lib/effects/overlayDrawOrder";
+import {
+  applyBoneLineStyle,
+  normalizeBoneLineStyle,
+  resetBoneLineStyle,
+} from "../../lib/effects/skeletonOverlay";
 import type { AssetVideoPlayerProps, Effect, ActiveEffect, EffectType } from "./assetVideoTypes";
 import { availableEffects } from "./assetVideoTypes";
 import { getDefaultConfigForEffect } from "./effectDefaultConfig";
@@ -475,6 +480,7 @@ export function useAssetVideoEngine({
                         if (effect.config.showBones) {
                           ctx.strokeStyle = effect.config.boneColor || '#00ff00';
                           ctx.lineWidth = effect.config.boneWeight || 2;
+                          const boneLineStyle = normalizeBoneLineStyle(effect.config.boneLineStyle);
                           
                           const allConnections = [
                             [5, 7], [7, 9], // Left arm
@@ -496,10 +502,12 @@ export function useAssetVideoEngine({
                             const endPoint = keypoints[end];
                             
                             if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                              applyBoneLineStyle(ctx, boneLineStyle);
                               ctx.beginPath();
                               ctx.moveTo(startPoint.x * scaleX + offsetX, startPoint.y * scaleY + offsetY);
                               ctx.lineTo(endPoint.x * scaleX + offsetX, endPoint.y * scaleY + offsetY);
                               ctx.stroke();
+                              resetBoneLineStyle(ctx);
                             }
                           });
                         }

@@ -57,6 +57,7 @@ export function getDefaultConfigForEffect(effect: Effect): Record<string, unknow
         jointAngleChartLineThickness: 2,
         jointAngleChartInterpolateGaps: true,
         jointAngleChartMaxInterpGapFrames: 20,
+        jointAngleChartVerticalOffset: 0.5,
       };
     case "metrics-chips":
       return {
@@ -118,6 +119,7 @@ export function getDefaultConfigForEffect(effect: Effect): Record<string, unknow
         jointColor: "#00ff00",
         boneWeight: 2,
         jointSize: 4,
+        boneLineStyle: "solid",
         showJoints: true,
         showBones: true,
         selectedJoints: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
