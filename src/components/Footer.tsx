@@ -70,9 +70,7 @@ export default function Footer() {
               fontSize: '12px'
             }}>
               <Link 
-                href="https://app.termly.io/policy-viewer/policy.html?policyUUID=4d4ccf3e-a802-44df-aa73-51822d5d7f9d " 
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/privacy"
                 style={{ 
                   color: 'var(--section-subtitle)',
                   textDecoration: 'none',
@@ -86,9 +84,7 @@ export default function Footer() {
                 Privacy Policy
               </Link>
               <Link 
-                href="https://app.termly.io/policy-viewer/policy.html?policyUUID=fdbd3538-3be4-42d1-8c89-ba7676b7d238" 
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/terms"
                 style={{ 
                   color: 'var(--section-subtitle)',
                   textDecoration: 'none',

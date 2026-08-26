@@ -8,6 +8,7 @@ import AppMegaMenu from "./AppMegaMenu";
 import LibraryFilterBar from "./LibraryFilterBar";
 import type { HomeFilterState } from "../lib/homeFilters";
 import { ARCHIVE_CONTENT_LAYOUT_STYLE } from "../lib/archiveLayout";
+import { PRIVACY_PATH, TERMS_PATH } from "../lib/legalUrls";
 
 const RAIL_WIDTH_OPEN = "17.5rem";
 const RAIL_WIDTH_COLLAPSED = "3rem";
@@ -22,10 +23,8 @@ const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 const collapsedRailControlClass =
   "inline-flex h-9 w-9 items-center justify-center rounded-lg backdrop-blur-md";
 
-const PRIVACY_URL =
-  "https://app.termly.io/policy-viewer/policy.html?policyUUID=4d4ccf3e-a802-44df-aa73-51822d5d7f9d";
-const TERMS_URL =
-  "https://app.termly.io/policy-viewer/policy.html?policyUUID=fdbd3538-3be4-42d1-8c89-ba7676b7d238";
+const PRIVACY_URL = PRIVACY_PATH;
+const TERMS_URL = TERMS_PATH;
 
 const LibraryShellContext = createContext({ showRailFilters: false });
 
@@ -81,24 +80,20 @@ function RailFooter({ compact = false }: { compact?: boolean }) {
           © {year} Mova Atletica, Inc.
         </p>
         <div className="flex flex-wrap gap-3 text-[10px]">
-          <a
+          <Link
             href={PRIVACY_URL}
-            target="_blank"
-            rel="noopener noreferrer"
             className="underline"
             style={{ color: "var(--section-subtitle)" }}
           >
             Privacy
-          </a>
-          <a
+          </Link>
+          <Link
             href={TERMS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
             className="underline"
             style={{ color: "var(--section-subtitle)" }}
           >
             Terms
-          </a>
+          </Link>
         </div>
       </footer>
     );
@@ -113,24 +108,20 @@ function RailFooter({ compact = false }: { compact?: boolean }) {
         © {year} Mova Atletica, Inc.
       </p>
       <div className="flex flex-col gap-1.5 text-[10px]">
-        <a
+        <Link
           href={PRIVACY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
           className="transition-colors hover:underline"
           style={{ color: "var(--section-subtitle)" }}
         >
           Privacy Policy
-        </a>
-        <a
+        </Link>
+        <Link
           href={TERMS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
           className="transition-colors hover:underline"
           style={{ color: "var(--section-subtitle)" }}
         >
           Terms of Service
-        </a>
+        </Link>
       </div>
     </footer>
   );

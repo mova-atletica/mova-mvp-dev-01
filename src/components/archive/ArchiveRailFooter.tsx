@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   ARCHIVE_PRIVACY_URL,
   ARCHIVE_TERMS_URL,
@@ -14,24 +15,20 @@ export function ArchiveRailFooter({ compact = false }: { compact?: boolean }) {
           © {year} Mova Atletica, Inc.
         </p>
         <div className="flex flex-wrap gap-3 text-[10px]">
-          <a
+          <Link
             href={ARCHIVE_PRIVACY_URL}
-            target="_blank"
-            rel="noopener noreferrer"
             className="underline"
             style={{ color: "var(--section-subtitle)" }}
           >
             Privacy
-          </a>
-          <a
+          </Link>
+          <Link
             href={ARCHIVE_TERMS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
             className="underline"
             style={{ color: "var(--section-subtitle)" }}
           >
             Terms
-          </a>
+          </Link>
         </div>
       </footer>
     );
@@ -43,24 +40,20 @@ export function ArchiveRailFooter({ compact = false }: { compact?: boolean }) {
         © {year} Mova Atletica, Inc.
       </p>
       <div className="flex flex-col gap-1.5 text-[10px]">
-        <a
+        <Link
           href={ARCHIVE_PRIVACY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
           className="transition-colors hover:underline"
           style={{ color: "var(--section-subtitle)" }}
         >
           Privacy Policy
-        </a>
-        <a
+        </Link>
+        <Link
           href={ARCHIVE_TERMS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
           className="transition-colors hover:underline"
           style={{ color: "var(--section-subtitle)" }}
         >
           Terms of Service
-        </a>
+        </Link>
       </div>
     </footer>
   );

@@ -13,6 +13,26 @@ const nextConfig: NextConfig = {
         destination: "/open-move-v2",
         permanent: true,
       },
+      {
+        source: "/legal/privacy",
+        destination: "/privacy",
+        permanent: true,
+      },
+      {
+        source: "/privacy-policy",
+        destination: "/privacy",
+        permanent: true,
+      },
+      {
+        source: "/legal/terms",
+        destination: "/terms",
+        permanent: true,
+      },
+      {
+        source: "/terms-of-service",
+        destination: "/terms",
+        permanent: true,
+      },
     ];
   },
   eslint: {

@@ -5,13 +5,12 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { useAccount } from "../../contexts/MockAuthContext";
 import { useTranslations } from "../../i18n/LocaleProvider";
+import { PRIVACY_PATH, TERMS_PATH } from "../../lib/legalUrls";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
-const TERMS_URL =
-  "https://app.termly.io/policy-viewer/policy.html?policyUUID=fdbd3538-3be4-42d1-8c89-ba7676b7d238";
-const PRIVACY_URL =
-  "https://app.termly.io/policy-viewer/policy.html?policyUUID=4d4ccf3e-a802-44df-aa73-51822d5d7f9d";
+const TERMS_URL = TERMS_PATH;
+const PRIVACY_URL = PRIVACY_PATH;
 
 export default function SignInModal() {
   const {
