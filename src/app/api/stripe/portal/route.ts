@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
-import { createClient } from "../../../../lib/supabase/server";
+import { createAdminClient } from "../../../../lib/supabase/admin";
+import { getAuthenticatedUser } from "../../../../lib/supabase/routeAuth";
 import { getStripe, siteUrl } from "../../../../lib/stripe";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth.user) {
       return NextResponse.json({ error: "Sign in required" }, { status: 401 });
     }
 
-    const { data: profile, error } = await supabase
+    const admin = createAdminClient();
+    const { data: profile, error } = await admin
       .from("profiles")
       .select("stripe_customer_id")
-      .eq("id", user.id)
+      .eq("id", auth.user.id)
       .single();
 
     if (error || !profile?.stripe_customer_id) {

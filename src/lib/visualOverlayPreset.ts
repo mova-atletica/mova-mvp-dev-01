@@ -5,6 +5,11 @@
 import type { ActiveEffect, Effect } from "../app/motion-explore/assetVideoTypes";
 import { availableEffects } from "../app/motion-explore/assetVideoTypes";
 import { getDefaultConfigForEffect } from "../app/motion-explore/effectDefaultConfig";
+import { isEffectLocked } from "./proAccess";
+import {
+  sportCaptureDefaults,
+  type SportCaptureContext,
+} from "./sportCaptureDefaults";
 
 export const VISUAL_OVERLAY_PRESET_VERSION = 1 as const;
 
@@ -114,8 +119,78 @@ export function hydrateVisualOverlayPreset(
   return out;
 }
 
-/** Matches engine default-on joint-angles when no live overlay state is available yet. */
-export function defaultOpenMoveVisualOverlayPreset(): VisualOverlayPreset {
+function findEffectDef(effectId: string): Effect | undefined {
+  return availableEffects.find((e) => e.id === effectId);
+}
+
+/**
+ * Free mini-app enforcement: force skeleton + joint angles on; lock Pro effects off.
+ * Preserves user config when effect rows already exist.
+ */
+export function applyFreeMiniAppDefaults(
+  active: ActiveEffect[],
+  session: SportCaptureContext
+): ActiveEffect[] {
+  const next = active.map((e) => ({ ...e, config: { ...e.config } }));
+
+  for (const e of next) {
+    if (isEffectLocked(e.effect.id, true)) {
+      e.enabled = false;
+    }
+  }
+
+  const sportPreset = sportCaptureDefaults(session);
+  const sportHydrated = hydrateVisualOverlayPreset(sportPreset);
+
+  let skel = next.find((e) => e.effect.id === "skeleton-overlay");
+  if (skel) {
+    skel.enabled = true;
+  } else {
+    const fromSport = sportHydrated.find((e) => e.effect.id === "skeleton-overlay");
+    if (fromSport) {
+      next.unshift({ ...fromSport, enabled: true, order: 0 });
+    }
+  }
+
+  let joints = next.find((e) => e.effect.id === "joint-angles");
+  if (joints) {
+    joints.enabled = true;
+  } else {
+    const fromSport = sportHydrated.find((e) => e.effect.id === "joint-angles");
+    if (fromSport) {
+      next.push({ ...fromSport, enabled: true, order: next.length });
+    }
+  }
+
+  return next.map((e, index) => ({ ...e, order: index }));
+}
+
+/** Full hydrate pipeline: saved preset → sport fallback → free-tier enforcement. */
+export function resolveActiveOverlayEffects(opts: {
+  rawVisualConfig?: unknown | null;
+  restrictMiniAppOverlays: boolean;
+  session: SportCaptureContext;
+}): ActiveEffect[] {
+  const preset =
+    parseVisualOverlayPreset(opts.rawVisualConfig ?? null) ??
+    sportCaptureDefaults(opts.session);
+
+  let active = hydrateVisualOverlayPreset(preset);
+
+  if (opts.restrictMiniAppOverlays) {
+    active = applyFreeMiniAppDefaults(active, opts.session);
+  }
+
+  return active;
+}
+
+/** @deprecated Use sportCaptureDefaults + serialize for mini-apps; studio uses skeleton-only preset. */
+export function defaultOpenMoveVisualOverlayPreset(
+  session?: SportCaptureContext
+): VisualOverlayPreset {
+  if (session) {
+    return sportCaptureDefaults(session);
+  }
   const jointAnglesEffect = availableEffects.find((e) => e.id === "joint-angles");
   if (!jointAnglesEffect) {
     return serializeVisualOverlayPreset([]);

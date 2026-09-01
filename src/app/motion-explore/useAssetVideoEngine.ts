@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useEffect, useLayoutEffect, type SetStateAction } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, useMemo, type SetStateAction } from "react";
 import { exportAsset, downloadBlob, type ExportConfig } from "../../lib/exportService";
 import { sampleVideoElementFps, safeExportFps } from "../../lib/videoFps";
 import {
@@ -20,8 +20,16 @@ import {
 import type { AssetVideoPlayerProps, Effect, ActiveEffect, EffectType } from "./assetVideoTypes";
 import { availableEffects } from "./assetVideoTypes";
 import { getDefaultConfigForEffect } from "./effectDefaultConfig";
-import { isFreeMiniAppEffect } from "../../lib/proAccess";
+import { isEffectLocked, isFreeMiniAppEffect } from "../../lib/proAccess";
 import { poseIndexAtTime, type PoseTimeline } from "../../lib/poseIndexAtTime";
+import {
+  applyFreeMiniAppDefaults,
+  resolveActiveOverlayEffects,
+} from "../../lib/visualOverlayPreset";
+import {
+  sportCaptureContextFromStudio,
+  type SportCaptureContext,
+} from "../../lib/sportCaptureDefaults";
 
 export function useAssetVideoEngine({
   videoUrl,
@@ -34,7 +42,21 @@ export function useAssetVideoEngine({
   watermarkExports = false,
   poseTimestamps = null,
   frameIntervalSec = null,
+  metricsOnlyReplay = false,
+  playbackPixelSize = null,
+  sportAnalysis = null,
+  sessionKind = "studio",
 }: AssetVideoPlayerProps) {
+  const overlaySession = useMemo<SportCaptureContext>(
+    () =>
+      sportCaptureContextFromStudio({
+        isQuickAnalysis: sessionKind === "mini-app",
+        sportAnalysisKind,
+        sportAnalysis,
+      }),
+    [sessionKind, sportAnalysisKind, sportAnalysis]
+  );
+
   const [activeEffects, setActiveEffects] = useState<ActiveEffect[]>([]);
   
   // Effects and poses are now working with both data formats!
@@ -55,7 +77,7 @@ export function useAssetVideoEngine({
   /** Detected source fps; null until sampled. Export uses this (or 30 fallback). */
   const [sourceFps, setSourceFps] = useState<number | null>(null);
   const [videoVisibility, setVideoVisibility] = useState({
-    showVideo: true,
+    showVideo: !metricsOnlyReplay,
     opacity: 1.0,
     blendMode: 'source-over' as GlobalCompositeOperation
   });
@@ -70,6 +92,22 @@ export function useAssetVideoEngine({
   const containerRef = useRef<HTMLDivElement>(null);
   // Force one paint after canvas/layout resizes so overlays do not disappear.
   const needsRedrawRef = useRef(true);
+  const syntheticTimeRef = useRef(0);
+  const playbackWidth = playbackPixelSize?.width && playbackPixelSize.width > 1
+    ? playbackPixelSize.width
+    : 720;
+  const playbackHeight = playbackPixelSize?.height && playbackPixelSize.height > 1
+    ? playbackPixelSize.height
+    : 1280;
+
+  const poseDurationSec = useMemo(() => {
+    if (poseTimestamps?.length) {
+      const last = poseTimestamps[poseTimestamps.length - 1];
+      return typeof last === "number" && Number.isFinite(last) ? last : 0;
+    }
+    const dt = frameIntervalSec && frameIntervalSec > 0 ? frameIntervalSec : 1 / 30;
+    return Math.max(0, (poses.length - 1) * dt);
+  }, [poseTimestamps, frameIntervalSec, poses.length]);
 
   // Same static effect modules as exportService — live preview and export share one code path.
   const effectModulesRef = useRef({
@@ -79,8 +117,11 @@ export function useAssetVideoEngine({
     renderStats,
   });
 
-  // Track video duration + source fps when video loads
   useEffect(() => {
+    if (metricsOnlyReplay) {
+      setVideoDuration(poseDurationSec > 0 ? poseDurationSec : null);
+      return;
+    }
     const video = videoRef.current;
     if (!video) return;
 
@@ -112,10 +153,28 @@ export function useAssetVideoEngine({
       cancelled = true;
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
-  }, [videoUrl]);
+  }, [videoUrl, metricsOnlyReplay, poseDurationSec]);
 
+  useEffect(() => {
+    if (!metricsOnlyReplay || !isPlaying) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = (now - last) / 1000;
+      last = now;
+      const duration = poseDurationSec > 0 ? poseDurationSec : 1;
+      syntheticTimeRef.current = (syntheticTimeRef.current + dt) % duration;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [metricsOnlyReplay, isPlaying, poseDurationSec]);
 
   const toggleVideoPlayback = () => {
+    if (metricsOnlyReplay) {
+      setIsPlaying((playing) => !playing);
+      return;
+    }
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
@@ -126,7 +185,7 @@ export function useAssetVideoEngine({
   };
 
   const addEffect = (effect: Effect) => {
-    if (restrictMiniAppOverlays && !isFreeMiniAppEffect(effect.id)) return;
+    if (isEffectLocked(effect.id, restrictMiniAppOverlays)) return;
     setActiveEffects((prev) => {
       const existing = prev.find((e) => e.effect.id === effect.id);
       if (existing) {
@@ -147,44 +206,22 @@ export function useAssetVideoEngine({
     });
   };
 
-  // Default-on: joint angles in Studio/Pro; skeleton only for free mini apps.
+  // Default-on overlays when nothing is hydrated yet.
   useEffect(() => {
     setActiveEffects((prev) => {
-      if (restrictMiniAppOverlays) {
-        const skeleton = availableEffects.find((effect) => effect.id === "skeleton-overlay");
-        if (!skeleton) return prev.filter((e) => isFreeMiniAppEffect(e.effect.id));
-        const allowed = prev.filter((e) => isFreeMiniAppEffect(e.effect.id));
-        if (allowed.some((e) => e.effect.id === "skeleton-overlay" && e.enabled)) {
-          return allowed.map((e) =>
-            e.effect.id === "skeleton-overlay"
-              ? { ...e, enabled: true, config: getDefaultConfigForEffect(skeleton) }
-              : e
-          );
+      if (prev.length > 0) {
+        if (restrictMiniAppOverlays) {
+          return applyFreeMiniAppDefaults(prev, overlaySession);
         }
-        return [
-          {
-            id: skeleton.id,
-            effect: skeleton,
-            config: getDefaultConfigForEffect(skeleton),
-            enabled: true,
-            order: 0,
-          },
-        ];
+        return prev;
       }
-      if (prev.length > 0) return prev;
-      const jointAnglesEffect = availableEffects.find((effect) => effect.id === "joint-angles");
-      if (!jointAnglesEffect) return prev;
-      return [
-        {
-          id: jointAnglesEffect.id,
-          effect: jointAnglesEffect,
-          config: getDefaultConfigForEffect(jointAnglesEffect),
-          enabled: true,
-          order: 0,
-        },
-      ];
+      return resolveActiveOverlayEffects({
+        rawVisualConfig: null,
+        restrictMiniAppOverlays,
+        session: overlaySession,
+      });
     });
-  }, [restrictMiniAppOverlays]);
+  }, [restrictMiniAppOverlays, overlaySession]);
 
   const removeEffect = (effectId: string) => {
     if (restrictMiniAppOverlays && isFreeMiniAppEffect(effectId)) return;
@@ -196,8 +233,7 @@ export function useAssetVideoEngine({
 
   /** Ensure an effect entry exists (disabled) so config can be edited while off. */
   const ensureEffect = (effect: Effect) => {
-    if (restrictMiniAppOverlays && !isFreeMiniAppEffect(effect.id)) return;
-    if (restrictMiniAppOverlays) return; // free: no config panel / expand
+    if (isEffectLocked(effect.id, restrictMiniAppOverlays)) return;
     setActiveEffects((prev) => {
       if (prev.some((e) => e.effect.id === effect.id)) return prev;
       return [
@@ -215,7 +251,7 @@ export function useAssetVideoEngine({
 
   /** Toggle overlay visibility without dropping saved config. */
   const setEffectEnabled = (effect: Effect, enabled: boolean) => {
-    if (restrictMiniAppOverlays && !isFreeMiniAppEffect(effect.id)) return;
+    if (isEffectLocked(effect.id, restrictMiniAppOverlays)) return;
     if (restrictMiniAppOverlays && isFreeMiniAppEffect(effect.id) && !enabled) return;
     if (!enabled && effect.id === "muybridge") {
       clearFrameCache();
@@ -334,30 +370,44 @@ export function useAssetVideoEngine({
   useEffect(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    if (!canvas) return;
+    if (!metricsOnlyReplay && !video) return;
 
     let rafId: number;
     let lastDrawTime = 0;
     let lastConfigHash = '';
     
     function draw() {
-      if (video && canvas) {
+      if (canvas) {
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          const currentTime = video.currentTime;
+          const durationSec = metricsOnlyReplay
+            ? poseDurationSec
+            : video?.duration && Number.isFinite(video.duration)
+              ? video.duration
+              : poseDurationSec;
+          const currentTime = metricsOnlyReplay
+            ? syntheticTimeRef.current
+            : video?.currentTime ?? 0;
+          const pixelWidth = metricsOnlyReplay
+            ? playbackWidth
+            : video?.videoWidth ?? playbackWidth;
+          const pixelHeight = metricsOnlyReplay
+            ? playbackHeight
+            : video?.videoHeight ?? playbackHeight;
           const poseTimeline: PoseTimeline = {
             timestamps: poseTimestamps,
             frameIntervalSec,
           };
-          
-          // Optimization: only redraw if time changed significantly or config changed
+          const statsVideo = (video ?? canvas) as HTMLVideoElement;
           const configHash = JSON.stringify(activeEffects.map(e => ({ id: e.effect.id, enabled: e.enabled, config: e.config })));
           const timeChanged = Math.abs(currentTime - lastDrawTime) > 0.1; // Update every 100ms
           const configChanged = configHash !== lastConfigHash;
           // Until the first frame is decodable, drawImage can be blank; keep redrawing instead of
           // skipping (paused at t=0 would otherwise freeze an empty canvas on Safari/Edge).
-          const videoReadyToPaint =
-            video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+          const videoReadyToPaint = metricsOnlyReplay
+            ? true
+            : video != null && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
 
           if (
             videoReadyToPaint &&
@@ -389,20 +439,23 @@ export function useAssetVideoEngine({
           // Render video background FIRST if no effect disables it and Muybridge is not active
           if (!hasVideoReplacement && !hasMuybridgeEffect) {
             // Apply video visibility settings
-            if (videoVisibility.showVideo) {
+            if (videoVisibility.showVideo && video && !metricsOnlyReplay) {
               ctx.globalAlpha = videoVisibility.opacity;
               ctx.globalCompositeOperation = videoVisibility.blendMode;
               // Draw video scaled to fit the canvas (which now matches display size)
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
               ctx.globalCompositeOperation = 'source-over';
               ctx.globalAlpha = 1.0;
+            } else if (metricsOnlyReplay) {
+              ctx.fillStyle = "#1a1b1e";
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
           }
           
           // Check if Muybridge effect is active
           const muybridgeEffect = activeEffects.find(e => e.effect.id === 'muybridge' && e.enabled);
           
-          if (muybridgeEffect && effectModulesRef.current.renderMuybridgeFromCanvas) {
+          if (muybridgeEffect && effectModulesRef.current.renderMuybridgeFromCanvas && video) {
             // If Muybridge is active, skip other effects and let Muybridge handle everything
             try {
               // Clear the main canvas for muybridge to render to
@@ -435,7 +488,7 @@ export function useAssetVideoEngine({
               
               switch (effect.effect.id) {
                 case 'motion-trails':
-                  if (effectModulesRef.current.renderMotionTrails) {
+                  if (effectModulesRef.current.renderMotionTrails && video) {
                     // No transformation needed - canvas is now at video natural size
                     effectModulesRef.current.renderMotionTrails(ctx, video, poses, effect.config, currentTime, false, poseTimeline);
                   }
@@ -445,7 +498,7 @@ export function useAssetVideoEngine({
                   if (poses && poses.length > 0) {
                     const currentFrameIndex = poseIndexAtTime(currentTime, poses.length, {
                       ...poseTimeline,
-                      durationSec: video.duration,
+                      durationSec,
                     });
                     if (currentFrameIndex != null && currentFrameIndex < poses.length) {
                       const pose = poses[currentFrameIndex];
@@ -453,8 +506,8 @@ export function useAssetVideoEngine({
                         const keypoints = pose.keypoints;
                         
                         // Get video dimensions for scaling
-                        const videoWidth = video.videoWidth;
-                        const videoHeight = video.videoHeight;
+                        const videoWidth = pixelWidth;
+                        const videoHeight = pixelHeight;
                         const canvasWidth = ctx.canvas.width;
                         const canvasHeight = ctx.canvas.height;
                         
@@ -551,7 +604,15 @@ export function useAssetVideoEngine({
                   if (poses && poses.length > 0) {
                     try {
                       ctx.save();
-                      renderJointAngleTraceOverlay(ctx, video, poses, effect.config, currentTime, false, poseTimeline);
+                      renderJointAngleTraceOverlay(
+                        ctx,
+                        statsVideo,
+                        poses,
+                        effect.config,
+                        currentTime,
+                        false,
+                        poseTimeline
+                      );
                       ctx.restore();
                     } catch (error) {
                       console.error(`Error rendering ${effect.effect.name}:`, error);
@@ -570,7 +631,7 @@ export function useAssetVideoEngine({
                       ctx.save();
                       effectModulesRef.current.renderStats(
                         ctx,
-                        video,
+                        statsVideo,
                         poses,
                         {
                           ...effect.config,
@@ -610,25 +671,45 @@ export function useAssetVideoEngine({
         cancelAnimationFrame(rafId);
       }
     };
-  }, [activeEffects, poses, videoVisibility, videoUrl, sportAnalysisKind, sportMetricsSnapshot, poseTimestamps, frameIntervalSec]);
+  }, [
+    activeEffects,
+    poses,
+    videoVisibility,
+    videoUrl,
+    sportAnalysisKind,
+    sportMetricsSnapshot,
+    poseTimestamps,
+    frameIntervalSec,
+    metricsOnlyReplay,
+    poseDurationSec,
+    playbackWidth,
+    playbackHeight,
+  ]);
 
   // Sync canvas size after layout (useLayoutEffect) so containerRef is set; retry ResizeObserver if ref was late.
   useLayoutEffect(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    if (!canvas) return;
+    if (!metricsOnlyReplay && !video) return;
 
     let ro: ResizeObserver | null = null;
     let rafRetries = 0;
     let cancelled = false;
 
     function syncCanvasSize() {
-      if (!video || !canvas) return;
-      if (!video.videoWidth || !video.videoHeight) return;
+      if (!canvas) return;
+      const naturalWidth = metricsOnlyReplay
+        ? playbackWidth
+        : video?.videoWidth ?? 0;
+      const naturalHeight = metricsOnlyReplay
+        ? playbackHeight
+        : video?.videoHeight ?? 0;
+      if (!naturalWidth || !naturalHeight) return;
 
       needsRedrawRef.current = true;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = naturalWidth;
+      canvas.height = naturalHeight;
 
       const container = containerRef.current;
       // Treat 0 as unknown — flex/aspect-ratio can report 0 before layout settles
@@ -636,7 +717,7 @@ export function useAssetVideoEngine({
       const ch = container?.clientHeight ?? 0;
       const containerWidth = cw > 0 ? cw : 400;
       const containerHeight = ch > 0 ? ch : 711;
-      const videoAspectRatio = video.videoWidth / video.videoHeight;
+      const videoAspectRatio = naturalWidth / naturalHeight;
       const containerAspectRatio = containerWidth / containerHeight;
 
       let displayWidth: number;
@@ -681,10 +762,16 @@ export function useAssetVideoEngine({
     const onFirstFrameReady = () => {
       needsRedrawRef.current = true;
     };
-    video.addEventListener("loadedmetadata", onMeta);
-    video.addEventListener("loadeddata", onFirstFrameReady);
-    video.addEventListener("canplay", onFirstFrameReady);
+    if (video) {
+      video.addEventListener("loadedmetadata", onMeta);
+      video.addEventListener("loadeddata", onFirstFrameReady);
+      video.addEventListener("canplay", onFirstFrameReady);
+    }
     window.addEventListener("resize", syncCanvasSize);
+
+    if (metricsOnlyReplay) {
+      syncCanvasSize();
+    }
 
     tryAttachResizeObserver();
     const bumpLayout = () => {
@@ -705,30 +792,34 @@ export function useAssetVideoEngine({
 
     return () => {
       cancelled = true;
-      video.removeEventListener("loadedmetadata", onMeta);
-      video.removeEventListener("loadeddata", onFirstFrameReady);
-      video.removeEventListener("canplay", onFirstFrameReady);
+      if (video) {
+        video.removeEventListener("loadedmetadata", onMeta);
+        video.removeEventListener("loadeddata", onFirstFrameReady);
+        video.removeEventListener("canplay", onFirstFrameReady);
+      }
       window.removeEventListener("resize", syncCanvasSize);
       ro?.disconnect();
     };
-  }, [videoUrl]);
+  }, [videoUrl, metricsOnlyReplay, playbackWidth, playbackHeight]);
   return {
     activeEffects,
     setActiveEffects: (update: SetStateAction<ActiveEffect[]>) => {
       setActiveEffects((prev) => {
         const next = typeof update === "function" ? update(prev) : update;
         if (!restrictMiniAppOverlays) return next;
-        return next
-          .filter((e) => isFreeMiniAppEffect(e.effect.id))
-          .map((e) =>
-            e.effect.id === "skeleton-overlay"
-              ? {
-                  ...e,
-                  enabled: true,
-                  config: getDefaultConfigForEffect(e.effect),
-                }
-              : e
-          );
+        const merged = [
+          ...next,
+          ...availableEffects
+            .filter((effect) => !next.some((row) => row.effect.id === effect.id))
+            .map((effect, index) => ({
+              id: effect.id,
+              effect,
+              config: getDefaultConfigForEffect(effect),
+              enabled: false,
+              order: next.length + index,
+            })),
+        ];
+        return applyFreeMiniAppDefaults(merged, overlaySession);
       });
     },
     statsConfig, setStatsConfig,
@@ -752,6 +843,8 @@ export function useAssetVideoEngine({
     availableEffects,
     restrictMiniAppOverlays,
     watermarkExports,
+    metricsOnlyReplay,
+    overlaySession,
   };
 }
 

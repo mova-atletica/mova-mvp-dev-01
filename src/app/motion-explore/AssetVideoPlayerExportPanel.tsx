@@ -206,7 +206,7 @@ export function AssetVideoPlayerExportPanel({ engine }: { engine: AssetVideoEngi
           onClick={() => setVideoVisibility((prev) => ({ ...prev, showVideo: !prev.showVideo }))}
           className="flex h-10 w-full items-center justify-center rounded-lg border border-border-theme bg-[color:color-mix(in_srgb,var(--foreground)_5%,transparent)] px-3 py-2 text-center text-xs font-light text-[color:var(--foreground)] opacity-90 transition-colors hover:border-border-theme hover:bg-[color:color-mix(in_srgb,var(--foreground)_10%,transparent)]"
         >
-          {videoVisibility.showVideo ? "Hide video in export" : "Show video in export"}
+          {videoVisibility.showVideo ? "Hide video" : "Show video"}
         </button>
 
         <button

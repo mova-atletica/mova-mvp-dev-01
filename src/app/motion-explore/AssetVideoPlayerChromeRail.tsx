@@ -7,8 +7,9 @@ import type { AssetVideoEngine } from "./useAssetVideoEngine";
 import { type EffectType } from "./assetVideoTypes";
 import { AssetVideoPlayerExportPanel } from "./AssetVideoPlayerExportPanel";
 import { EffectConfigPanel } from "./effect-config/EffectConfigPanel";
-import { isFreeMiniAppEffect } from "../../lib/proAccess";
+import { isEffectConfigurable, isEffectLocked, isFreeMiniAppEffect } from "../../lib/proAccess";
 import { useTranslations } from "../../i18n/LocaleProvider";
+import { useAccount } from "../../contexts/MockAuthContext";
 
 /** Inline theme borders — `var(--border)` from ThemeContext; matches OpenMoveStudio (Tailwind `.border-border-theme` unreliable in bundle). */
 const borderBottomTheme = { borderBottom: "1px solid var(--border-secondary)" } as const;
@@ -47,16 +48,19 @@ function useEffectCategoryList(engine: AssetVideoEngine) {
     restrictMiniAppOverlays,
   } = engine;
   const t = useTranslations();
+  const { openProPaywall } = useAccount();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
   return (category: EffectType) => (
     <div className="flex flex-col gap-1.5">
       {getEffectsForCategory(category).map((effect) => {
-        const locked =
-          Boolean(restrictMiniAppOverlays) && !isFreeMiniAppEffect(effect.id);
-        const enabled = !locked && isEffectActive(effect.id);
+        const locked = isEffectLocked(effect.id, Boolean(restrictMiniAppOverlays));
+        const alwaysOnFree =
+          Boolean(restrictMiniAppOverlays) && isFreeMiniAppEffect(effect.id);
+        const enabled = locked ? false : isEffectActive(effect.id);
         const activeEffect = activeEffects.find((e) => e.effect.id === effect.id);
-        const expanded = !locked && !restrictMiniAppOverlays && expandedIds.has(effect.id);
+        const configurable = isEffectConfigurable(effect.id, Boolean(restrictMiniAppOverlays));
+        const expanded = configurable && expandedIds.has(effect.id);
         const unlockHint = t("account.upgradeToUnlock");
 
         return (
@@ -77,24 +81,35 @@ function useEffectCategoryList(engine: AssetVideoEngine) {
               ) : (
                 <input
                   type="checkbox"
-                  checked={enabled}
+                  checked={alwaysOnFree ? true : enabled}
+                  disabled={alwaysOnFree}
                   aria-label={`Enable ${effect.name}`}
-                  title={enabled ? `Disable ${effect.name}` : `Enable ${effect.name}`}
+                  title={
+                    alwaysOnFree
+                      ? `${effect.name} is always on`
+                      : enabled
+                        ? `Disable ${effect.name}`
+                        : `Enable ${effect.name}`
+                  }
                   onChange={(event) => {
                     setEffectEnabled(effect, event.target.checked);
                   }}
                   onClick={(event) => event.stopPropagation()}
-                  className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-[var(--accent,#3b82f6)]"
+                  className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-[var(--accent,#3b82f6)] disabled:cursor-default"
                 />
               )}
               <button
                 type="button"
-                disabled={locked || Boolean(restrictMiniAppOverlays)}
+                disabled={locked}
                 className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md py-0.5 text-left outline-none hover:opacity-90 disabled:cursor-default disabled:hover:opacity-100"
                 aria-expanded={expanded}
                 title={locked ? unlockHint : undefined}
                 onClick={() => {
-                  if (locked || restrictMiniAppOverlays) return;
+                  if (locked) {
+                    openProPaywall();
+                    return;
+                  }
+                  if (!configurable) return;
                   const opening = !expandedIds.has(effect.id);
                   if (opening) ensureEffect(effect);
                   setExpandedIds((prev) => {
@@ -106,7 +121,7 @@ function useEffectCategoryList(engine: AssetVideoEngine) {
                 }}
               >
                 <span className="min-w-0 truncate">{effect.name}</span>
-                {!locked && !restrictMiniAppOverlays ? (
+                {configurable ? (
                   <ChevronDown
                     className={`h-3.5 w-3.5 shrink-0 text-[color:var(--muted)] transition-transform duration-200 ${
                       expanded ? "rotate-180" : ""

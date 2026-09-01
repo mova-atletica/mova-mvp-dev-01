@@ -62,6 +62,7 @@ export interface AccountActivityItem {
   hasReplayPayload?: boolean;
   videoPath?: string | null;
   posesPath?: string | null;
+  poses3dPath?: string | null;
   coachSessionId?: string | null;
   isSeed?: boolean;
   /** Inline angles when loaded for detail modal (optional on list) */

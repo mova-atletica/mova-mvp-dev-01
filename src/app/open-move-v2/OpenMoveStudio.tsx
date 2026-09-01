@@ -96,9 +96,13 @@ import {
 } from "../../types/openMoveStudio";
 import type { VisualOverlayPreset } from "../../lib/visualOverlayPreset";
 import {
-  defaultOpenMoveVisualOverlayPreset,
-  hydrateVisualOverlayPreset,
+  resolveActiveOverlayEffects,
+  serializeVisualOverlayPreset,
 } from "../../lib/visualOverlayPreset";
+import {
+  sportCaptureContextFromStudio,
+  sportCaptureDefaults,
+} from "../../lib/sportCaptureDefaults";
 import { VisualOverlayConfigActions } from "../motion-explore/VisualOverlayConfigActions";
 
 /** Inline theme borders — `var(--border)` from ThemeContext; avoids Tailwind v4 not emitting `.border-border-theme`. */
@@ -246,18 +250,26 @@ function AssetVideoSessionBridge({
   initialVisualConfig = null,
   restrictMiniAppOverlays = false,
   watermarkExports = false,
+  metricsOnlyReplay = false,
+  playbackPixelSize = null,
+  sportAnalysis = null,
+  sessionKind = "studio",
   children,
 }: {
-  session: SessionState & { status: "ready"; videoUrl: string };
+  session: SessionState & { status: "ready" };
   sportAnalysisKind: SportAnalysisKind;
   sportMetricsSnapshot: SportMetricsSnapshot | null;
   initialVisualConfig?: VisualOverlayPreset | null;
   restrictMiniAppOverlays?: boolean;
   watermarkExports?: boolean;
+  metricsOnlyReplay?: boolean;
+  playbackPixelSize?: { width: number; height: number } | null;
+  sportAnalysis?: unknown | null;
+  sessionKind?: "mini-app" | "studio";
   children: React.ReactNode;
 }) {
   const engine = useAssetVideoEngine({
-    videoUrl: session.videoUrl,
+    videoUrl: session.videoUrl ?? "",
     poses: session.poses,
     exerciseTitle: session.sessionLabel,
     sportAnalysisKind,
@@ -266,16 +278,34 @@ function AssetVideoSessionBridge({
     watermarkExports,
     poseTimestamps: session.poseTimestamps,
     frameIntervalSec: session.frameIntervalSec,
+    metricsOnlyReplay,
+    playbackPixelSize,
+    sportAnalysis,
+    sessionKind,
   });
   const hydratedVisualRef = useRef(false);
+  const overlaySession = sportCaptureContextFromStudio({
+    isQuickAnalysis: sessionKind === "mini-app",
+    sportAnalysisKind,
+    sportAnalysis,
+  });
 
   useEffect(() => {
-    if (hydratedVisualRef.current || !initialVisualConfig) return;
-    const effects = hydrateVisualOverlayPreset(initialVisualConfig);
+    if (hydratedVisualRef.current) return;
+    const effects = resolveActiveOverlayEffects({
+      rawVisualConfig: initialVisualConfig,
+      restrictMiniAppOverlays,
+      session: overlaySession,
+    });
     if (effects.length === 0) return;
     hydratedVisualRef.current = true;
     engine.setActiveEffects(effects);
-  }, [engine, initialVisualConfig]);
+  }, [
+    engine,
+    initialVisualConfig,
+    restrictMiniAppOverlays,
+    overlaySession,
+  ]);
 
   return <AssetVideoEngineProvider engine={engine}>{children}</AssetVideoEngineProvider>;
 }
@@ -289,6 +319,8 @@ function ConditionalEngineBridge({
   initialVisualConfig = null,
   restrictMiniAppOverlays = false,
   watermarkExports = false,
+  sportAnalysis = null,
+  sessionKind = "studio",
   children,
 }: {
   session: SessionState;
@@ -298,22 +330,32 @@ function ConditionalEngineBridge({
   initialVisualConfig?: VisualOverlayPreset | null;
   restrictMiniAppOverlays?: boolean;
   watermarkExports?: boolean;
+  sportAnalysis?: unknown | null;
+  sessionKind?: "mini-app" | "studio";
   children: React.ReactNode;
 }) {
+  const hasPoses = (session.poses?.length ?? 0) > 0;
+  const metricsOnlyReplay =
+    session.status === "ready" && !session.videoUrl && hasPoses;
+
   if (
     showVideoEngine &&
     session.status === "ready" &&
-    session.videoUrl &&
-    (session.poses?.length ?? 0) > 0
+    hasPoses &&
+    (session.videoUrl || metricsOnlyReplay)
   ) {
     return (
       <AssetVideoSessionBridge
-        session={session as SessionState & { status: "ready"; videoUrl: string }}
+        session={session as SessionState & { status: "ready" }}
         sportAnalysisKind={sportAnalysisKind}
         sportMetricsSnapshot={sportMetricsSnapshot}
         initialVisualConfig={initialVisualConfig}
         restrictMiniAppOverlays={restrictMiniAppOverlays}
         watermarkExports={watermarkExports}
+        metricsOnlyReplay={metricsOnlyReplay}
+        playbackPixelSize={session.playbackPixelSize}
+        sportAnalysis={sportAnalysis}
+        sessionKind={sessionKind}
       >
         {children}
       </AssetVideoSessionBridge>
@@ -367,6 +409,24 @@ function analyzedSetupsMatch(a: AnalyzedSetupSnapshot, b: AnalyzedSetupSnapshot)
   return a.poseFlexibilityFocusAreas.every((area) => b.poseFlexibilityFocusAreas.includes(area));
 }
 
+function visualConfigForCapture(opts: {
+  visualConfigRef: React.MutableRefObject<VisualOverlayPreset | null>;
+  sportAnalysisKind: SportAnalysisKind;
+  sportAnalysis: unknown;
+  setup: AnalyzedSetupSnapshot;
+  isQuickAnalysis: boolean;
+}): VisualOverlayPreset {
+  if (opts.visualConfigRef.current) return opts.visualConfigRef.current;
+  return sportCaptureDefaults(
+    sportCaptureContextFromStudio({
+      isQuickAnalysis: opts.isQuickAnalysis,
+      sportAnalysisKind: opts.sportAnalysisKind,
+      sportAnalysis: opts.sportAnalysis,
+      facingSide: selectedSideForSport(opts.sportAnalysisKind, opts.setup),
+    })
+  );
+}
+
 type SessionState = {
   status: SessionStatus;
   errorMessage?: string;
@@ -379,6 +439,8 @@ type SessionState = {
   /** Intrinsic pixel size at estimatePoses time (Storage poses.json / iOS normalize). */
   videoWidth: number | null;
   videoHeight: number | null;
+  /** Pose coordinate space when replaying without video. */
+  playbackPixelSize?: { width: number; height: number } | null;
   /** ARKit Live mp4 timeline; null for web/Vision uniform sampling. */
   poseTimestamps: number[] | null;
   /** Saved Insights + panel ROM; used when opening an activity (no recalc). */
@@ -455,6 +517,7 @@ export default function OpenMoveStudio({
         frameIntervalSec: initialHydration.frameIntervalSec,
         videoWidth: null,
         videoHeight: null,
+        playbackPixelSize: initialHydration.playbackPixelSize ?? null,
         poseTimestamps: initialHydration.poseTimestamps,
         metrics: initialHydration.metrics,
         sessionLabel: initialHydration.sessionLabel,
@@ -472,7 +535,7 @@ export default function OpenMoveStudio({
   const videoFileNameRef = useRef<string | null>(null);
   const studioPersistKeyRef = useRef<string | null>(
     initialHydration
-      ? `${initialHydration.videoUrl}:${initialHydration.poses.length}:${initialHydration.frameIntervalSec}`
+      ? `${initialHydration.activityId}:${initialHydration.poses.length}:${initialHydration.frameIntervalSec}`
       : null
   );
   const railVisible = !deferRailUntilVideo || session.status !== "idle";
@@ -1002,7 +1065,13 @@ export default function OpenMoveStudio({
             poseTimestamps: session.poseTimestamps,
             sportAnalysisKind: kind,
             sportAnalysis,
-            visualConfig: visualConfigRef.current ?? defaultOpenMoveVisualOverlayPreset(),
+            visualConfig: visualConfigForCapture({
+              visualConfigRef,
+              sportAnalysisKind: kind,
+              sportAnalysis,
+              setup,
+              isQuickAnalysis: true,
+            }),
           },
         });
       };
@@ -1283,7 +1352,14 @@ export default function OpenMoveStudio({
         videoBlob: videoBlobRef.current ?? current.pending.videoBlob,
         videoFileName: videoFileNameRef.current ?? current.pending.videoFileName,
         sessionTitle: title,
-        visualConfig: visualConfigRef.current ?? defaultOpenMoveVisualOverlayPreset(),
+        visualConfig:
+          visualConfigRef.current ??
+          sportCaptureDefaults(
+            sportCaptureContextFromStudio({
+              isQuickAnalysis: false,
+              sportAnalysisKind,
+            })
+          ),
       });
       void Promise.resolve(result).then((res) => {
         if (!res) return;
@@ -2415,6 +2491,35 @@ export default function OpenMoveStudio({
         }
       : { enableSportAnalysisTab: false as const };
 
+  const currentSportAnalysis = useMemo(() => {
+    if (initialHydration?.sportAnalysis) return initialHydration.sportAnalysis;
+    if (sportAnalysisKind === "pullups") return pullUpsAnalysisResult;
+    if (sportAnalysisKind === "pushups") return pushUpsAnalysisResult;
+    if (sportAnalysisKind === "squat") return squatAnalysisResult;
+    if (sportAnalysisKind === "plank") return plankAnalysisResult;
+    if (sportAnalysisKind === "cycling") return cyclingAnalysisResult;
+    if (sportAnalysisKind === "poseFlexibility") return poseFlexibilityAnalysisResult;
+    return null;
+  }, [
+    initialHydration?.sportAnalysis,
+    sportAnalysisKind,
+    pullUpsAnalysisResult,
+    pushUpsAnalysisResult,
+    squatAnalysisResult,
+    plankAnalysisResult,
+    cyclingAnalysisResult,
+    poseFlexibilityAnalysisResult,
+  ]);
+
+  const readyEngineStage =
+    session.status === "ready" && (session.poses?.length ?? 0) > 0 && showVideoEngine;
+  const showClipStage =
+    Boolean(session.videoUrl) &&
+    (session.status === "clip_ready" ||
+      session.status === "processing_video" ||
+      session.status === "loading_sample");
+  const showStageArea = readyEngineStage || showClipStage;
+
   return (
     <EmbeddedModalPopoverProvider embeddedInModal={embedded}>
     <ConditionalEngineBridge
@@ -2425,6 +2530,8 @@ export default function OpenMoveStudio({
       initialVisualConfig={initialHydration?.visualConfig ?? null}
       restrictMiniAppOverlays={restrictMiniAppOverlays}
       watermarkExports={watermarkExports}
+      sportAnalysis={currentSportAnalysis}
+      sessionKind={isQuickAnalysis ? "mini-app" : "studio"}
     >
     <div
       ref={setStudioRootRef}
@@ -2607,13 +2714,9 @@ export default function OpenMoveStudio({
             </div>
           )}
 
-          {(session.status === "ready" ||
-            session.status === "clip_ready" ||
-            session.status === "processing_video" ||
-            session.status === "loading_sample") &&
-            session.videoUrl && (
+          {showStageArea && (
               <div className="absolute inset-0 flex items-center justify-center md:p-4">
-                {session.status === "ready" && (session.poses?.length ?? 0) > 0 && showVideoEngine ? (
+                {readyEngineStage ? (
                   <div
                     className={
                       isDesktop
@@ -2665,7 +2768,8 @@ export default function OpenMoveStudio({
                           }
                         >
                           <AssetVideoPlayerStage
-                            videoUrl={session.videoUrl}
+                            videoUrl={session.videoUrl ?? ""}
+                            metricsOnlyReplay={!session.videoUrl}
                             videoSources={session.videoSources ?? undefined}
                             intrinsicAspect={videoIntrinsicAspect}
                             heightDriven={!isLandscapeVideo}
@@ -2679,6 +2783,13 @@ export default function OpenMoveStudio({
                                   : "relative max-h-full overflow-hidden bg-[#111214] shadow-lg md:max-h-[min(100dvh,calc(100dvh-0px))]"
                             }
                           >
+                            {!session.videoUrl ? (
+                              <div className="pointer-events-none absolute inset-x-0 top-3 z-40 px-3 text-center">
+                                <p className="rounded-lg bg-black/55 px-3 py-2 text-[11px] leading-snug text-white/90">
+                                  No video for this session — poses and overlays replay on a neutral stage.
+                                </p>
+                              </div>
+                            ) : null}
                             <StudioStagePlaybackOverlay />
                           </AssetVideoPlayerStage>
                         </div>
@@ -2728,10 +2839,11 @@ export default function OpenMoveStudio({
                                   <MotionAnalysisPanel
                                     poses={session.poses}
                                     angles={session.angles}
-                                    videoUrl={session.videoUrl}
+                                    videoUrl={session.videoUrl ?? ""}
                                     frameIntervalSec={session.frameIntervalSec}
                                     poseTimestamps={session.poseTimestamps}
                                     panelJointStats={session.metrics?.panelJointStats}
+                                    syncPlaybackFrame={Boolean(session.videoUrl)}
                                     onRequestClose={() => setAnalyticsDrawerOpen(false)}
                                     {...sportAnalysisPanelProps}
                                   />
@@ -2763,7 +2875,7 @@ export default function OpenMoveStudio({
                       className="relative aspect-[9/16] max-h-[70dvh] w-full overflow-hidden rounded-lg bg-[var(--surface)]"
                     >
                       <video
-                        src={session.videoUrl}
+                        src={session.videoUrl ?? undefined}
                         className="h-full w-full object-contain"
                         muted
                         playsInline
@@ -2777,7 +2889,7 @@ export default function OpenMoveStudio({
                     className="relative aspect-[9/16] max-h-[70dvh] w-full max-w-lg overflow-hidden rounded-lg bg-[var(--surface)]"
                   >
                     <video
-                      src={session.videoUrl}
+                      src={session.videoUrl ?? undefined}
                       className="w-full h-full object-contain opacity-40"
                       muted
                       playsInline
@@ -2794,7 +2906,7 @@ export default function OpenMoveStudio({
                     className="relative aspect-[9/16] max-h-[70dvh] w-full max-w-lg overflow-hidden rounded-lg bg-[var(--surface)]"
                   >
                     <video
-                      src={session.videoUrl}
+                      src={session.videoUrl ?? undefined}
                       className="w-full h-full object-contain opacity-40"
                       muted
                       playsInline
@@ -2916,7 +3028,7 @@ export default function OpenMoveStudio({
               </Dialog.Close>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto open-move-studio-panel-scroll p-2">
-              {session.status === "ready" && session.angles && session.videoUrl && (!embeddedQuickAnalysis || hasAnalyzed) ? (
+              {session.status === "ready" && session.angles && (!embeddedQuickAnalysis || hasAnalyzed) ? (
                 <Suspense
                   fallback={
                     <div className="flex justify-center py-12">
@@ -2927,11 +3039,11 @@ export default function OpenMoveStudio({
                   <MotionAnalysisPanel
                     poses={session.poses}
                     angles={session.angles}
-                    videoUrl={session.videoUrl}
+                    videoUrl={session.videoUrl ?? ""}
                     frameIntervalSec={session.frameIntervalSec}
                     poseTimestamps={session.poseTimestamps}
                     panelJointStats={session.metrics?.panelJointStats}
-                    syncPlaybackFrame={false}
+                    syncPlaybackFrame={Boolean(session.videoUrl)}
                     {...sportAnalysisPanelProps}
                   />
                 </Suspense>

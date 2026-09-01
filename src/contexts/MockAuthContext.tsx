@@ -301,7 +301,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       if (scope === "country" && countryCode) {
         rows = rows.filter((e) => e.countryCode === countryCode);
       }
-      return [...rows].sort((a, b) => b.metricValue - a.metricValue).slice(0, 10);
+      return [...rows].sort((a, b) => b.metricValue - a.metricValue).slice(0, 12);
     },
     [leaderboardEntries]
   );

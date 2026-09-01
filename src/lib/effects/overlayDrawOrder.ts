@@ -3,10 +3,11 @@
  * Joint angles stay on top for legibility in preview and export.
  */
 const OVERLAY_DRAW_Z: Record<string, number> = {
+  "skeleton-overlay": 0,
   "mobility-geometry": 10,
   "joint-angle-trace": 20,
   "metrics-chips": 30,
-  "joint-angles": 40,
+  "joint-angles": 100,
 };
 
 export function overlayDrawZIndex(effectId: string): number {

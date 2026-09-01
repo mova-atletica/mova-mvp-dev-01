@@ -5,7 +5,9 @@ import type { AssetVideoEngine } from "./useAssetVideoEngine";
 import { useOptionalAssetVideoEngine } from "./assetVideoEngineContext";
 
 export type AssetVideoPlayerStageProps = {
-  videoUrl: string;
+  videoUrl?: string;
+  /** When true, render pose canvas on neutral background without a video element. */
+  metricsOnlyReplay?: boolean;
   /** Optional source list for browser fallback order (first supported source plays). */
   videoSources?: Array<{ src: string; type: string }>;
   /** When omitted, uses AssetVideoEngineProvider context */
@@ -40,7 +42,8 @@ function aspectFromIntrinsic(
 }
 
 export default function AssetVideoPlayerStage({
-  videoUrl,
+  videoUrl = "",
+  metricsOnlyReplay = false,
   videoSources,
   engine: engineProp,
   children,
@@ -60,6 +63,7 @@ export default function AssetVideoPlayerStage({
   const primarySrc = videoSources?.length ? videoSources[0]?.src : videoUrl;
   const needsCors =
     Boolean(primarySrc) &&
+    !metricsOnlyReplay &&
     !primarySrc.startsWith("blob:") &&
     !primarySrc.startsWith("data:");
 
@@ -171,9 +175,9 @@ export default function AssetVideoPlayerStage({
         // Signed Storage URLs need this before src so canvas export can read pixels.
         // Skip for blob:/data: (local analyze) — avoids unnecessary CORS mode.
         crossOrigin={needsCors ? "anonymous" : undefined}
-        src={videoSources?.length ? undefined : videoUrl}
+        src={metricsOnlyReplay ? undefined : videoSources?.length ? undefined : videoUrl || undefined}
         style={{
-          display: "block",
+          display: metricsOnlyReplay ? "none" : "block",
           width: "100%",
           height: "100%",
           objectFit: "contain",

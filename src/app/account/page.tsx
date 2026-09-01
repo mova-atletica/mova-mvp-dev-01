@@ -114,9 +114,10 @@ export default function AccountPage() {
                   profile={profile}
                   tier={tier}
                   onCompleteSetup={openOnboarding}
-                    onSignOut={() => {
-                      void signOut().then(() => router.push("/"));
-                    }}
+                  onSignOut={() => {
+                    void signOut().then(() => router.push("/"));
+                  }}
+                  signOut={signOut}
                   t={t}
                 />
               ) : null}
@@ -135,14 +136,41 @@ function ProfileTab({
   tier,
   onCompleteSetup,
   onSignOut,
+  signOut,
   t,
 }: {
   profile: NonNullable<ReturnType<typeof useAccount>["profile"]>;
   tier: ReturnType<typeof useAccount>["tier"];
   onCompleteSetup: () => void;
   onSignOut: () => void;
+  signOut: () => Promise<void>;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const router = useRouter();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteAccount = async () => {
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/account/delete", { method: "POST" });
+      const payload = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !payload.ok) {
+        setDeleteError(payload.error ?? t("account.deleteAccountFailed"));
+        return;
+      }
+      setDeleteConfirmOpen(false);
+      await signOut();
+      router.push("/");
+    } catch {
+      setDeleteError(t("account.deleteAccountFailed"));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {!profile.onboardingComplete ? (
@@ -217,11 +245,14 @@ function ProfileTab({
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleteConfirmOpen(true);
+                }}
                 style={borderAllTheme}
-                className="min-w-0 flex-1 cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-[color:var(--muted-foreground)] opacity-70"
+                className="min-w-0 flex-1 rounded-lg px-3 py-2.5 text-left text-sm text-red-500 hover:bg-[color:color-mix(in_srgb,var(--foreground)_6%,transparent)]"
               >
-                {t("account.deleteAccount")} ({t("common.comingSoon")})
+                {t("account.deleteAccount")}
               </button>
               <button
                 type="button"
@@ -239,6 +270,72 @@ function ProfileTab({
       </div>
 
       {PHASE_B_ENABLED ? <AccountMyPrograms /> : null}
+
+      {deleteConfirmOpen ? (
+        <div className="fixed inset-0 z-[100]">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/55"
+            aria-label={t("account.deleteAccountCancel")}
+            onClick={() => {
+              if (!deleteLoading) {
+                setDeleteConfirmOpen(false);
+                setDeleteError(null);
+              }
+            }}
+          />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="account-delete-confirm-title"
+              aria-describedby="account-delete-confirm-desc"
+              style={borderAllTheme}
+              className="pointer-events-auto w-[min(92vw,24rem)] rounded-xl bg-[var(--card-bg)] p-6 shadow-2xl outline-none"
+            >
+              <h2
+                id="account-delete-confirm-title"
+                className="text-sm font-medium text-[color:var(--foreground)]"
+              >
+                {t("account.deleteAccountConfirmTitle")}
+              </h2>
+              <p
+                id="account-delete-confirm-desc"
+                className="mt-2 text-xs leading-relaxed text-[color:var(--muted-foreground)]"
+              >
+                {t("account.deleteAccountConfirmBody")}
+              </p>
+              {deleteError ? (
+                <p className="mt-3 text-xs leading-relaxed text-red-500">{deleteError}</p>
+              ) : null}
+              <div className="mt-8 flex justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={deleteLoading}
+                  onClick={() => {
+                    setDeleteConfirmOpen(false);
+                    setDeleteError(null);
+                  }}
+                  style={borderAllTheme}
+                  className="rounded-lg px-4 py-2 text-xs font-medium text-[color:var(--foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_8%,transparent)] disabled:opacity-60"
+                >
+                  {t("account.deleteAccountCancel")}
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteLoading}
+                  onClick={() => {
+                    void handleDeleteAccount();
+                  }}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+                >
+                  {deleteLoading ? t("account.deleteAccountDeleting") : t("account.deleteAccountConfirmAction")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

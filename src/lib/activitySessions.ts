@@ -32,6 +32,7 @@ export interface ActivitySessionRow {
   sport_analysis: unknown | null;
   visual_config: VisualOverlayPreset | null;
   poses_path: string | null;
+  poses3d_path: string | null;
   coach_session_id: string | null;
   is_seed: boolean;
   occurred_at: string;
@@ -40,7 +41,7 @@ export interface ActivitySessionRow {
 }
 
 export const ACTIVITY_SESSION_SELECT =
-  "id, user_id, kind, title, subtitle, sport_slug, tags, metric_label, metric_value_text, metric_numeric, metrics, video_path, video_duration_ms, sport_analysis_kind, frame_interval_sec, angles, sport_analysis, visual_config, poses_path, coach_session_id, is_seed, occurred_at, created_at, updated_at";
+  "id, user_id, kind, title, subtitle, sport_slug, tags, metric_label, metric_value_text, metric_numeric, metrics, video_path, video_duration_ms, sport_analysis_kind, frame_interval_sec, angles, sport_analysis, visual_config, poses_path, poses3d_path, coach_session_id, is_seed, occurred_at, created_at, updated_at";
 
 function hasReplayPayload(row: ActivitySessionRow): boolean {
   if (row.coach_session_id) return true;
@@ -72,6 +73,7 @@ export function mapActivitySessionRow(row: ActivitySessionRow): AccountActivityI
     hasReplayPayload: hasReplayPayload(row),
     videoPath: row.video_path,
     posesPath: row.poses_path,
+    poses3dPath: row.poses3d_path,
     coachSessionId: row.coach_session_id,
     isSeed: row.is_seed,
     angles: row.angles,
@@ -362,6 +364,8 @@ export async function fetchActivityPosesJson(
   poses: any[];
   frameIntervalSec: number | null;
   timestamps: number[] | null;
+  videoWidth: number | null;
+  videoHeight: number | null;
   error: string | null;
 }> {
   const { data, error } = await supabase.storage.from(ACTIVITY_SESSIONS_BUCKET).download(path);
@@ -370,6 +374,8 @@ export async function fetchActivityPosesJson(
       poses: [],
       frameIntervalSec: null,
       timestamps: null,
+      videoWidth: null,
+      videoHeight: null,
       error: error?.message ?? "Download failed",
     };
   }
@@ -379,12 +385,16 @@ export async function fetchActivityPosesJson(
       poses?: any[];
       frameIntervalSec?: number | null;
       timestamps?: unknown;
+      videoWidth?: number;
+      videoHeight?: number;
     };
     const poses = Array.isArray(parsed.poses) ? parsed.poses : [];
     return {
       poses,
       frameIntervalSec: parsed.frameIntervalSec ?? null,
       timestamps: normalizePoseTimestamps(parsed.timestamps, poses.length),
+      videoWidth: typeof parsed.videoWidth === "number" ? parsed.videoWidth : null,
+      videoHeight: typeof parsed.videoHeight === "number" ? parsed.videoHeight : null,
       error: null,
     };
   } catch (err) {
@@ -392,6 +402,8 @@ export async function fetchActivityPosesJson(
       poses: [],
       frameIntervalSec: null,
       timestamps: null,
+      videoWidth: null,
+      videoHeight: null,
       error: err instanceof Error ? err.message : "Invalid poses JSON",
     };
   }

@@ -18,7 +18,6 @@ import { PHASE_B_ENABLED } from "../../lib/productPhase";
 import type { OpenMoveStudioModalTarget } from "../../types/openMoveStudioModal";
 import OpenMoveStudioModal from "../open-move/OpenMoveStudioModal";
 import AccountLeaderboardStatus from "./AccountLeaderboardStatus";
-import ActivityReplayModal from "./ActivityReplayModal";
 import ChartTimeRangeToggle from "./ChartTimeRangeToggle";
 import {
   ActivityMixDonut,
@@ -70,7 +69,6 @@ export default function AccountActivityList() {
   const { items: sourceActivity, loading: activityLoading, refresh } = useAccountActivityFeed();
   const [filter, setFilter] = useState<ActivityFilter>("all");
   const [volumeRange, setVolumeRange] = useState<ChartTimeRange>("month");
-  const [replayActivity, setReplayActivity] = useState<AccountActivityItem | null>(null);
   const [studioTarget, setStudioTarget] = useState<OpenMoveStudioModalTarget | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -119,16 +117,12 @@ export default function AccountActivityList() {
       router.push(`/coach-studio/${item.coachSessionId}`);
       return;
     }
-    if (item.videoPath && item.hasReplayPayload) {
+    if (item.hasReplayPayload) {
       setStudioTarget({
         type: "hydrate",
         activityId: item.id,
         title: item.title,
       });
-      return;
-    }
-    if (item.hasReplayPayload) {
-      setReplayActivity(item);
     }
   };
 
@@ -290,13 +284,6 @@ export default function AccountActivityList() {
           if (!open) setStudioTarget(null);
         }}
         target={studioTarget}
-      />
-      <ActivityReplayModal
-        open={replayActivity != null}
-        onOpenChange={(open) => {
-          if (!open) setReplayActivity(null);
-        }}
-        activity={replayActivity}
       />
     </>
   );

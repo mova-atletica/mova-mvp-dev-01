@@ -1721,7 +1721,7 @@ export default function AssetGenerationModal({
                         e.currentTarget.style.background = videoVisibility.showVideo ? '#F3F4F6' : '#F9FAFB';
                       }}
                     >
-                      {videoVisibility.showVideo ? 'Hide Video in Export' : 'Show Video in Export'}
+                      {videoVisibility.showVideo ? 'Hide Video' : 'Show Video'}
                     </button>
                   </div>
                   

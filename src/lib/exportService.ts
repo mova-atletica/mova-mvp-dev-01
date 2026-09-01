@@ -38,7 +38,7 @@ export interface ExportConfig {
   duration?: number; // for video exports
   /** Source fps (or override). Clamped 10–60; defaults to 30 if missing. */
   framerate?: number;
-  /** Free-tier mini-app exports: draw brand mark bottom-right. */
+  /** Free-tier mini-app exports: tiled brand watermark grid. */
   watermark?: boolean;
   sportAnalysisKind?: 'cycling' | 'pullups' | 'pushups' | 'plank' | 'squat' | 'poseFlexibility';
   sportMetricsSnapshot?: {
@@ -89,7 +89,8 @@ function createExportCanvas(width: number, height: number): HTMLCanvasElement {
   return canvas;
 }
 
-const WATERMARK_SRC = '/images/brand/logo/Logo_Contained.svg';
+/** Plain mark tiles cleanly at low opacity; contained logo is too busy when repeated. */
+const WATERMARK_GRID_SRC = '/images/brand/logo/Logo_Plain.svg';
 let watermarkImagePromise: Promise<HTMLImageElement | null> | null = null;
 
 function loadBrandWatermarkImage(): Promise<HTMLImageElement | null> {
@@ -102,14 +103,15 @@ function loadBrandWatermarkImage(): Promise<HTMLImageElement | null> {
         console.warn('Failed to load export watermark logo');
         resolve(null);
       };
-      img.src = WATERMARK_SRC;
+      img.src = WATERMARK_GRID_SRC;
     });
   }
   return watermarkImagePromise;
 }
 
 /**
- * Bottom-right brand mark for free exports: ~10% of short side, ~4.5% inset (IG safe zone), full opacity.
+ * Full-frame diagonal logo grid for free exports (parity with iOS).
+ * Low opacity so skeleton / angle overlays stay legible.
  */
 async function drawExportWatermark(
   ctx: CanvasRenderingContext2D,
@@ -118,16 +120,37 @@ async function drawExportWatermark(
 ): Promise<void> {
   const logo = await loadBrandWatermarkImage();
   if (!logo) return;
+
   const shortSide = Math.min(canvasWidth, canvasHeight);
-  const markSize = shortSide * 0.1;
-  const inset = shortSide * 0.045;
-  const x = canvasWidth - inset - markSize;
-  const y = canvasHeight - inset - markSize;
+  const tileSize = shortSide * 0.12;
+  const spacing = shortSide * 0.2;
+  const opacity = 0.27;
+//  const rotationRad = (-25 * Math.PI) / 180;
+  const rotationRad = 0;
+
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = opacity;
   ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(logo, x, y, markSize, markSize);
+
+  const cover = Math.hypot(canvasWidth, canvasHeight);
+  const cols = Math.ceil(cover / spacing) + 2;
+  const rows = Math.ceil(cover / spacing) + 2;
+  const startX = -((cols - 1) * spacing) / 2;
+  const startY = -((rows - 1) * spacing) / 2;
+
+  ctx.translate(canvasWidth / 2, canvasHeight / 2);
+  ctx.rotate(rotationRad);
+
+  for (let row = 0; row < rows; row++) {
+    const rowOffset = row % 2 === 1 ? spacing * 0.5 : 0;
+    for (let col = 0; col < cols; col++) {
+      const x = startX + col * spacing + rowOffset - tileSize / 2;
+      const y = startY + row * spacing - tileSize / 2;
+      ctx.drawImage(logo, x, y, tileSize, tileSize);
+    }
+  }
+
   ctx.restore();
 }
 

@@ -25,10 +25,16 @@ export interface AssetVideoPlayerProps {
     poseFlexibilityShouldersDeg?: number | null;
   } | null;
   /**
-   * Free mini-app sessions: skeleton overlay only (default config).
+   * Free mini-app sessions: skeleton + joint angles always on; Pro effects locked.
    * Studio / Pro leave this false.
    */
   restrictMiniAppOverlays?: boolean;
+  /** Replay poses + overlays without a video (neutral stage). */
+  metricsOnlyReplay?: boolean;
+  /** Pixel dimensions for pose coordinate space when metricsOnlyReplay. */
+  playbackPixelSize?: { width: number; height: number } | null;
+  sportAnalysis?: unknown | null;
+  sessionKind?: "mini-app" | "studio";
   /** Watermark free exports (mini-app free tier). */
   watermarkExports?: boolean;
   poseTimestamps?: number[] | null;

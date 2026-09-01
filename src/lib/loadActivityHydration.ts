@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpenMoveAngleSeries } from "./openMoveAngleSeries";
 import type { SessionMovementMetrics } from "../types/accountActivity";
 import type { SportAnalysisKind } from "./sportAnalysis/pullUpsTypes";
+import { normalizeSportAnalysis } from "./normalizeSportAnalysis";
 import {
   createSignedActivityVideoUrl,
   fetchActivityPosesJson,
@@ -10,7 +11,8 @@ import {
 
 export interface OpenMoveActivityHydration {
   activityId: string;
-  videoUrl: string;
+  /** Null when free tier saved metrics-only (poses + overlays replay). */
+  videoUrl: string | null;
   poses: any[];
   angles: OpenMoveAngleSeries;
   frameIntervalSec: number | null;
@@ -23,6 +25,8 @@ export interface OpenMoveActivityHydration {
   sportAnalysisKind: SportAnalysisKind | null;
   sportAnalysis: unknown | null;
   visualConfig?: import("./visualOverlayPreset").VisualOverlayPreset | null;
+  playbackPixelSize?: { width: number; height: number } | null;
+  poses3dPath?: string | null;
 }
 
 function formatHydrationHeaderTitle(
@@ -60,7 +64,6 @@ export async function loadActivityHydration(
   const { data: activity, error } = await getActivitySession(supabase, activityId);
   if (error) return { data: null, error };
   if (!activity) return { data: null, error: "Activity not found" };
-  if (!activity.videoPath) return { data: null, error: "No video saved for this activity" };
 
   const angles = activity.angles;
   if (
@@ -71,17 +74,22 @@ export async function loadActivityHydration(
     return { data: null, error: "No analysis payload for this activity" };
   }
 
-  const { url, error: signError } = await createSignedActivityVideoUrl(
-    supabase,
-    activity.videoPath
-  );
-  if (signError || !url) {
-    return { data: null, error: signError ?? "Could not sign video URL" };
+  let videoUrl: string | null = null;
+  if (activity.videoPath) {
+    const { url, error: signError } = await createSignedActivityVideoUrl(
+      supabase,
+      activity.videoPath
+    );
+    if (signError || !url) {
+      return { data: null, error: signError ?? "Could not sign video URL" };
+    }
+    videoUrl = url;
   }
 
   let poses: any[] = [];
   let frameIntervalSec = activity.frameIntervalSec ?? null;
   let poseTimestamps: number[] | null = null;
+  let playbackPixelSize: { width: number; height: number } | null = null;
   if (activity.posesPath) {
     const loaded = await fetchActivityPosesJson(supabase, activity.posesPath);
     if (loaded.error) {
@@ -90,6 +98,12 @@ export async function loadActivityHydration(
       poses = loaded.poses;
       poseTimestamps = loaded.timestamps;
       if (loaded.frameIntervalSec != null) frameIntervalSec = loaded.frameIntervalSec;
+      if (loaded.videoWidth && loaded.videoHeight) {
+        playbackPixelSize = {
+          width: loaded.videoWidth,
+          height: loaded.videoHeight,
+        };
+      }
     }
   }
   if (!poses.length) {
@@ -97,10 +111,12 @@ export async function loadActivityHydration(
     poseTimestamps = null;
   }
 
+  const sportKind = asSportKind(activity.sportAnalysisKind ?? activity.sportSlug);
+
   return {
     data: {
       activityId: activity.id,
-      videoUrl: url,
+      videoUrl,
       poses,
       angles,
       frameIntervalSec,
@@ -108,9 +124,11 @@ export async function loadActivityHydration(
       metrics: activity.metrics ?? null,
       sessionLabel: activity.subtitle?.trim() || activity.title || "Saved session",
       headerTitle: formatHydrationHeaderTitle(activity.title, activity.metricValue),
-      sportAnalysisKind: asSportKind(activity.sportAnalysisKind ?? activity.sportSlug),
-      sportAnalysis: activity.sportAnalysis ?? null,
+      sportAnalysisKind: sportKind,
+      sportAnalysis: normalizeSportAnalysis(activity.sportAnalysis, sportKind),
       visualConfig: activity.visualConfig ?? null,
+      playbackPixelSize,
+      poses3dPath: activity.poses3dPath ?? null,
     },
     error: null,
   };

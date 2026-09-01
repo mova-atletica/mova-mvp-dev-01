@@ -13,13 +13,27 @@ export function hasCoachAccess(tier: AccountTier): boolean {
   return tier === "partner";
 }
 
-/** Free mini-app users may only enable this overlay (default config). */
-export const FREE_MINI_APP_EFFECT_IDS = ["skeleton-overlay"] as const;
+/** Free mini-app users may enable these overlays (always on; config editable). */
+export const FREE_MINI_APP_EFFECT_IDS = ["skeleton-overlay", "joint-angles"] as const;
 
 export type FreeMiniAppEffectId = (typeof FREE_MINI_APP_EFFECT_IDS)[number];
 
 export function isFreeMiniAppEffect(effectId: string): boolean {
   return (FREE_MINI_APP_EFFECT_IDS as readonly string[]).includes(effectId);
+}
+
+export function isEffectLocked(
+  effectId: string,
+  restrictMiniAppOverlays: boolean
+): boolean {
+  return restrictMiniAppOverlays && !isFreeMiniAppEffect(effectId);
+}
+
+export function isEffectConfigurable(
+  effectId: string,
+  restrictMiniAppOverlays: boolean
+): boolean {
+  return !isEffectLocked(effectId, restrictMiniAppOverlays);
 }
 
 /**
