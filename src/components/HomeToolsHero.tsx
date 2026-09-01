@@ -76,7 +76,7 @@ export default function HomeToolsHero({
         display: "flex",
         flexDirection: "column",
         alignItems: "stretch",
-        gap: `${HOME_TOOLS_HERO_GAP.row}px`,
+        gap: `${HOME_TOOLS_HERO_GAP.mobileRow}px`,
         width: "100%",
       };
 
@@ -180,6 +180,7 @@ export default function HomeToolsHero({
               mediaSrc={MOVA_STUDIO_MINI_APP.tileImage}
               videoSrc={MOVA_STUDIO_MINI_APP.tileVideo}
               layout={isDesktop ? "desktop" : "mobile"}
+              isAuthenticated={isAuthenticated}
             />
           </div>
           {showCoachStudio ? (

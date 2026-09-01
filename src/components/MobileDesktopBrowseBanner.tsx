@@ -14,7 +14,7 @@ export default function MobileDesktopBrowseBanner({
 }: MobileDesktopBrowseBannerProps) {
   return (
     <div
-      className="mb-4 flex items-center gap-3 rounded-2xl px-3 py-3 sm:px-3.5"
+      className="mb-6 flex items-center gap-3 rounded-lg px-3 py-3 sm:px-3.5"
       style={{
         border: "1px solid color-mix(in srgb, var(--border-secondary) 80%, transparent)",
         background:
@@ -33,7 +33,7 @@ export default function MobileDesktopBrowseBanner({
       />
       <div className="min-w-0 flex-1">
         <p className="text-[13px] font-medium leading-snug text-[color:var(--foreground)]">
-          Desktop now · iOS soon
+          Beta on desktop web · iOS soon
         </p>
         {!isAuthenticated ? (
           <p className="mt-0.5 text-[11px] leading-snug text-[color:var(--muted-foreground)]">

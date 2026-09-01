@@ -64,6 +64,8 @@ export const HOME_TOOLS_STUDIO_TILE = {
 /** Gap between studio card and sports grid / within grid (Figma). */
 export const HOME_TOOLS_HERO_GAP = {
   row: 24,
+  /** Tighter stack gap on mobile (studio column → leaderboard). */
+  mobileRow: 0,
   gridColumn: 24,
   gridRow: 43,
 } as const;

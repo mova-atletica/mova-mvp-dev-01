@@ -54,7 +54,7 @@ export default function HomeLeaderboardBlock({
 
   const panel = (
     <div
-      className={`mini-app-glass-surface flex min-h-0 flex-col overflow-hidden rounded-2xl p-3 sm:p-4 ${
+      className={`mini-app-glass-surface flex min-h-0 flex-col overflow-hidden rounded-2xl p-4 sm:p-6 ${
         isHero ? "h-full" : ""
       }`}
       style={{ border: "none", boxShadow: "var(--mini-app-glass-shadow, 0 8px 32px rgba(23, 21, 15, 0.08))" }}
@@ -62,10 +62,12 @@ export default function HomeLeaderboardBlock({
       <div className="mini-app-glass-content relative z-10 flex min-h-0 flex-1 flex-col">
         <div className="mb-3 flex shrink-0 flex-col gap-2.5">
           <h2
-            className="text-lg font-bold leading-tight sm:text-xl"
             style={{
-              color: "var(--section-title)",
-              fontFamily: "var(--font-roboto-mono), ui-monospace, monospace",
+              marginBottom: 0,
+              fontSize: "18px",
+              fontWeight: 300,
+              lineHeight: 1.2,
+              color: "var(--mini-app-glass-text)",
             }}
           >
             Leaderboard
@@ -106,7 +108,13 @@ export default function HomeLeaderboardBlock({
           </div>
 
           {movement ? (
-            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--section-subtitle)" }}>
+            <p
+              style={{
+                fontSize: "12px",
+                lineHeight: 1.45,
+                color: "var(--mini-app-glass-text-muted)",
+              }}
+            >
               Top {movement.primaryMetric.toLowerCase()} · {movement.title}
             </p>
           ) : null}
@@ -230,12 +238,12 @@ export default function HomeLeaderboardBlock({
             {desktopGate ? (
               <>
                 <span className="text-xs font-semibold tracking-wide sm:text-base">
-                  Upload video on desktop to analyze form and post to the leaderboard.
+                  Upload video. Count reps. Post to leaderboard.
                 </span>
                 <span className="text-[11px] font-medium leading-snug text-[color:var(--muted-foreground)] sm:text-xs">
                   {isAuthenticated
                     ? "iOS coming soon for mobile"
-                    : "iOS coming soon · Sign up to stay tuned"}
+                    : "Desktop now · iOS soon"}
                 </span>
               </>
             ) : (

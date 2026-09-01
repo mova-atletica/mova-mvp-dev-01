@@ -13,6 +13,7 @@ interface MovaStudioHeroTileProps {
   layout?: "desktop" | "mobile";
   mediaSrc?: string;
   videoSrc?: string;
+  isAuthenticated?: boolean;
   onOpen: () => void;
 }
 
@@ -20,6 +21,7 @@ export default function MovaStudioHeroTile({
   layout = "desktop",
   mediaSrc = DEFAULT_STUDIO_TILE_IMAGE,
   videoSrc = DEFAULT_STUDIO_TILE_VIDEO,
+  isAuthenticated = false,
   onOpen,
 }: MovaStudioHeroTileProps) {
   const isDesktop = layout === "desktop";
@@ -29,6 +31,9 @@ export default function MovaStudioHeroTile({
   const showPhoto = isDesktop && Boolean(mediaSrc) && !imageFailed;
   const showVideo = showPhoto && Boolean(videoSrc) && !videoFailed;
   const mobileSimple = !isDesktop && !showPhoto;
+  const mobileAriaLabel = isAuthenticated
+    ? `${MOTION_STUDIO_TITLE} — available on desktop`
+    : `${MOTION_STUDIO_TITLE} — create a free account for desktop analysis`;
 
   const playPreview = useCallback(() => {
     const video = videoRef.current;
@@ -68,7 +73,11 @@ export default function MovaStudioHeroTile({
         boxSizing: "border-box",
         ...(showPhoto ? { border: "none", boxShadow: "none" } : {}),
       }}
-      aria-label={`${MOTION_STUDIO_TITLE} — record or upload any movement`}
+      aria-label={
+        mobileSimple
+          ? mobileAriaLabel
+          : `${MOTION_STUDIO_TITLE} — record or upload any movement`
+      }
     >
       {showPhoto && mediaSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -101,7 +110,7 @@ export default function MovaStudioHeroTile({
           showPhoto ? " mini-app-glass-photo-studio-content" : " flex h-full flex-col justify-between"
         }`}
         style={{
-          padding: "16px 18px",
+          padding: "18px 18px",
           boxSizing: "border-box",
           minHeight: "inherit",
         }}
@@ -165,21 +174,34 @@ export default function MovaStudioHeroTile({
                   color: "var(--mini-app-glass-text-muted)",
                 }}
               >
-                Upload a video. Add overlays to vizualize your form. Export &amp; share.
+                {mobileSimple
+                  ? "Full video analysis on desktop. Overlays, export & share."
+                  : "Upload a video. Add overlays to vizualize your form. Export & share."}
               </p>
-              <span
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-lg text-xs font-medium${
-                  mobileSimple ? " mini-app-glass-mobile-cta" : ""
-                }`}
-                style={{
-                  backgroundColor: "var(--mini-app-glass-cta-bg)",
-                  color: "var(--mini-app-glass-cta-text)",
-                  padding: "12px 12px",
-                }}
-              >
-                <Camera size={14} aria-hidden />
-                Open
-              </span>
+              {mobileSimple ? (
+                <span
+                  className="inline-flex w-full items-center justify-center rounded-lg px-3 py-2.5 text-center text-xs font-semibold tracking-wide"
+                  style={{
+                    background: "color-mix(in srgb, var(--foreground) 8%, transparent)",
+                    color: "var(--mini-app-glass-text)",
+                    border: "1px solid var(--border-secondary)",
+                  }}
+                >
+                  {isAuthenticated ? "Available on desktop" : "Create free account"}
+                </span>
+              ) : (
+                <span
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg text-xs font-medium"
+                  style={{
+                    backgroundColor: "var(--mini-app-glass-cta-bg)",
+                    color: "var(--mini-app-glass-cta-text)",
+                    padding: "12px 12px",
+                  }}
+                >
+                  <Camera size={14} aria-hidden />
+                  Open
+                </span>
+              )}
             </>
           )}
         </div>
