@@ -54,6 +54,7 @@ export interface AccountActivityItem {
   tags?: string[];
   metricLabel?: string;
   metricValue?: string;
+  metricNumeric?: number | null;
   metrics?: SessionMovementMetrics;
   sportSlug?: string | null;
   sportAnalysisKind?: string | null;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useRef } from "react";
 import {
   Bar,
   BarChart,
@@ -9,6 +10,7 @@ import {
   LineChart,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,6 +22,7 @@ import type {
   JointRomAverage,
   MovementTagCount,
   MovementTrendPoint,
+  SportTrendPoint,
   WeeklyActivityBucket,
 } from "../../lib/accountActivityInsights";
 
@@ -340,6 +343,135 @@ export function MovementTrendChart({
               />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+      <p className="mt-1 text-center text-[10px] text-[color:var(--muted-foreground)]">
+        {xAxisLabel}
+      </p>
+    </div>
+  );
+}
+
+interface SportTrendChartProps {
+  data: SportTrendPoint[];
+  xAxisLabel: string;
+  yAxisLabel: string;
+  activeIndex: number | null;
+  onActiveIndexChange: (index: number | null) => void;
+}
+
+export function SportTrendChart({
+  data,
+  xAxisLabel,
+  yAxisLabel,
+  activeIndex,
+  onActiveIndexChange,
+}: SportTrendChartProps) {
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  const updateIndexFromClientX = useCallback(
+    (clientX: number) => {
+      const rect = chartRef.current?.getBoundingClientRect();
+      if (!rect || data.length === 0) return;
+      const plotLeft = rect.left + 40;
+      const plotWidth = rect.width - 52;
+      if (plotWidth <= 0) return;
+      const ratio = Math.max(0, Math.min(1, (clientX - plotLeft) / plotWidth));
+      const index = Math.round(ratio * (data.length - 1));
+      onActiveIndexChange(index);
+    },
+    [data.length, onActiveIndexChange]
+  );
+
+  if (data.length === 0) {
+    return (
+      <p className="py-8 text-center text-xs text-[color:var(--muted-foreground)]">—</p>
+    );
+  }
+
+  const chartData = data.map((point) => ({
+    periodLabel: point.periodLabel,
+    primaryValue: point.primaryValue,
+  }));
+  const maxValue = Math.max(...data.map((point) => point.primaryValue), 1);
+  const activeLabel =
+    activeIndex != null && data[activeIndex] ? data[activeIndex].periodLabel : null;
+
+  return (
+    <div className="w-full min-w-0">
+      <div
+        ref={chartRef}
+        className="touch-none select-none"
+        onMouseMove={(event) => updateIndexFromClientX(event.clientX)}
+        onMouseLeave={() => onActiveIndexChange(null)}
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          if (touch) updateIndexFromClientX(touch.clientX);
+        }}
+        onTouchMove={(event) => {
+          const touch = event.touches[0];
+          if (touch) updateIndexFromClientX(touch.clientX);
+        }}
+        onTouchEnd={() => onActiveIndexChange(null)}
+      >
+        <div className="flex">
+          <span
+            className="flex w-4 shrink-0 items-center justify-center text-[10px] text-[color:var(--muted-foreground)]"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          >
+            {yAxisLabel}
+          </span>
+          <div className="min-w-0 flex-1" style={{ height: 224 }}>
+            <ResponsiveContainer width="100%" height={224}>
+              <LineChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}>
+                <XAxis
+                  dataKey="periodLabel"
+                  tick={{ fill: "#94a3b8", fontSize: 10 }}
+                  axisLine={{ stroke: "#64748b55" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={[0, Math.ceil(maxValue * 1.1)]}
+                  allowDecimals={false}
+                  tick={{ fill: "#94a3b8", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={36}
+                />
+                {activeLabel ? (
+                  <ReferenceLine x={activeLabel} stroke="#94a3b8" strokeDasharray="4 4" />
+                ) : null}
+                <Line
+                  type="linear"
+                  dataKey="primaryValue"
+                  stroke="#22c55e"
+                  strokeWidth={2.5}
+                  dot={(props) => {
+                    const { cx, cy, index } = props as {
+                      cx?: number;
+                      cy?: number;
+                      index?: number;
+                    };
+                    if (cx == null || cy == null || index == null) return <g />;
+                    const isActive = activeIndex === index;
+                    return (
+                      <circle
+                        key={index}
+                        cx={cx}
+                        cy={cy}
+                        r={isActive ? 5 : 3.5}
+                        fill="#22c55e"
+                        stroke={isActive ? "var(--foreground)" : "none"}
+                        strokeWidth={isActive ? 1.5 : 0}
+                      />
+                    );
+                  }}
+                  activeDot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
       <p className="mt-1 text-center text-[10px] text-[color:var(--muted-foreground)]">

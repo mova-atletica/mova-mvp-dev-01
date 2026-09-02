@@ -17,6 +17,7 @@ import { useTranslations } from "../../i18n/LocaleProvider";
 import { PHASE_B_ENABLED } from "../../lib/productPhase";
 import type { OpenMoveStudioModalTarget } from "../../types/openMoveStudioModal";
 import OpenMoveStudioModal from "../open-move/OpenMoveStudioModal";
+import AccountEngagementStats from "./AccountEngagementStats";
 import AccountLeaderboardStatus from "./AccountLeaderboardStatus";
 import ChartTimeRangeToggle from "./ChartTimeRangeToggle";
 import {
@@ -228,15 +229,7 @@ export default function AccountActivityList() {
         </div>
 
         <div className="min-w-0 space-y-4 lg:sticky lg:top-4">
-          <section
-            className="rounded-xl p-4"
-            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
-          >
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              {t("account.insightsActivityMix")}
-            </h2>
-            <ActivityMixDonut data={mixData} labels={kindLabels} />
-          </section>
+          <AccountEngagementStats items={sourceActivity} />
 
           <section
             className="rounded-xl p-4"
@@ -264,6 +257,16 @@ export default function AccountActivityList() {
                   : []),
               ]}
             />
+          </section>
+
+          <section
+            className="rounded-xl p-4"
+            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
+          >
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
+              {t("account.insightsActivityMix")}
+            </h2>
+            <ActivityMixDonut data={mixData} labels={kindLabels} />
           </section>
 
           <section

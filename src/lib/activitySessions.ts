@@ -66,6 +66,7 @@ export function mapActivitySessionRow(row: ActivitySessionRow): AccountActivityI
     tags: row.tags ?? undefined,
     metricLabel: row.metric_label ?? undefined,
     metricValue: row.metric_value_text ?? undefined,
+    metricNumeric: row.metric_numeric,
     metrics: parseSessionMovementMetrics(row.metrics),
     sportSlug: row.sport_slug,
     sportAnalysisKind: row.sport_analysis_kind,

@@ -387,3 +387,316 @@ export function aggregateJointRom(items: AccountActivityItem[]): JointRomAverage
     }))
     .sort((a, b) => b.degrees - a.degrees);
 }
+
+export type AccountSportTrendKey = "studio" | "pullups" | "pushups" | "squat" | "plank";
+
+export const SPORT_TREND_ORDER: AccountSportTrendKey[] = [
+  "studio",
+  "pullups",
+  "pushups",
+  "squat",
+  "plank",
+];
+
+export type SportPrimaryMetricKind = "reps" | "hold" | "duration";
+
+export interface SportTrendPoint {
+  periodKey: string;
+  periodLabel: string;
+  detailPeriodLabel: string;
+  primaryValue: number;
+  romDegrees: number | null;
+  symmetryScore: number | null;
+  sessions: number;
+}
+
+function parseMetricValueText(text: string | undefined): number | null {
+  if (!text?.trim()) return null;
+  const trimmed = text.trim();
+  if (/^\d+:\d{2}(:\d{2})?$/.test(trimmed)) {
+    const parts = trimmed.split(":").map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  const num = Number.parseFloat(trimmed.replace(/[^\d.]/g, ""));
+  return Number.isFinite(num) ? num : null;
+}
+
+export function primaryMetricValue(item: AccountActivityItem): number | null {
+  if (item.metricNumeric != null && Number.isFinite(item.metricNumeric)) {
+    return item.metricNumeric;
+  }
+  return parseMetricValueText(item.metricValue);
+}
+
+export function sportTrendKeyForItem(item: AccountActivityItem): AccountSportTrendKey | null {
+  if (item.kind === "studio" || item.kind === "coach") return "studio";
+  const slug = item.sportSlug?.toLowerCase();
+  if (slug === "pullups" || slug === "pull-ups") return "pullups";
+  if (slug === "pushups" || slug === "push-ups") return "pushups";
+  if (slug === "squat" || slug === "squats") return "squat";
+  if (slug === "plank") return "plank";
+  return null;
+}
+
+export function availableSportTrendKeys(items: AccountActivityItem[]): AccountSportTrendKey[] {
+  const found = new Set<AccountSportTrendKey>();
+  for (const item of items) {
+    const key = sportTrendKeyForItem(item);
+    if (key) found.add(key);
+  }
+  return SPORT_TREND_ORDER.filter((key) => found.has(key));
+}
+
+export function preferredSportTrendKey(items: AccountActivityItem[]): AccountSportTrendKey | null {
+  const available = availableSportTrendKeys(items);
+  if (available.length === 0) return null;
+  const sorted = [...items].sort(
+    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+  );
+  for (const item of sorted) {
+    const key = sportTrendKeyForItem(item);
+    if (key && available.includes(key)) return key;
+  }
+  return available[0];
+}
+
+export function sportPrimaryMetricKind(key: AccountSportTrendKey): SportPrimaryMetricKind {
+  if (key === "plank") return "hold";
+  if (key === "studio") return "duration";
+  return "reps";
+}
+
+export function sportTrendGranularity(range: ChartTimeRange): "day" | "week" | "month" {
+  if (range === "week") return "day";
+  if (range === "month") return "week";
+  return "month";
+}
+
+export function sportTrendShowsLast12MonthsNote(range: ChartTimeRange): boolean {
+  return range === "all";
+}
+
+export function formatSportPrimaryMetric(
+  value: number,
+  kind: SportPrimaryMetricKind
+): string {
+  if (kind === "reps") {
+    const rounded = Math.round(value * 10) / 10;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  }
+  const secs = Math.round(value);
+  if (secs >= 60) {
+    const minutes = Math.floor(secs / 60);
+    const seconds = secs % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }
+  return String(secs);
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function formatMonthAxisLabel(date: Date, range: ChartTimeRange): string {
+  if (range === "ytd") {
+    return date.toLocaleDateString(undefined, { month: "short" });
+  }
+  return date.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+}
+
+function formatDetailPeriodLabel(date: Date, granularity: "day" | "week" | "month"): string {
+  if (granularity === "month") {
+    return date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+  }
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+interface SportTrendBucketSpec {
+  start: Date;
+  end: Date;
+  axisLabel: string;
+  detailLabel: string;
+  periodKey: string;
+}
+
+function sportItemsForRange(
+  items: AccountActivityItem[],
+  range: ChartTimeRange
+): AccountActivityItem[] {
+  if (range === "all") {
+    const anchor = activityAnchorDate(items);
+    const start = startOfMonth(anchor);
+    start.setMonth(start.getMonth() - 11);
+    return items.filter((item) => new Date(item.occurredAt).getTime() >= start.getTime());
+  }
+  return filterActivityByTimeRange(items, range);
+}
+
+function buildSportTrendBuckets(
+  items: AccountActivityItem[],
+  range: ChartTimeRange
+): SportTrendBucketSpec[] {
+  const anchor = activityAnchorDate(items);
+  const granularity = sportTrendGranularity(range);
+
+  if (range === "week") {
+    const weekStart = startOfWeek(anchor);
+    return Array.from({ length: 7 }, (_, i) => {
+      const start = new Date(weekStart);
+      start.setDate(start.getDate() + i);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      return {
+        start,
+        end,
+        axisLabel: formatPeriodLabel(start),
+        detailLabel: formatDetailPeriodLabel(start, "day"),
+        periodKey: start.toISOString().slice(0, 10),
+      };
+    });
+  }
+
+  if (range === "month") {
+    const endWeek = startOfWeek(anchor);
+    return Array.from({ length: 5 }, (_, i) => {
+      const start = new Date(endWeek);
+      start.setDate(start.getDate() - (4 - i) * 7);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      return {
+        start,
+        end,
+        axisLabel: formatPeriodLabel(start),
+        detailLabel: formatDetailPeriodLabel(start, "week"),
+        periodKey: start.toISOString().slice(0, 10),
+      };
+    });
+  }
+
+  if (range === "ytd") {
+    const specs: SportTrendBucketSpec[] = [];
+    const year = anchor.getFullYear();
+    for (let month = 0; month <= anchor.getMonth(); month += 1) {
+      const start = new Date(year, month, 1);
+      const end = new Date(year, month + 1, 1);
+      specs.push({
+        start,
+        end,
+        axisLabel: formatMonthAxisLabel(start, range),
+        detailLabel: formatDetailPeriodLabel(start, "month"),
+        periodKey: `${year}-${String(month + 1).padStart(2, "0")}`,
+      });
+    }
+    return specs;
+  }
+
+  const specs: SportTrendBucketSpec[] = [];
+  const endMonth = startOfMonth(anchor);
+  for (let offset = 11; offset >= 0; offset -= 1) {
+    const start = new Date(endMonth);
+    start.setMonth(start.getMonth() - offset);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 1);
+    specs.push({
+      start,
+      end,
+      axisLabel: formatMonthAxisLabel(start, range),
+      detailLabel: formatDetailPeriodLabel(start, "month"),
+      periodKey: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}`,
+    });
+  }
+  return specs;
+}
+
+function romForSportItem(
+  item: AccountActivityItem,
+  key: AccountSportTrendKey
+): number | null {
+  const metrics = item.metrics;
+  if (!metrics) return null;
+  switch (key) {
+    case "pullups":
+    case "pushups":
+      return typeof metrics.jointRom.elbow === "number" ? metrics.jointRom.elbow : null;
+    case "squat":
+      return typeof metrics.jointRom.knee === "number" ? metrics.jointRom.knee : null;
+    case "plank":
+      return typeof metrics.jointRom.hip === "number" ? metrics.jointRom.hip : null;
+    case "studio":
+      return metrics.avgRomDegrees;
+    default:
+      return null;
+  }
+}
+
+function symmetryForSportItem(
+  item: AccountActivityItem,
+  key: AccountSportTrendKey
+): number | null {
+  if (key === "pushups" || key === "squat" || key === "plank") return null;
+  const metrics = item.metrics;
+  if (!metrics) return null;
+  if (key === "pullups") {
+    return metrics.panelJointStats?.symmetry.elbow ?? metrics.symmetryScore;
+  }
+  if (key === "studio") {
+    const symmetry = metrics.panelJointStats?.symmetry;
+    if (symmetry) {
+      const values = [symmetry.knee, symmetry.hip, symmetry.elbow, symmetry.shoulder].filter(
+        (value): value is number => typeof value === "number"
+      );
+      if (values.length > 0) return Math.round(meanOrZero(values));
+    }
+    return metrics.symmetryScore;
+  }
+  return null;
+}
+
+function averageDefined(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return meanOrZero(values);
+}
+
+export function aggregateSportTrends(
+  items: AccountActivityItem[],
+  sportKey: AccountSportTrendKey,
+  range: ChartTimeRange
+): SportTrendPoint[] {
+  const sportItems = items.filter((item) => sportTrendKeyForItem(item) === sportKey);
+  const rangedItems = sportItemsForRange(sportItems, range);
+  const buckets = buildSportTrendBuckets(rangedItems.length > 0 ? rangedItems : sportItems, range);
+  const points: SportTrendPoint[] = [];
+
+  for (const bucket of buckets) {
+    const bucketItems = rangedItems.filter((item) => {
+      const t = new Date(item.occurredAt).getTime();
+      return t >= bucket.start.getTime() && t < bucket.end.getTime();
+    });
+    if (bucketItems.length === 0) continue;
+
+    const primaryValues = bucketItems
+      .map((item) => primaryMetricValue(item))
+      .filter((value): value is number => value != null);
+    if (primaryValues.length === 0) continue;
+
+    const romValues = bucketItems
+      .map((item) => romForSportItem(item, sportKey))
+      .filter((value): value is number => value != null);
+    const symmetryValues = bucketItems
+      .map((item) => symmetryForSportItem(item, sportKey))
+      .filter((value): value is number => value != null);
+
+    points.push({
+      periodKey: bucket.periodKey,
+      periodLabel: bucket.axisLabel,
+      detailPeriodLabel: bucket.detailLabel,
+      primaryValue: meanOrZero(primaryValues),
+      romDegrees: averageDefined(romValues),
+      symmetryScore: averageDefined(symmetryValues),
+      sessions: bucketItems.length,
+    });
+  }
+
+  return points;
+}
