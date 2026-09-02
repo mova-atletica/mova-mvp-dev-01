@@ -25,6 +25,7 @@ import {
 import type {
   AccountProfile,
   AccountTier,
+  AppLocale,
   LeaderboardEntry,
   LeaderboardScorePayload,
   LeaderboardScope,
@@ -70,6 +71,7 @@ interface MockAuthContextValue {
   verifyEmailOtp: (email: string, token: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   completeOnboarding: (input: OnboardingInput) => Promise<void>;
+  updateLocale: (locale: AppLocale) => Promise<void>;
   setMockTier: (tier: Exclude<AccountTier, "guest">) => void;
   submitLeaderboardScore: (score: LeaderboardScorePayload) => void;
   queueLeaderboardSave: (score: LeaderboardScorePayload) => void;
@@ -653,6 +655,35 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateLocale = useCallback(
+    async (locale: AppLocale) => {
+      if (!user || !profile || locale === profile.locale) return;
+
+      const previousLocale = profile.locale;
+      setProfile((prev) => (prev ? { ...prev, locale } : prev));
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ locale })
+        .eq("id", user.id)
+        .select(
+          "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
+        )
+        .single();
+
+      if (error || !data) {
+        console.error("Locale update failed", error?.message);
+        setAuthError(error?.message ?? "Failed to save language");
+        setProfile((prev) => (prev ? { ...prev, locale: previousLocale } : prev));
+        return;
+      }
+
+      setAuthError(null);
+      setProfile(mapProfileRow(data as ProfileRow, user));
+    },
+    [profile, supabase, user]
+  );
+
   const refreshProfile = useCallback(async () => {
     await loadProfile(user);
   }, [loadProfile, user]);
@@ -680,6 +711,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       verifyEmailOtp,
       signOut,
       completeOnboarding,
+      updateLocale,
       setMockTier,
       submitLeaderboardScore,
       queueLeaderboardSave,
@@ -718,6 +750,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       verifyEmailOtp,
       signOut,
       completeOnboarding,
+      updateLocale,
       setMockTier,
       submitLeaderboardScore,
       queueLeaderboardSave,

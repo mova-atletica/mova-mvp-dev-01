@@ -6,16 +6,11 @@ import { X } from "lucide-react";
 import { COUNTRY_OPTIONS } from "../../data/countries";
 import { useAccount } from "../../contexts/MockAuthContext";
 import type { AppLocale } from "../../types/account";
+import { LOCALE_OPTIONS } from "../../i18n/localeOptions";
 import ExportPanelSelect from "../ExportPanelSelect";
 import { exportPanelFieldLabelClass } from "../../app/motion-explore/AssetVideoPlayerExportPanel";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
-
-const LOCALE_OPTIONS: { value: AppLocale; label: string }[] = [
-  { value: "en", label: "English" },
-  { value: "es", label: "Español" },
-  { value: "pt-BR", label: "Português (BR)" },
-];
 
 /** Relative to dialog content stacking context (portaled into the dialog). */
 const dialogSelectContentClass =

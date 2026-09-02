@@ -9,28 +9,25 @@ import AccountMyPrograms from "../../components/account/AccountMyPrograms";
 import AccountProAccessBlock from "../../components/account/AccountProAccessBlock";
 import UserAvatar from "../../components/account/UserAvatar";
 import LibraryShell from "../../components/LibraryShell";
+import ExportPanelSelect from "../../components/ExportPanelSelect";
 import { getCountryFlag, getCountryName } from "../../data/countries";
 import { useAccount } from "../../contexts/MockAuthContext";
 import { useTranslations } from "../../i18n/LocaleProvider";
+import { LOCALE_OPTIONS } from "../../i18n/localeOptions";
 import { ARCHIVE_CONTENT_LAYOUT_STYLE } from "../../lib/archiveLayout";
 import { EMPTY_HOME_FILTERS } from "../../lib/homeFilters";
 import { PHASE_B_ENABLED } from "../../lib/productPhase";
 import type { AppLocale } from "../../types/account";
+import { exportPanelFieldLabelClass } from "../motion-explore/AssetVideoPlayerExportPanel";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
 type AccountTab = "profile" | "activity" | "insights";
 
-const LOCALE_LABELS: Record<AppLocale, string> = {
-  en: "English",
-  es: "Español",
-  "pt-BR": "Português (BR)",
-};
-
 export default function AccountPage() {
   const router = useRouter();
   const t = useTranslations();
-  const { isAuthenticated, authLoading, profile, tier, signOut, openOnboarding, openSignIn } =
+  const { isAuthenticated, authLoading, profile, tier, signOut, openOnboarding, openSignIn, updateLocale } =
     useAccount();
   const [tab, setTab] = useState<AccountTab>("profile");
 
@@ -118,6 +115,7 @@ export default function AccountPage() {
                     void signOut().then(() => router.push("/"));
                   }}
                   signOut={signOut}
+                  updateLocale={updateLocale}
                   t={t}
                 />
               ) : null}
@@ -137,6 +135,7 @@ function ProfileTab({
   onCompleteSetup,
   onSignOut,
   signOut,
+  updateLocale,
   t,
 }: {
   profile: NonNullable<ReturnType<typeof useAccount>["profile"]>;
@@ -144,6 +143,7 @@ function ProfileTab({
   onCompleteSetup: () => void;
   onSignOut: () => void;
   signOut: () => Promise<void>;
+  updateLocale: (locale: AppLocale) => Promise<void>;
   t: ReturnType<typeof useTranslations>;
 }) {
   const router = useRouter();
@@ -223,12 +223,15 @@ function ProfileTab({
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
-                {t("account.locale")}
-              </p>
-              <p className="text-sm text-[color:var(--foreground)]">
-                {LOCALE_LABELS[profile.locale]}
-              </p>
+              <div className={exportPanelFieldLabelClass}>{t("account.locale")}</div>
+              <ExportPanelSelect
+                aria-label={t("account.locale")}
+                value={profile.locale}
+                options={LOCALE_OPTIONS}
+                onSelect={(value) => {
+                  void updateLocale(value as AppLocale);
+                }}
+              />
             </div>
           </div>
 
@@ -250,7 +253,7 @@ function ProfileTab({
                   setDeleteConfirmOpen(true);
                 }}
                 style={borderAllTheme}
-                className="min-w-0 flex-1 rounded-lg px-3 py-2.5 text-left text-sm text-red-500 hover:bg-[color:color-mix(in_srgb,var(--foreground)_6%,transparent)]"
+                className="min-w-0 flex-1 rounded-lg px-3 py-2.5 text-center text-sm text-red-500 hover:bg-[color:color-mix(in_srgb,var(--foreground)_6%,transparent)]"
               >
                 {t("account.deleteAccount")}
               </button>
