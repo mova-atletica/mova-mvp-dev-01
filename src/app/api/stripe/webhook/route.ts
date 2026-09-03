@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { getStripe } from "../../../../lib/stripe";
+import {
+  applyStripeEntitlement,
+  PROFILE_BILLING_SELECT,
+  type ProfileBillingRow,
+} from "../../../../lib/billing/entitlements";
 
 export const runtime = "nodejs";
 
@@ -22,7 +27,7 @@ async function setProFromSubscription(
   const status = subscription.status;
   const isActive = status === "active" || status === "trialing";
 
-  let profileQuery = admin.from("profiles").select("id, tier").limit(1);
+  let profileQuery = admin.from("profiles").select(PROFILE_BILLING_SELECT).limit(1);
   if (userId) {
     profileQuery = profileQuery.eq("id", userId);
   } else {
@@ -35,59 +40,33 @@ async function setProFromSubscription(
     return;
   }
 
-  if (profile.tier === "partner") {
-    // Keep partner; still store Stripe ids for Portal.
-    await admin
-      .from("profiles")
-      .update({
-        stripe_customer_id: customerId,
-        stripe_subscription_id: subscription.id,
-        stripe_price_id: priceId,
-      })
-      .eq("id", profile.id);
-    return;
-  }
-
-  await admin
-    .from("profiles")
-    .update({
-      tier: isActive ? "pro" : "free",
-      stripe_customer_id: customerId,
-      stripe_subscription_id: isActive ? subscription.id : null,
-      stripe_price_id: isActive ? priceId : null,
-    })
-    .eq("id", profile.id);
+  await applyStripeEntitlement(admin, profile as ProfileBillingRow, {
+    stripeActive: isActive,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: subscription.id,
+    stripePriceId: priceId,
+  });
 }
 
 async function clearSubscription(customerId: string, subscriptionId: string) {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("profiles")
-    .select("id, tier")
+    .select(PROFILE_BILLING_SELECT)
     .eq("stripe_customer_id", customerId)
     .maybeSingle();
 
   if (!profile) return;
-  if (profile.tier === "partner") {
-    await admin
-      .from("profiles")
-      .update({
-        stripe_subscription_id: null,
-        stripe_price_id: null,
-      })
-      .eq("id", profile.id);
+  if (profile.stripe_subscription_id && profile.stripe_subscription_id !== subscriptionId) {
     return;
   }
 
-  await admin
-    .from("profiles")
-    .update({
-      tier: "free",
-      stripe_subscription_id: null,
-      stripe_price_id: null,
-    })
-    .eq("id", profile.id)
-    .eq("stripe_subscription_id", subscriptionId);
+  await applyStripeEntitlement(admin, profile as ProfileBillingRow, {
+    stripeActive: false,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: null,
+    stripePriceId: null,
+  });
 }
 
 export async function POST(request: Request) {

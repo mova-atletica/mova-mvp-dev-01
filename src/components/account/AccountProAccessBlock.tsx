@@ -18,7 +18,12 @@ export default function AccountProAccessBlock() {
   const { tier, profile, openProPaywall, openBillingPortal, authError } = useAccount();
   const t = useTranslations();
   const isPro = hasProAccess(tier);
-  const canManageBilling = Boolean(profile?.stripeCustomerId);
+  const billingSource = profile?.billingSource ?? null;
+  const isAppleBilled = billingSource === "apple" || billingSource === "both";
+  const canManageStripe =
+    billingSource === "stripe" ||
+    billingSource === "both" ||
+    (!billingSource && Boolean(profile?.stripeCustomerId));
   const [portalLoading, setPortalLoading] = useState(false);
 
   const handleManage = async () => {
@@ -45,7 +50,13 @@ export default function AccountProAccessBlock() {
         {isPro ? (
           <>
             <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-              {canManageBilling ? t("account.proActiveHint") : t("account.proGrandfatherHint")}
+              {billingSource === "apple"
+                ? t("account.proAppleHint")
+                : billingSource === "both"
+                  ? t("account.proBothHint")
+                  : canManageStripe
+                    ? t("account.proActiveHint")
+                    : t("account.proGrandfatherHint")}
             </p>
             <ul className="mt-3 space-y-2">
               {PRO_FEATURES.map((key) => (
@@ -83,17 +94,26 @@ export default function AccountProAccessBlock() {
           >
             {t("account.upgradePro")}
           </button>
-        ) : canManageBilling ? (
-          <button
-            type="button"
-            onClick={handleManage}
-            disabled={portalLoading}
-            style={borderAllTheme}
-            className="w-full rounded-lg px-4 py-2.5 text-sm text-[color:var(--foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_6%,transparent)] disabled:opacity-60"
-          >
-            {portalLoading ? t("account.openingPortal") : t("account.manageSubscription")}
-          </button>
-        ) : null}
+        ) : (
+          <div className="space-y-2">
+            {canManageStripe ? (
+              <button
+                type="button"
+                onClick={handleManage}
+                disabled={portalLoading}
+                style={borderAllTheme}
+                className="w-full rounded-lg px-4 py-2.5 text-sm text-[color:var(--foreground)] hover:bg-[color:color-mix(in_srgb,var(--foreground)_6%,transparent)] disabled:opacity-60"
+              >
+                {portalLoading ? t("account.openingPortal") : t("account.manageSubscription")}
+              </button>
+            ) : null}
+            {isAppleBilled ? (
+              <p className="text-xs leading-relaxed text-[color:var(--muted-foreground)]">
+                {t("account.manageOnIphoneHint")}
+              </p>
+            ) : null}
+          </div>
+        )}
         {authError ? (
           <p className="mt-2 text-xs leading-relaxed text-red-500">{authError}</p>
         ) : null}

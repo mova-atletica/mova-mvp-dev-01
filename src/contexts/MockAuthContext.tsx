@@ -15,7 +15,7 @@ import { MOCK_LEADERBOARD_ENTRIES } from "../data/mockLeaderboards";
 import { QUICK_ANALYSIS_MOVEMENTS } from "../data/quickAnalysisMovements";
 import { createClient } from "../lib/supabase/client";
 import { insertLeaderboardEntry, listLeaderboardEntries } from "../lib/leaderboards";
-import { mapProfileRow, type ProfileRow } from "../lib/supabase/profile";
+import { mapProfileRow, PROFILE_ACCOUNT_SELECT, type ProfileRow } from "../lib/supabase/profile";
 import { hasCoachAccess, hasProAccess } from "../lib/proAccess";
 import {
   clearPendingStudioAccess,
@@ -153,9 +153,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select(
-          "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
-        )
+        .select(PROFILE_ACCOUNT_SELECT)
         .eq("id", nextUser.id)
         .maybeSingle();
 
@@ -172,6 +170,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           onboardingComplete: false,
           tier: "free",
           stripeCustomerId: null,
+          billingSource: null,
         });
         return;
       }
@@ -180,9 +179,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         const { data: inserted, error: insertError } = await supabase
           .from("profiles")
           .upsert({ id: nextUser.id }, { onConflict: "id" })
-          .select(
-            "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
-          )
+          .select(PROFILE_ACCOUNT_SELECT)
           .single();
 
         if (insertError || !inserted) {
@@ -196,6 +193,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             onboardingComplete: false,
             tier: "free",
             stripeCustomerId: null,
+            billingSource: null,
           });
           return;
         }
@@ -408,9 +406,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         .from("profiles")
         .update(patch)
         .eq("id", user.id)
-        .select(
-          "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
-        )
+        .select(PROFILE_ACCOUNT_SELECT)
         .single();
 
       if (error || !data) {
@@ -666,9 +662,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         .from("profiles")
         .update({ locale })
         .eq("id", user.id)
-        .select(
-          "id, display_name, country_code, locale, onboarding_complete, tier, stripe_customer_id"
-        )
+        .select(PROFILE_ACCOUNT_SELECT)
         .single();
 
       if (error || !data) {

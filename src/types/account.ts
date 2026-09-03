@@ -1,5 +1,7 @@
 export type AccountTier = "guest" | "free" | "pro" | "partner";
 
+export type BillingSource = "stripe" | "apple" | "both";
+
 export type AppLocale = "en" | "es" | "pt-BR";
 
 export interface AccountProfile {
@@ -12,6 +14,8 @@ export interface AccountProfile {
   tier: Exclude<AccountTier, "guest">;
   /** Present when the user has been through Stripe Checkout (or customer created). */
   stripeCustomerId: string | null;
+  /** Which store currently entitles Pro. Null for free / grandfathered. */
+  billingSource: BillingSource | null;
 }
 
 export interface LeaderboardScorePayload {

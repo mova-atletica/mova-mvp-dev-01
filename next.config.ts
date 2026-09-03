@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["@apple/app-store-server-library"],
   async redirects() {
     return [
       {

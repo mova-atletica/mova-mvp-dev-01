@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Service-role Supabase client for server-only entitlement writes (Stripe webhooks).
+ * Service-role Supabase client for server-only entitlement writes (Stripe / Apple).
  * Never import this into client components.
  */
 export function createAdminClient() {
