@@ -45,7 +45,15 @@ export interface MovementSummaryStats {
   sessionsWithMetrics: number;
 }
 
-const GENERIC_TAGS = new Set(["studio", "program", "export-ready", "coach-studio"]);
+const GENERIC_TAGS = new Set([
+  "studio",
+  "program",
+  "export-ready",
+  "coach-studio",
+  "ios_3d_live_arkit",
+  "ios_vision_live",
+  "ios_3d_vision",
+]);
 
 const JOINT_LABELS: Record<MovementJoint, string> = {
   knee: "Knee",
@@ -54,6 +62,14 @@ const JOINT_LABELS: Record<MovementJoint, string> = {
   spine: "Spine",
   elbow: "Elbow",
 };
+
+const JOINT_ROM_TREND_ORDER: MovementJoint[] = [
+  "knee",
+  "hip",
+  "elbow",
+  "shoulder",
+  "spine",
+];
 
 function itemsWithMetrics(items: AccountActivityItem[]): AccountActivityItem[] {
   return items.filter((item) => item.metrics);
@@ -245,9 +261,11 @@ export function aggregateActivityMix(items: AccountActivityItem[]): ActivityMixS
   for (const item of items) {
     counts[chartKind(item.kind)] += 1;
   }
-  return (Object.entries(counts) as [AccountActivityKind, number][])
-    .filter(([, count]) => count > 0)
-    .map(([kind, count]) => ({ kind, count }));
+  // Match session-volume chart / legend order: Exercises → Studio → Programs
+  const order: Array<"mini-app" | "studio" | "program"> = ["mini-app", "studio", "program"];
+  return order
+    .filter((kind) => counts[kind] > 0)
+    .map((kind) => ({ kind, count: counts[kind] }));
 }
 
 export function aggregateMovementTags(items: AccountActivityItem[]): MovementTagCount[] {
@@ -258,9 +276,6 @@ export function aggregateMovementTags(items: AccountActivityItem[]): MovementTag
     for (const tag of tags) {
       if (GENERIC_TAGS.has(tag)) continue;
       counts.set(tag, (counts.get(tag) ?? 0) + 1);
-    }
-    if (item.kind === "program" && !item.tags?.includes("program")) {
-      counts.set("program", (counts.get("program") ?? 0) + 1);
     }
   }
 
@@ -398,6 +413,22 @@ export const SPORT_TREND_ORDER: AccountSportTrendKey[] = [
   "plank",
 ];
 
+const RELEVANT_ROM_JOINTS: Record<AccountSportTrendKey, MovementJoint[]> = {
+  pullups: ["elbow", "shoulder"],
+  pushups: ["elbow", "shoulder"],
+  squat: ["knee", "hip"],
+  plank: ["hip", "spine"],
+  studio: ["knee", "hip", "elbow", "shoulder", "spine"],
+};
+
+export function relevantRomJointsForSport(key: AccountSportTrendKey): MovementJoint[] {
+  return RELEVANT_ROM_JOINTS[key];
+}
+
+export function jointRomLabel(joint: MovementJoint): string {
+  return JOINT_LABELS[joint];
+}
+
 export type SportPrimaryMetricKind = "reps" | "hold" | "duration";
 
 export interface SportTrendPoint {
@@ -408,6 +439,14 @@ export interface SportTrendPoint {
   romDegrees: number | null;
   symmetryScore: number | null;
   sessions: number;
+}
+
+export interface SportJointRomTrendPoint {
+  periodKey: string;
+  periodLabel: string;
+  detailPeriodLabel: string;
+  sessions: number;
+  joints: Partial<Record<MovementJoint, number>>;
 }
 
 function parseMetricValueText(text: string | undefined): number | null {
@@ -658,6 +697,10 @@ function averageDefined(values: number[]): number | null {
   return meanOrZero(values);
 }
 
+function sumDefined(values: number[]): number {
+  return values.reduce((sum, value) => sum + value, 0);
+}
+
 export function aggregateSportTrends(
   items: AccountActivityItem[],
   sportKey: AccountSportTrendKey,
@@ -691,7 +734,7 @@ export function aggregateSportTrends(
       periodKey: bucket.periodKey,
       periodLabel: bucket.axisLabel,
       detailPeriodLabel: bucket.detailLabel,
-      primaryValue: meanOrZero(primaryValues),
+      primaryValue: sumDefined(primaryValues),
       romDegrees: averageDefined(romValues),
       symmetryScore: averageDefined(symmetryValues),
       sessions: bucketItems.length,
@@ -699,4 +742,60 @@ export function aggregateSportTrends(
   }
 
   return points;
+}
+
+export function aggregateSportJointRomTrends(
+  items: AccountActivityItem[],
+  sportKey: AccountSportTrendKey,
+  range: ChartTimeRange
+): SportJointRomTrendPoint[] {
+  const relevantJoints = RELEVANT_ROM_JOINTS[sportKey];
+  const sportItems = items.filter((item) => sportTrendKeyForItem(item) === sportKey);
+  const rangedItems = sportItemsForRange(sportItems, range);
+  const buckets = buildSportTrendBuckets(rangedItems.length > 0 ? rangedItems : sportItems, range);
+  const points: SportJointRomTrendPoint[] = [];
+
+  for (const bucket of buckets) {
+    const bucketItems = rangedItems.filter((item) => {
+      const t = new Date(item.occurredAt).getTime();
+      return t >= bucket.start.getTime() && t < bucket.end.getTime();
+    });
+    if (bucketItems.length === 0) continue;
+
+    const joints: Partial<Record<MovementJoint, number>> = {};
+    let hasAnyJoint = false;
+    for (const joint of relevantJoints) {
+      const values = bucketItems
+        .map((item) => item.metrics?.jointRom?.[joint])
+        .filter((value): value is number => typeof value === "number");
+      const avg = averageDefined(values);
+      if (avg != null) {
+        joints[joint] = avg;
+        hasAnyJoint = true;
+      }
+    }
+    if (!hasAnyJoint) continue;
+
+    points.push({
+      periodKey: bucket.periodKey,
+      periodLabel: bucket.axisLabel,
+      detailPeriodLabel: bucket.detailLabel,
+      sessions: bucketItems.length,
+      joints,
+    });
+  }
+
+  return points;
+}
+
+export function activeJointsInRomTrends(
+  points: SportJointRomTrendPoint[]
+): MovementJoint[] {
+  const found = new Set<MovementJoint>();
+  for (const point of points) {
+    for (const joint of Object.keys(point.joints) as MovementJoint[]) {
+      if (typeof point.joints[joint] === "number") found.add(joint);
+    }
+  }
+  return JOINT_ROM_TREND_ORDER.filter((joint) => found.has(joint));
 }

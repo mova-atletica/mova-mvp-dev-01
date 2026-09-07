@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  aggregateJointRom,
+  activeJointsInRomTrends,
   aggregateMovementTags,
+  aggregateSportJointRomTrends,
   aggregateSportTrends,
   availableSportTrendKeys,
   formatSportPrimaryMetric,
+  jointRomLabel,
   preferredSportTrendKey,
   sportPrimaryMetricKind,
   sportTrendGranularity,
@@ -14,11 +16,16 @@ import {
   type AccountSportTrendKey,
   type ChartTimeRange,
 } from "../../lib/accountActivityInsights";
+import type { MovementJoint } from "../../types/accountActivity";
 import { useAccountActivityFeed } from "../../lib/useAccountActivityFeed";
 import { useTranslations } from "../../i18n/LocaleProvider";
 import type { MessageKey } from "../../i18n";
 import ChartTimeRangeToggle from "./ChartTimeRangeToggle";
-import { JointRomChart, MovementFocusChart, SportTrendChart } from "./AccountMovementCharts";
+import {
+  MovementFocusChart,
+  SportJointRomTrendChart,
+  SportTrendChart,
+} from "./AccountMovementCharts";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
@@ -40,30 +47,16 @@ export default function AccountInsightsTab() {
   const t = useTranslations();
   const { items: activity } = useAccountActivityFeed();
 
-  const jointRomData = useMemo(() => aggregateJointRom(activity), [activity]);
   const movementData = useMemo(() => aggregateMovementTags(activity), [activity]);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
-        <InsightsSection title={t("account.insightsJointRom")}>
-          <p className="mb-3 text-xs text-[color:var(--muted-foreground)]">
-            {t("account.insightsSummaryScope")}
-          </p>
-          <JointRomChart
-            data={jointRomData}
-            xAxisLabel={t("account.chartAxisJoint")}
-            yAxisLabel={t("account.chartAxisRom")}
-          />
-        </InsightsSection>
-
-        <InsightsSection title={t("account.insightsMovementFocus")}>
-          <p className="mb-2 text-xs text-[color:var(--muted-foreground)]">
-            {t("account.insightsSummaryScope")}
-          </p>
-          <MovementFocusChart data={movementData} xAxisLabel={t("account.chartAxisSessions")} />
-        </InsightsSection>
-      </div>
+      <InsightsSection title={t("account.insightsMovementFocus")}>
+        <p className="mb-2 text-xs text-[color:var(--muted-foreground)]">
+          {t("account.insightsSummaryScope")}
+        </p>
+        <MovementFocusChart data={movementData} xAxisLabel={t("account.chartAxisSessions")} />
+      </InsightsSection>
 
       <AccountSportAnalysisSection items={activity} />
     </div>
@@ -101,10 +94,34 @@ function AccountSportAnalysisSection({
     () => (sportKey ? aggregateSportTrends(items, sportKey, range) : []),
     [items, range, sportKey]
   );
+  const romTrendData = useMemo(
+    () => (sportKey ? aggregateSportJointRomTrends(items, sportKey, range) : []),
+    [items, range, sportKey]
+  );
+  const romJoints = useMemo(() => activeJointsInRomTrends(romTrendData), [romTrendData]);
+  const jointLabels = useMemo(() => {
+    const labels: Partial<Record<MovementJoint, string>> = {};
+    for (const joint of romJoints) {
+      labels[joint] = jointRomLabel(joint);
+    }
+    return labels;
+  }, [romJoints]);
 
-  const activePoint = scrubIndex != null ? trendData[scrubIndex] : null;
+  const activePrimary = scrubIndex != null ? trendData[scrubIndex] : null;
+  const romActiveIndex = useMemo(() => {
+    if (scrubIndex == null || !activePrimary) return null;
+    const idx = romTrendData.findIndex((point) => point.periodKey === activePrimary.periodKey);
+    return idx >= 0 ? idx : null;
+  }, [activePrimary, romTrendData, scrubIndex]);
+  const activeRom = romActiveIndex != null ? romTrendData[romActiveIndex] : null;
   const metricKind = sportKey ? sportPrimaryMetricKind(sportKey) : "reps";
   const granularity = sportTrendGranularity(range);
+  const xAxisLabel =
+    granularity === "day"
+      ? t("account.chartAxisDay")
+      : granularity === "week"
+        ? t("account.chartAxisWeek")
+        : t("account.chartAxisMonth");
 
   if (availableSports.length === 0) {
     return null;
@@ -150,54 +167,90 @@ function AccountSportAnalysisSection({
       </div>
 
       {sportKey ? (
-        <SportTrendChart
-          data={trendData}
-          xAxisLabel={
-            granularity === "day"
-              ? t("account.chartAxisDay")
-              : granularity === "week"
-                ? t("account.chartAxisWeek")
-                : t("account.chartAxisMonth")
-          }
-          yAxisLabel={t(PRIMARY_METRIC_LABEL_KEYS[metricKind])}
-          activeIndex={scrubIndex}
-          onActiveIndexChange={setScrubIndex}
-        />
-      ) : null}
+        <>
+          <SportTrendChart
+            data={trendData}
+            xAxisLabel={xAxisLabel}
+            yAxisLabel={t(PRIMARY_METRIC_LABEL_KEYS[metricKind])}
+            activeIndex={scrubIndex}
+            onActiveIndexChange={setScrubIndex}
+          />
 
-      <div
-        className="mt-3 rounded-lg px-3 py-2 text-xs"
-        style={{ ...borderAllTheme, backgroundColor: "var(--background)" }}
-      >
-        {activePoint ? (
-          <div className="space-y-1 text-[color:var(--foreground)]">
-            <p className="font-medium">{activePoint.detailPeriodLabel}</p>
-            <p>
-              {t(PRIMARY_METRIC_LABEL_KEYS[metricKind])}:{" "}
-              <span className="font-medium">
-                {formatSportPrimaryMetric(activePoint.primaryValue, metricKind)}
-              </span>
-            </p>
-            {activePoint.romDegrees != null ? (
-              <p>
-                {t("account.sportTrendRom")}:{" "}
-                <span className="font-medium">{activePoint.romDegrees}°</span>
-              </p>
-            ) : null}
-            {activePoint.symmetryScore != null ? (
-              <p>
-                {t("account.sportTrendSymmetry")}:{" "}
-                <span className="font-medium">{activePoint.symmetryScore}/100</span>
-              </p>
-            ) : null}
-            <p className="text-[color:var(--muted-foreground)]">
-              {t("account.sportTrendSessions")}: {activePoint.sessions}
-            </p>
+          <div
+            className="mt-3 rounded-lg px-3 py-2 text-xs"
+            style={{ ...borderAllTheme, backgroundColor: "var(--background)" }}
+          >
+            {activePrimary ? (
+              <div className="space-y-1 text-[#22c55e]">
+                <p className="font-medium">{activePrimary.detailPeriodLabel}</p>
+                <p>
+                  {t(PRIMARY_METRIC_LABEL_KEYS[metricKind])}:{" "}
+                  <span className="font-medium">
+                    {formatSportPrimaryMetric(activePrimary.primaryValue, metricKind)}
+                  </span>
+                </p>
+                {activePrimary.symmetryScore != null ? (
+                  <p>
+                    {t("account.sportTrendSymmetry")}:{" "}
+                    <span className="font-medium">{activePrimary.symmetryScore}/100</span>
+                  </p>
+                ) : null}
+                <p>
+                  {t("account.sportTrendSessions")}: {activePrimary.sessions}
+                </p>
+              </div>
+            ) : (
+              <p className="text-[color:var(--muted-foreground)]">{t("account.chartScrubHint")}</p>
+            )}
           </div>
-        ) : (
-          <p className="text-[color:var(--muted-foreground)]">{t("account.chartScrubHint")}</p>
-        )}
-      </div>
+
+          <div className="mt-6">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
+              {t("account.sportTrendRomOverTime")}
+            </h3>
+            <SportJointRomTrendChart
+              data={romTrendData}
+              joints={romJoints}
+              jointLabels={jointLabels}
+              xAxisLabel={xAxisLabel}
+              yAxisLabel={t("account.chartAxisRom")}
+              emptyLabel={t("account.sportTrendRomEmpty")}
+              activeIndex={romActiveIndex}
+              onActiveIndexChange={(index) => {
+                if (index == null) {
+                  setScrubIndex(null);
+                  return;
+                }
+                const romPoint = romTrendData[index];
+                if (!romPoint) {
+                  setScrubIndex(null);
+                  return;
+                }
+                const primaryIndex = trendData.findIndex(
+                  (point) => point.periodKey === romPoint.periodKey
+                );
+                setScrubIndex(primaryIndex >= 0 ? primaryIndex : null);
+              }}
+            />
+
+            <div
+              className="mt-3 rounded-lg px-3 py-2 text-xs"
+              style={{ ...borderAllTheme, backgroundColor: "var(--background)" }}
+            >
+              {activeRom && romJoints.some((joint) => activeRom.joints[joint] != null) ? (
+                <p className="text-[#22c55e]">
+                  {romJoints
+                    .filter((joint) => activeRom.joints[joint] != null)
+                    .map((joint) => `${jointRomLabel(joint)} ${activeRom.joints[joint]}°`)
+                    .join(" · ")}
+                </p>
+              ) : (
+                <p className="text-[color:var(--muted-foreground)]">{t("account.chartScrubHint")}</p>
+              )}
+            </div>
+          </div>
+        </>
+      ) : null}
     </InsightsSection>
   );
 }

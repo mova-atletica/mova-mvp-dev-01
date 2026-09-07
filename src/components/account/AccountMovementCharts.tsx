@@ -16,12 +16,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { AccountActivityKind } from "../../types/accountActivity";
+import type { AccountActivityKind, MovementJoint } from "../../types/accountActivity";
 import type {
   ActivityMixSlice,
   JointRomAverage,
   MovementTagCount,
   MovementTrendPoint,
+  SportJointRomTrendPoint,
   SportTrendPoint,
   WeeklyActivityBucket,
 } from "../../lib/accountActivityInsights";
@@ -80,6 +81,7 @@ interface WeeklyVolumeChartProps {
   data: WeeklyActivityBucket[];
   labels: Record<AccountActivityKind, string>;
   includeProgram?: boolean;
+  includeStudio?: boolean;
   xAxisLabel?: string;
   yAxisLabel?: string;
 }
@@ -88,19 +90,20 @@ export function WeeklyVolumeChart({
   data,
   labels,
   includeProgram = true,
+  includeStudio = true,
   xAxisLabel = "Week",
   yAxisLabel = "Sessions",
 }: WeeklyVolumeChartProps) {
   const chartData = data.map((bucket) => ({
     week: bucket.weekLabel,
     [labels["mini-app"]]: bucket["mini-app"],
-    [labels.studio]: bucket.studio,
+    ...(includeStudio ? { [labels.studio]: bucket.studio } : {}),
     ...(includeProgram ? { [labels.program]: bucket.program } : {}),
   }));
 
   const series = [
     { key: labels["mini-app"], color: KIND_COLORS["mini-app"] },
-    { key: labels.studio, color: KIND_COLORS.studio },
+    ...(includeStudio ? [{ key: labels.studio, color: KIND_COLORS.studio }] : []),
     ...(includeProgram
       ? [{ key: labels.program, color: KIND_COLORS.program }]
       : []),
@@ -360,6 +363,37 @@ interface SportTrendChartProps {
   onActiveIndexChange: (index: number | null) => void;
 }
 
+const JOINT_ROM_COLORS: Record<string, string> = {
+  knee: "#22c55e",
+  hip: "#3b82f6",
+  elbow: "#a855f7",
+  shoulder: "#f59e0b",
+  spine: "#ec4899",
+};
+
+function useScrubIndexFromClientX(
+  dataLength: number,
+  onActiveIndexChange: (index: number | null) => void
+) {
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  const updateIndexFromClientX = useCallback(
+    (clientX: number) => {
+      const rect = chartRef.current?.getBoundingClientRect();
+      if (!rect || dataLength === 0) return;
+      const plotLeft = rect.left + 40;
+      const plotWidth = rect.width - 52;
+      if (plotWidth <= 0) return;
+      const ratio = Math.max(0, Math.min(1, (clientX - plotLeft) / plotWidth));
+      const index = Math.round(ratio * (dataLength - 1));
+      onActiveIndexChange(index);
+    },
+    [dataLength, onActiveIndexChange]
+  );
+
+  return { chartRef, updateIndexFromClientX };
+}
+
 export function SportTrendChart({
   data,
   xAxisLabel,
@@ -367,20 +401,9 @@ export function SportTrendChart({
   activeIndex,
   onActiveIndexChange,
 }: SportTrendChartProps) {
-  const chartRef = useRef<HTMLDivElement>(null);
-
-  const updateIndexFromClientX = useCallback(
-    (clientX: number) => {
-      const rect = chartRef.current?.getBoundingClientRect();
-      if (!rect || data.length === 0) return;
-      const plotLeft = rect.left + 40;
-      const plotWidth = rect.width - 52;
-      if (plotWidth <= 0) return;
-      const ratio = Math.max(0, Math.min(1, (clientX - plotLeft) / plotWidth));
-      const index = Math.round(ratio * (data.length - 1));
-      onActiveIndexChange(index);
-    },
-    [data.length, onActiveIndexChange]
+  const { chartRef, updateIndexFromClientX } = useScrubIndexFromClientX(
+    data.length,
+    onActiveIndexChange
   );
 
   if (data.length === 0) {
@@ -477,6 +500,160 @@ export function SportTrendChart({
       <p className="mt-1 text-center text-[10px] text-[color:var(--muted-foreground)]">
         {xAxisLabel}
       </p>
+    </div>
+  );
+}
+
+interface SportJointRomTrendChartProps {
+  data: SportJointRomTrendPoint[];
+  joints: MovementJoint[];
+  jointLabels: Partial<Record<MovementJoint, string>>;
+  xAxisLabel: string;
+  yAxisLabel: string;
+  emptyLabel: string;
+  activeIndex: number | null;
+  onActiveIndexChange: (index: number | null) => void;
+}
+
+export function SportJointRomTrendChart({
+  data,
+  joints,
+  jointLabels,
+  xAxisLabel,
+  yAxisLabel,
+  emptyLabel,
+  activeIndex,
+  onActiveIndexChange,
+}: SportJointRomTrendChartProps) {
+  const { chartRef, updateIndexFromClientX } = useScrubIndexFromClientX(
+    data.length,
+    onActiveIndexChange
+  );
+
+  if (data.length === 0 || joints.length === 0) {
+    return (
+      <p className="py-6 text-center text-xs text-[color:var(--muted-foreground)]">{emptyLabel}</p>
+    );
+  }
+
+  const chartData = data.map((point) => {
+    const row: Record<string, string | number | null> = {
+      periodLabel: point.periodLabel,
+    };
+    for (const joint of joints) {
+      row[joint] = point.joints[joint] ?? null;
+    }
+    return row;
+  });
+
+  const maxValue = Math.max(
+    1,
+    ...data.flatMap((point) =>
+      joints
+        .map((joint) => point.joints[joint])
+        .filter((value): value is number => typeof value === "number")
+    )
+  );
+  const activeLabel =
+    activeIndex != null && data[activeIndex] ? data[activeIndex].periodLabel : null;
+
+  return (
+    <div className="w-full min-w-0">
+      <div
+        ref={chartRef}
+        className="touch-none select-none"
+        onMouseMove={(event) => updateIndexFromClientX(event.clientX)}
+        onMouseLeave={() => onActiveIndexChange(null)}
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          if (touch) updateIndexFromClientX(touch.clientX);
+        }}
+        onTouchMove={(event) => {
+          const touch = event.touches[0];
+          if (touch) updateIndexFromClientX(touch.clientX);
+        }}
+        onTouchEnd={() => onActiveIndexChange(null)}
+      >
+        <div className="flex">
+          <span
+            className="flex w-4 shrink-0 items-center justify-center text-[10px] text-[color:var(--muted-foreground)]"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          >
+            {yAxisLabel}
+          </span>
+          <div className="min-w-0 flex-1" style={{ height: 200 }}>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}>
+                <XAxis
+                  dataKey="periodLabel"
+                  tick={{ fill: "#94a3b8", fontSize: 10 }}
+                  axisLine={{ stroke: "#64748b55" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={[0, Math.ceil(maxValue * 1.1)]}
+                  allowDecimals={false}
+                  tick={{ fill: "#94a3b8", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={36}
+                />
+                {activeLabel ? (
+                  <ReferenceLine x={activeLabel} stroke="#94a3b8" strokeDasharray="4 4" />
+                ) : null}
+                {joints.map((joint) => {
+                  const color = JOINT_ROM_COLORS[joint] ?? "#22c55e";
+                  return (
+                    <Line
+                      key={joint}
+                      type="linear"
+                      dataKey={joint}
+                      name={jointLabels[joint] ?? joint}
+                      stroke={color}
+                      strokeWidth={2}
+                      connectNulls={false}
+                      dot={(props) => {
+                        const { cx, cy, index, value } = props as {
+                          cx?: number;
+                          cy?: number;
+                          index?: number;
+                          value?: number | null;
+                        };
+                        if (cx == null || cy == null || index == null || value == null) {
+                          return <g />;
+                        }
+                        const isActive = activeIndex === index;
+                        return (
+                          <circle
+                            key={`${joint}-${index}`}
+                            cx={cx}
+                            cy={cy}
+                            r={isActive ? 4.5 : 3}
+                            fill={color}
+                            stroke={isActive ? "var(--foreground)" : "none"}
+                            strokeWidth={isActive ? 1.5 : 0}
+                          />
+                        );
+                      }}
+                      activeDot={false}
+                      isAnimationActive={false}
+                    />
+                  );
+                })}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+      <p className="mt-1 text-center text-[10px] text-[color:var(--muted-foreground)]">
+        {xAxisLabel}
+      </p>
+      <ChartLegend
+        items={joints.map((joint) => ({
+          color: JOINT_ROM_COLORS[joint] ?? "#22c55e",
+          label: jointLabels[joint] ?? joint,
+        }))}
+      />
     </div>
   );
 }

@@ -976,10 +976,14 @@ export function renderJointAngles(
     const backgroundHeight = fontSize + padding * 2; // Full padding top and bottom
     const borderRadius = Math.round(fontSize * 0.2);
     
-    // Center the background properly - ensure text fits within container
+    // Offset left/right joints away from the body so chips don't cover the skeleton.
     const bgWidth = textWidth + padding * 2;
-    const bgX = x - bgWidth/2; // Center the entire container
-    const bgY = y - backgroundHeight/2; // Center vertically around the text baseline
+    const sideOffset = Math.max(bgWidth * 0.75, fontSize * 1.85);
+    const isLeft = joint.jointName.startsWith("left_");
+    const isRight = joint.jointName.startsWith("right_");
+    const chipCenterX = isLeft ? x + sideOffset : isRight ? x - sideOffset : x;
+    const bgX = chipCenterX - bgWidth / 2;
+    const bgY = y - backgroundHeight / 2;
     
     drawLabelChipBackground(ctx, bgX, bgY, bgWidth, backgroundHeight, borderRadius, {
       bg: config.labelBg,
@@ -992,7 +996,7 @@ export function renderJointAngles(
     
     // Draw angle text - center within the background container
     ctx.fillStyle = config.angleColor || '#00ff00';
-    ctx.fillText(text, x, bgY + backgroundHeight/2 + fontSize/3); // Center text within background container
+    ctx.fillText(text, chipCenterX, bgY + backgroundHeight / 2 + fontSize / 3);
   }
   
   ctx.restore();

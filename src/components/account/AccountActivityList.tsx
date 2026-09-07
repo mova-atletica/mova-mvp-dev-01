@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clapperboard, LayoutDashboard, Loader2, Pencil, Smartphone, Trophy } from "lucide-react";
 import type { AccountActivityKind, AccountActivityItem } from "../../types/accountActivity";
 import {
   aggregateActivityByTimeRange,
-  aggregateActivityMix,
   type ChartTimeRange,
   xAxisLabelForRange,
 } from "../../lib/accountActivityInsights";
@@ -21,13 +20,13 @@ import AccountEngagementStats from "./AccountEngagementStats";
 import AccountLeaderboardStatus from "./AccountLeaderboardStatus";
 import ChartTimeRangeToggle from "./ChartTimeRangeToggle";
 import {
-  ActivityMixDonut,
   ChartLegend,
   KIND_COLORS,
   WeeklyVolumeChart,
 } from "./AccountMovementCharts";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
+const PAGE_SIZE = 10;
 
 type ActivityFilter = "all" | AccountActivityKind;
 
@@ -40,7 +39,7 @@ const KIND_ICONS: Record<AccountActivityKind, typeof LayoutDashboard> = {
 
 const KIND_LABELS: Record<AccountActivityKind, string> = {
   studio: "Studio",
-  "mini-app": "Mini app",
+  "mini-app": "Exercise",
   program: "Program",
   coach: "Coach",
 };
@@ -64,17 +63,27 @@ function canRenameActivity(item: AccountActivityItem): boolean {
   return item.kind === "studio" || item.kind === "mini-app";
 }
 
+function hasStudioOrCoachActivity(items: AccountActivityItem[]): boolean {
+  return items.some((item) => item.kind === "studio" || item.kind === "coach");
+}
+
 export default function AccountActivityList() {
   const t = useTranslations();
   const router = useRouter();
   const { items: sourceActivity, loading: activityLoading, refresh } = useAccountActivityFeed();
   const [filter, setFilter] = useState<ActivityFilter>("all");
+  const [page, setPage] = useState(0);
   const [volumeRange, setVolumeRange] = useState<ChartTimeRange>("month");
   const [studioTarget, setStudioTarget] = useState<OpenMoveStudioModalTarget | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [renameBusy, setRenameBusy] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
+
+  const showStudio = useMemo(
+    () => hasStudioOrCoachActivity(sourceActivity),
+    [sourceActivity]
+  );
 
   const items = useMemo(() => {
     if (filter === "all") return sourceActivity;
@@ -83,6 +92,29 @@ export default function AccountActivityList() {
     }
     return sourceActivity.filter((item) => item.kind === filter);
   }, [filter, sourceActivity]);
+
+  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pagedItems = useMemo(() => {
+    const start = safePage * PAGE_SIZE;
+    return items.slice(start, start + PAGE_SIZE);
+  }, [items, safePage]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [filter]);
+
+  useEffect(() => {
+    if (filter === "studio" && !showStudio) {
+      setFilter("all");
+    }
+  }, [filter, showStudio]);
+
+  useEffect(() => {
+    if (page > pageCount - 1) {
+      setPage(Math.max(0, pageCount - 1));
+    }
+  }, [page, pageCount]);
 
   const kindLabels = useMemo(
     (): Record<AccountActivityKind, string> => ({
@@ -98,7 +130,6 @@ export default function AccountActivityList() {
     () => aggregateActivityByTimeRange(sourceActivity, volumeRange),
     [volumeRange, sourceActivity]
   );
-  const mixData = useMemo(() => aggregateActivityMix(sourceActivity), [sourceActivity]);
   const volumeXLabel =
     xAxisLabelForRange(volumeRange) === "Day"
       ? t("account.chartAxisDay")
@@ -106,7 +137,7 @@ export default function AccountActivityList() {
 
   const filters: { id: ActivityFilter; label: string }[] = [
     { id: "all", label: t("account.activityFilterAll") },
-    { id: "studio", label: t("account.activityFilterStudio") },
+    ...(showStudio ? [{ id: "studio" as const, label: t("account.activityFilterStudio") }] : []),
     { id: "mini-app", label: t("account.activityFilterMiniApp") },
     ...(PHASE_B_ENABLED
       ? [{ id: "program" as const, label: t("account.activityFilterProgram") }]
@@ -162,26 +193,83 @@ export default function AccountActivityList() {
   return (
     <>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="min-w-0 space-y-4 lg:sticky lg:top-4">
+          <AccountEngagementStats
+            items={sourceActivity}
+            kindLabels={kindLabels}
+            includeStudio={showStudio}
+            includeProgram={PHASE_B_ENABLED}
+          />
+
+          <section
+            className="rounded-xl p-4"
+            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
+          >
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
+                {t("account.insightsWeeklyVolume")}
+              </h2>
+              <ChartTimeRangeToggle value={volumeRange} onChange={setVolumeRange} />
+            </div>
+            <WeeklyVolumeChart
+              data={weeklyData}
+              labels={kindLabels}
+              includeProgram={PHASE_B_ENABLED}
+              includeStudio={showStudio}
+              xAxisLabel={volumeXLabel}
+              yAxisLabel={t("account.chartAxisSessions")}
+            />
+            <ChartLegend
+              items={[
+                { color: KIND_COLORS["mini-app"], label: kindLabels["mini-app"] },
+                ...(showStudio
+                  ? [{ color: KIND_COLORS.studio, label: kindLabels.studio }]
+                  : []),
+                ...(PHASE_B_ENABLED
+                  ? [{ color: KIND_COLORS.program, label: kindLabels.program }]
+                  : []),
+              ]}
+            />
+          </section>
+
+          <section
+            className="rounded-xl p-4"
+            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
+          >
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
+              {t("account.insightsLeaderboards")}
+            </h2>
+            <div className="max-h-72 overflow-y-auto pr-1">
+              <AccountLeaderboardStatus embedded />
+            </div>
+          </section>
+        </div>
+
         <div className="min-w-0 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {filters.map(({ id, label }) => {
-              const active = filter === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setFilter(id)}
-                  className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
-                  style={{
-                    ...borderAllTheme,
-                    backgroundColor: active ? "var(--primary-button-bg)" : "transparent",
-                    color: active ? "var(--primary-button-text)" : "var(--foreground)",
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
+          <div>
+            <h2 className="mb-3 text-xl font-regular tracking-wide text-[color:var(--muted-foreground)]">
+              {t("account.activityAllSessions")}
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {filters.map(({ id, label }) => {
+                const active = filter === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setFilter(id)}
+                    className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                    style={{
+                      ...borderAllTheme,
+                      backgroundColor: active ? "var(--primary-button-bg)" : "transparent",
+                      color: active ? "var(--primary-button-text)" : "var(--foreground)",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {activityLoading ? (
@@ -206,78 +294,56 @@ export default function AccountActivityList() {
               {t("account.activityEmpty")}
             </p>
           ) : (
-            <ul className="space-y-2">
-              {items.map((item) => (
-                <ActivityCard
-                  key={item.id}
-                  item={item}
-                  clickable={isActivityClickable(item)}
-                  canRename={canRenameActivity(item)}
-                  renaming={renamingId === item.id}
-                  renameDraft={renameDraft}
-                  renameBusy={renameBusy}
-                  renameError={renamingId === item.id ? renameError : null}
-                  onActivate={() => onActivityActivate(item)}
-                  onStartRename={() => startRename(item)}
-                  onRenameDraftChange={setRenameDraft}
-                  onCancelRename={cancelRename}
-                  onSaveRename={() => void saveRename()}
-                />
-              ))}
-            </ul>
+            <>
+              <ul className="space-y-2">
+                {pagedItems.map((item) => (
+                  <ActivityCard
+                    key={item.id}
+                    item={item}
+                    clickable={isActivityClickable(item)}
+                    canRename={canRenameActivity(item)}
+                    renaming={renamingId === item.id}
+                    renameDraft={renameDraft}
+                    renameBusy={renameBusy}
+                    renameError={renamingId === item.id ? renameError : null}
+                    onActivate={() => onActivityActivate(item)}
+                    onStartRename={() => startRename(item)}
+                    onRenameDraftChange={setRenameDraft}
+                    onCancelRename={cancelRename}
+                    onSaveRename={() => void saveRename()}
+                  />
+                ))}
+              </ul>
+
+              {pageCount > 1 ? (
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                    disabled={safePage === 0}
+                    style={borderAllTheme}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--foreground)] disabled:opacity-40"
+                  >
+                    {t("account.activityPagePrev")}
+                  </button>
+                  <p className="text-xs tabular-nums text-[color:var(--muted-foreground)]">
+                    {t("account.activityPageStatus")
+                      .replace("{current}", String(safePage + 1))
+                      .replace("{total}", String(pageCount))}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPage((prev) => Math.min(pageCount - 1, prev + 1))}
+                    disabled={safePage >= pageCount - 1}
+                    style={borderAllTheme}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--foreground)] disabled:opacity-40"
+                  >
+                    {t("account.activityPageNext")}
+                  </button>
+                </div>
+              ) : null}
+            </>
           )}
-        </div>
-
-        <div className="min-w-0 space-y-4 lg:sticky lg:top-4">
-          <AccountEngagementStats items={sourceActivity} />
-
-          <section
-            className="rounded-xl p-4"
-            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
-          >
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
-                {t("account.insightsWeeklyVolume")}
-              </h2>
-              <ChartTimeRangeToggle value={volumeRange} onChange={setVolumeRange} />
-            </div>
-            <WeeklyVolumeChart
-              data={weeklyData}
-              labels={kindLabels}
-              includeProgram={PHASE_B_ENABLED}
-              xAxisLabel={volumeXLabel}
-              yAxisLabel={t("account.chartAxisSessions")}
-            />
-            <ChartLegend
-              items={[
-                { color: KIND_COLORS["mini-app"], label: kindLabels["mini-app"] },
-                { color: KIND_COLORS.studio, label: kindLabels.studio },
-                ...(PHASE_B_ENABLED
-                  ? [{ color: KIND_COLORS.program, label: kindLabels.program }]
-                  : []),
-              ]}
-            />
-          </section>
-
-          <section
-            className="rounded-xl p-4"
-            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
-          >
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              {t("account.insightsActivityMix")}
-            </h2>
-            <ActivityMixDonut data={mixData} labels={kindLabels} />
-          </section>
-
-          <section
-            className="rounded-xl p-4"
-            style={{ ...borderAllTheme, backgroundColor: "var(--card-bg)" }}
-          >
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              {t("account.insightsLeaderboards")}
-            </h2>
-            <AccountLeaderboardStatus embedded />
-          </section>
         </div>
       </div>
 
@@ -442,7 +508,6 @@ function ActivityCardBody({ item }: { item: AccountActivityItem }) {
           {KIND_LABELS[item.kind]}
         </span>
       </div>
-      <p className="mt-0.5 text-xs text-[color:var(--muted-foreground)]">{item.subtitle}</p>
       <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[color:var(--muted-foreground)]">
         <span>{formatDate(item.occurredAt)}</span>
         {item.metricLabel && item.metricValue ? (
