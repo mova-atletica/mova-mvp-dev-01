@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as Popover from "@radix-ui/react-popover";
-import { Clapperboard, Home, Lock, MoreVertical, User } from "lucide-react";
+import { Clapperboard, ExternalLink, Home, Lock, MoreVertical, User } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAccount } from "../contexts/MockAuthContext";
 import { EffectSelectedCheckIcon } from "../app/motion-explore/EffectSelectedCheckIcon";
@@ -182,15 +182,13 @@ export default function AppMegaMenu({
             Account
           </div>
           {isAuthenticated ? (
-            <>
-              <Link
-                href="/account"
-                className={`flex items-center gap-2 rounded-md px-2 py-1.5 font-normal text-xs ${menuTextClass} ${menuItemHoverClass}`}
-              >
-                <User size={12} />
-                <span className="truncate">{profile?.displayName || "Account"}</span>
-              </Link>
-            </>
+            <Link
+              href="/account"
+              className={`flex items-center gap-2 rounded-md px-2 py-1.5 font-normal text-xs ${menuTextClass} ${menuItemHoverClass}`}
+            >
+              <User size={12} />
+              <span className="truncate">{profile?.displayName || "Account"}</span>
+            </Link>
           ) : (
             <button
               type="button"
@@ -201,12 +199,16 @@ export default function AppMegaMenu({
               <span>Sign In / Create Account</span>
             </button>
           )}
-          <div className="my-2 h-px bg-[color:var(--mega-menu-border)]" />
-          <div
-            className={`px-2 py-1 text-[9px] font-normal uppercase tracking-wider ${menuTextMutedClass}`}
+          <a
+            href="https://mova-atletica.xyz/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`mt-1 flex items-center gap-2 rounded-md px-2 py-1.5 font-normal text-xs ${menuTextClass} ${menuItemHoverClass}`}
           >
-            Settings
-          </div>
+            <ExternalLink size={12} />
+            <span>About Mova</span>
+          </a>
+          <div className="my-2 h-px bg-[color:var(--mega-menu-border)]" />
           <ThemeToggleMenuItem />
           </MovaPopoverMotionInner>
         </Popover.Content>

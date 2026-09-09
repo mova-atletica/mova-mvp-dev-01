@@ -22,13 +22,13 @@ const COPY: Record<
   studio: {
     title: "Motion Studio on desktop",
     guestBody:
-      "Full video analysis runs best on desktop. iOS is coming soon — create a free account to stay updated.",
+      "Full video analysis runs best on desktop. iOS is coming soon — create a free account to join iOS waitlist.",
     signedInBody: "Full video analysis runs best on desktop. iOS is coming soon.",
   },
-  coach: {
+  coach: {  
     title: "Coach Studio on desktop",
     guestBody:
-      "Partner video tools run best on desktop. iOS is coming soon — create a free account to stay updated.",
+      "Partner video tools run best on desktop. iOS is coming soon — create a free account to join iOS waitlist.",
     signedInBody: "Partner video tools run best on desktop. iOS is coming soon.",
   },
 };

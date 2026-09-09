@@ -37,7 +37,7 @@ export default function MobileDesktopBrowseBanner({
         </p>
         {!isAuthenticated ? (
           <p className="mt-0.5 text-[11px] leading-snug text-[color:var(--muted-foreground)]">
-            Account to stay updated
+            Account to join iOS waitlist
           </p>
         ) : null}
       </div>

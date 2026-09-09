@@ -90,15 +90,20 @@ export default function HomeLeaderboardBlock({
                   className="shrink-0 rounded-full px-4 py-1.5 text-[10px] font-medium transition-colors sm:px-5 sm:text-[11px]"
                   style={{
                     fontFamily: "var(--font-roboto-mono), ui-monospace, monospace",
-                    ...(selected
-                      ? {
-                          background: "var(--foreground)",
-                          color: "var(--background)",
-                        }
-                      : {
-                          background: "color-mix(in srgb, var(--foreground) 10%, transparent)",
-                          color: "var(--muted-foreground)",
-                        }),
+                    background: selected
+                      ? "var(--foreground)"
+                      : "color-mix(in srgb, var(--foreground) 10%, transparent)",
+                    color: selected ? "var(--background)" : "var(--muted-foreground)",
+                  }}
+                  onMouseEnter={(event) => {
+                    if (selected) return;
+                    event.currentTarget.style.background =
+                      "color-mix(in srgb, var(--foreground) 20%, transparent)";
+                  }}
+                  onMouseLeave={(event) => {
+                    if (selected) return;
+                    event.currentTarget.style.background =
+                      "color-mix(in srgb, var(--foreground) 10%, transparent)";
                   }}
                 >
                   {m.title}
@@ -221,7 +226,7 @@ export default function HomeLeaderboardBlock({
           <button
             type="button"
             onClick={handleAnalysisCta}
-            className="flex w-full flex-col items-center justify-center gap-1 rounded-xl px-4 py-3.5 text-center transition-opacity hover:opacity-90 sm:py-4"
+            className="flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl px-4 py-3.5 text-center transition-opacity hover:opacity-90 sm:py-4"
             style={{
               background: desktopGate
                 ? "color-mix(in srgb, var(--foreground) 8%, transparent)"
