@@ -78,11 +78,13 @@ export function drawGlassBackground(
 
   if (source && sw > 0 && sh > 0) {
     try {
-      // Chip x/y are in user space. Canvas sources (esp. image-export with
-      // ctx.scale(resolutionMultiplier)) store pixels in bitmap space — convert.
-      // Video sources are already in native/user-space pixels.
+      // Chip x/y are in user space. Only the *same* canvas as `ctx` stores pixels
+      // in bitmap space under a resolution scale — convert those. External plate
+      // canvases / video / ImageBitmap are already in user-space pixels.
       const sampleScale =
-        typeof HTMLCanvasElement !== "undefined" && source instanceof HTMLCanvasElement
+        typeof HTMLCanvasElement !== "undefined" &&
+        source instanceof HTMLCanvasElement &&
+        source === ctx.canvas
           ? Math.abs(ctx.getTransform().a) || 1
           : 1;
       const srcSx = sx * sampleScale;

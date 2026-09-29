@@ -1,0 +1,10 @@
+{
+  "name": "mova-reels",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Remotion sources for product-in-use reels. Dependencies live in the repo root (brownfield).",
+  "scripts": {
+    "studio": "cd .. && npx remotion studio reels/src/index.ts --config=reels/remotion.config.ts",
+    "render": "cd .. && npx remotion render reels/src/index.ts ProductInUse reels/out/reel.mp4 --config=reels/remotion.config.ts"
+  }
+}

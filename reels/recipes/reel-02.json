@@ -1,0 +1,28 @@
+{
+  "id": "reel-02",
+  "fps": 30,
+  "uiSrc": "",
+  "uiStartFrame": 24,
+  "uiAnimDurationFrames": 40,
+  "entry": "side",
+  "x": 0.75,
+  "y": 0.76,
+  "scale": 0.76,
+  "borderRadius": 28,
+  "glassColor": "#ffffff",
+  "chartGlassTone": "dark",
+  "chartX": 0.08,
+  "chartY": 0.15,
+  "chartWidth": 0.42,
+  "chartHeight": 0.18,
+  "glassOpacity": 0,
+  "glassBlur": 5,
+  "glassBorderOpacity": 0.2,
+  "glassShadow": 20,
+  "overlayStartFrame": 24,
+  "overlayAnimDurationFrames": 35,
+  "segmentChartDefaults": [
+    { "kind": "jointAngle", "joint": "leftKneeAngles" },
+    { "kind": "jointAngle", "joint": "trunkAngles" }
+  ]
+}

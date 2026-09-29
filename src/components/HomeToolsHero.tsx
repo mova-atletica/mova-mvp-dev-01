@@ -21,21 +21,17 @@ import MovaStudioHeroTile from "./MovaStudioHeroTile";
 interface HomeToolsHeroProps {
   hasStudio: boolean;
   showCoachStudio: boolean;
-  isAuthenticated: boolean;
   onOpenStudio: () => void;
   onOpenCoachStudio: () => void;
   onTrySport: (sportSlug: string) => void;
-  onCreateAccount: () => void;
 }
 
 export default function HomeToolsHero({
   hasStudio,
   showCoachStudio,
-  isAuthenticated,
   onOpenStudio,
   onOpenCoachStudio,
   onTrySport,
-  onCreateAccount,
 }: HomeToolsHeroProps) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [viewportResolved, setViewportResolved] = useState(false);
@@ -165,12 +161,7 @@ export default function HomeToolsHero({
         </h1>
       </header>
 
-      {viewportResolved && !isDesktop ? (
-        <MobileDesktopBrowseBanner
-          isAuthenticated={isAuthenticated}
-          onCreateAccount={onCreateAccount}
-        />
-      ) : null}
+      {viewportResolved && !isDesktop ? <MobileDesktopBrowseBanner /> : null}
 
       <div style={rowStyle} aria-label="Studio and leaderboards">
         <div style={studioColumnStyle}>
@@ -180,7 +171,6 @@ export default function HomeToolsHero({
               mediaSrc={MOVA_STUDIO_MINI_APP.tileImage}
               videoSrc={MOVA_STUDIO_MINI_APP.tileVideo}
               layout={isDesktop ? "desktop" : "mobile"}
-              isAuthenticated={isAuthenticated}
             />
           </div>
           {showCoachStudio ? (
@@ -197,8 +187,6 @@ export default function HomeToolsHero({
             variant="hero"
             onTrySport={onTrySport}
             analysisCtaMode={viewportResolved && !isDesktop ? "desktop-gate" : "open"}
-            isAuthenticated={isAuthenticated}
-            onRequestAccount={onCreateAccount}
           />
         </div>
       </div>
@@ -209,8 +197,6 @@ export default function HomeToolsHero({
           if (!open) setInterstitial(null);
         }}
         kind={interstitial ?? "studio"}
-        isAuthenticated={isAuthenticated}
-        onCreateAccount={onCreateAccount}
       />
     </section>
   );

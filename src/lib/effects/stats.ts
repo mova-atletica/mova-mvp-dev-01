@@ -1215,7 +1215,7 @@ export function resolveMobilityGeometryItems(config: Partial<StatsConfig>): {
   return { axes, arcs };
 }
 
-function renderMobilityGeometry(
+export function renderMobilityGeometry(
   ctx: CanvasRenderingContext2D,
   poses: any[],
   config: Partial<StatsConfig>,

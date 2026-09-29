@@ -9,21 +9,29 @@ import { useTranslations } from "../../i18n/LocaleProvider";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
+/**
+ * Partner-tier gate. Waits for auth hydration (same pattern as CoachStudioGate)
+ * so signed-in partners are not bounced home during the loading window.
+ */
 export default function PartnerGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const t = useTranslations();
-  const { isAuthenticated, tier, openSignIn } = useAccount();
+  const { isAuthenticated, hasCoachAccess, authLoading, openSignIn } =
+    useAccount();
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       openSignIn();
       router.replace("/");
     }
-  }, [isAuthenticated, router, openSignIn]);
+  }, [authLoading, isAuthenticated, router, openSignIn]);
+
+  if (authLoading) return null;
 
   if (!isAuthenticated) return null;
 
-  if (tier !== "partner") {
+  if (!hasCoachAccess) {
     return (
       <AuthPageShell title={t("partner.gateTitle")} subtitle={t("partner.gateSubtitle")}>
         <div

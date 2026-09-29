@@ -8,7 +8,15 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Phase A: hide partner surfaces from the public app.
-  if (!PHASE_B_ENABLED && (pathname === "/partner" || pathname.startsWith("/partner/"))) {
+  // Reel compositor is PartnerGate-only (not linked in nav) — allow it in Phase A.
+  const isReelCompositor =
+    pathname === "/partner/reel-compositor" ||
+    pathname.startsWith("/partner/reel-compositor/");
+  if (
+    !PHASE_B_ENABLED &&
+    !isReelCompositor &&
+    (pathname === "/partner" || pathname.startsWith("/partner/"))
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

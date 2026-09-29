@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { QUICK_ANALYSIS_MOVEMENTS } from "../data/quickAnalysisMovements";
 import { getCountryFlag } from "../data/countries";
 import { useAccount } from "../contexts/MockAuthContext";
+import { openMovaAppStore } from "../lib/appStore";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
@@ -17,18 +18,14 @@ interface HomeLeaderboardBlockProps {
   onTrySport: (sportSlug: string) => void;
   /** Fits the tools hero column beside Mova Studio (no outer section margins). */
   variant?: "standalone" | "hero";
-  /** Mobile browse gate: do not open mini apps; point to desktop / account. */
+  /** Mobile browse gate: do not open mini apps; point to App Store. */
   analysisCtaMode?: "open" | "desktop-gate";
-  isAuthenticated?: boolean;
-  onRequestAccount?: () => void;
 }
 
 export default function HomeLeaderboardBlock({
   onTrySport,
   variant = "standalone",
   analysisCtaMode = "open",
-  isAuthenticated = false,
-  onRequestAccount,
 }: HomeLeaderboardBlockProps) {
   const { getLeaderboard, profile } = useAccount();
   const [sportSlug, setSportSlug] = useState(QUICK_ANALYSIS_MOVEMENTS[0]?.slug ?? "plank");
@@ -47,9 +44,7 @@ export default function HomeLeaderboardBlock({
       onTrySport(sportSlug);
       return;
     }
-    if (!isAuthenticated) {
-      onRequestAccount?.();
-    }
+    openMovaAppStore();
   };
 
   const panel = (
@@ -243,12 +238,10 @@ export default function HomeLeaderboardBlock({
             {desktopGate ? (
               <>
                 <span className="text-xs font-semibold tracking-wide sm:text-base">
-                  Upload video. Count reps. Post to leaderboard.
+                  Upload video. Count reps and holdtimes.
                 </span>
                 <span className="text-[11px] font-medium leading-snug text-[color:var(--muted-foreground)] sm:text-xs">
-                  {isAuthenticated
-                    ? "iOS coming soon for mobile"
-                    : "Desktop now · iOS soon"}
+                  Get the free iOS app
                 </span>
               </>
             ) : (

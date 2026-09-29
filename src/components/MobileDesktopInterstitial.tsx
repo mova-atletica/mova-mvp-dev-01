@@ -2,8 +2,10 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-
-const IOS_GLASS_ICON = "/images/brand/mova-ios-glass.png";
+import {
+  MOVA_APP_STORE_ICON_SRC,
+  MOVA_APP_STORE_URL,
+} from "../lib/appStore";
 
 export type MobileDesktopInterstitialKind = "studio" | "coach";
 
@@ -11,35 +13,27 @@ interface MobileDesktopInterstitialProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   kind: MobileDesktopInterstitialKind;
-  isAuthenticated: boolean;
-  onCreateAccount: () => void;
 }
 
 const COPY: Record<
   MobileDesktopInterstitialKind,
-  { title: string; guestBody: string; signedInBody: string }
+  { title: string; body: string }
 > = {
   studio: {
-    title: "Motion Studio on desktop",
-    guestBody:
-      "Full video analysis runs best on desktop. iOS is coming soon — create a free account to join iOS waitlist.",
-    signedInBody: "Full video analysis runs best on desktop. iOS is coming soon.",
+    title: "Motion Studio on iPhone",
+    body: "Full mobile experience is available in iOS. Desktop web still works great for deeper editing and export.",
   },
-  coach: {  
+  coach: {
     title: "Coach Studio on desktop",
-    guestBody:
-      "Partner video tools run best on desktop. iOS is coming soon — create a free account to join iOS waitlist.",
-    signedInBody: "Partner video tools run best on desktop. iOS is coming soon.",
+    body: "Partner video tools run best on desktop. For personal form analysis on the go, get Mova Atletica on the App Store.",
   },
 };
 
-/** Blocks Studio / Coach open on mobile web; points to desktop + account. */
+/** Blocks Studio / Coach open on mobile web; points to iOS App Store (+ desktop note). */
 export default function MobileDesktopInterstitial({
   open,
   onOpenChange,
   kind,
-  isAuthenticated,
-  onCreateAccount,
 }: MobileDesktopInterstitialProps) {
   const copy = COPY[kind];
 
@@ -61,11 +55,11 @@ export default function MobileDesktopInterstitial({
             <div className="flex justify-center pt-1">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={IOS_GLASS_ICON}
+                src={MOVA_APP_STORE_ICON_SRC}
                 alt=""
                 width={52}
                 height={52}
-                className="h-[52px] w-[52px] object-contain"
+                className="h-[52px] w-[52px] rounded-[12px] object-cover"
               />
             </div>
           </div>
@@ -73,47 +67,31 @@ export default function MobileDesktopInterstitial({
             {copy.title}
           </Dialog.Title>
           <Dialog.Description className="mt-2 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-            {isAuthenticated ? copy.signedInBody : copy.guestBody}
+            {copy.body}
           </Dialog.Description>
-          {isAuthenticated ? (
-            <button
-              type="button"
+          <div className="mt-5 flex flex-col gap-2">
+            <a
+              href={MOVA_APP_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={() => onOpenChange(false)}
-              className="mt-5 inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+              className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold no-underline transition-opacity hover:opacity-90"
               style={{
                 background: "var(--primary-button-bg)",
                 color: "var(--primary-button-text)",
                 border: "2px solid var(--primary-button-border)",
               }}
             >
-              Got it
+              Get the app
+            </a>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_8%,transparent)]"
+            >
+              Not now
             </button>
-          ) : (
-            <div className="mt-5 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  onOpenChange(false);
-                  onCreateAccount();
-                }}
-                className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-90"
-                style={{
-                  background: "var(--primary-button-bg)",
-                  color: "var(--primary-button-text)",
-                  border: "2px solid var(--primary-button-border)",
-                }}
-              >
-                Create free account
-              </button>
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--foreground)_8%,transparent)]"
-              >
-                Not now
-              </button>
-            </div>
-          )}
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

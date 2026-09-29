@@ -7,7 +7,10 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "reels:studio": "remotion studio reels/src/index.ts --config=reels/remotion.config.ts",
+    "reels:render": "remotion render reels/src/index.ts ProductInUse reels/out/reel.mp4 --config=reels/remotion.config.ts",
+    "reels:install": "npm install remotion@4.0.527 @remotion/cli@4.0.527 @remotion/player@4.0.527 --save-exact"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",
@@ -22,6 +25,10 @@
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
+    "@remotion/cli": "4.0.527",
+    "@remotion/media": "4.0.527",
+    "@remotion/player": "4.0.527",
+    "@remotion/web-renderer": "4.0.527",
     "@splinetool/react-spline": "^4.1.0",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.109.0",
@@ -37,6 +44,7 @@
     "react-hook-form": "^7.58.1",
     "react-webcam": "^7.2.0",
     "recharts": "^3.0.2",
+    "remotion": "4.0.527",
     "sqlite3": "^5.1.7",
     "stripe": "^22.4.0"
   },

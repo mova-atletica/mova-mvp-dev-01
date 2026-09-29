@@ -2949,10 +2949,10 @@ export default function OpenMoveStudio({
             }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-[var(--card-bg)] p-4 text-[color:var(--foreground)] shadow-2xl outline-none"
           >
-            <Dialog.Title className="text-base font-medium">Desktop now · iOS soon</Dialog.Title>
+            <Dialog.Title className="text-base font-medium">Get Mova on iPhone</Dialog.Title>
             <Dialog.Description className="mt-2 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-              Motion Studio runs best on desktop. Mobile web is for browsing for now — full analysis
-              stays on desktop until the iOS app ships.
+              Motion Studio runs best on desktop or in the free iOS app. Mobile web is for browsing —
+              open the App Store for full analysis on the go.
             </Dialog.Description>
             <button
               type="button"

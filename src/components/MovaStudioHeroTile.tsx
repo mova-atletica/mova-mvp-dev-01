@@ -13,7 +13,6 @@ interface MovaStudioHeroTileProps {
   layout?: "desktop" | "mobile";
   mediaSrc?: string;
   videoSrc?: string;
-  isAuthenticated?: boolean;
   onOpen: () => void;
 }
 
@@ -21,7 +20,6 @@ export default function MovaStudioHeroTile({
   layout = "desktop",
   mediaSrc = DEFAULT_STUDIO_TILE_IMAGE,
   videoSrc = DEFAULT_STUDIO_TILE_VIDEO,
-  isAuthenticated = false,
   onOpen,
 }: MovaStudioHeroTileProps) {
   const isDesktop = layout === "desktop";
@@ -31,9 +29,7 @@ export default function MovaStudioHeroTile({
   const showPhoto = isDesktop && Boolean(mediaSrc) && !imageFailed;
   const showVideo = showPhoto && Boolean(videoSrc) && !videoFailed;
   const mobileSimple = !isDesktop && !showPhoto;
-  const mobileAriaLabel = isAuthenticated
-    ? `${MOTION_STUDIO_TITLE} — available on desktop`
-    : `${MOTION_STUDIO_TITLE} — create a free account for desktop analysis`;
+  const mobileAriaLabel = `${MOTION_STUDIO_TITLE} — get on the App Store`;
 
   const playPreview = useCallback(() => {
     const video = videoRef.current;
@@ -175,7 +171,7 @@ export default function MovaStudioHeroTile({
                 }}
               >
                 {mobileSimple
-                  ? "Full video analysis on desktop. Overlays, export & share."
+                  ? "Full experienceon iOS. Overlays, export & share."
                   : "Upload a video. Add overlays to vizualize your form. Export & share."}
               </p>
               {mobileSimple ? (
@@ -187,7 +183,7 @@ export default function MovaStudioHeroTile({
                     border: "1px solid var(--border-secondary)",
                   }}
                 >
-                  {isAuthenticated ? "Available on desktop" : "Create free account"}
+                  Get the app
                 </span>
               ) : (
                 <span
