@@ -13,12 +13,40 @@ export type AngleSeries = {
 
 export type AngleJointKey = keyof AngleSeries;
 
+export type EntryPreset = "bottom" | "side" | "sideLeft" | "scale" | "fade";
+
+/** Active chart slot (never null). Per-chart layout + fade are optional. */
+export type JointAngleChart = {
+  kind: "jointAngle";
+  joint: AngleJointKey;
+  /** Normalized composition X (falls back to recipe chartX). */
+  x?: number;
+  /** Normalized composition Y (falls back to recipe chartY + stack). */
+  y?: number;
+  /** Segment-local fade-in start frame. */
+  fadeStartFrame?: number;
+  /** Segment-local fade-in duration in frames. */
+  fadeDurationFrames?: number;
+  /** Slide/fade entry direction (same presets as UI device). */
+  entry?: EntryPreset;
+};
+
 export type SegmentChartConfig =
   | null
-  | { kind: "jointAngle"; joint: AngleJointKey }
+  | JointAngleChart
   | { kind: "sport"; seriesKey: string };
 
-export type EntryPreset = "bottom" | "side" | "sideLeft" | "scale" | "fade";
+/** Normalize draft/legacy chart fields into a joint-angle list. */
+export function normalizeJointCharts(
+  charts?: JointAngleChart[] | null,
+  legacy?: SegmentChartConfig | null
+): JointAngleChart[] {
+  if (Array.isArray(charts) && charts.length > 0) {
+    return charts.filter((c): c is JointAngleChart => c?.kind === "jointAngle");
+  }
+  if (legacy?.kind === "jointAngle") return [legacy];
+  return [];
+}
 
 /** Chart HUD frosted panel tint. */
 export type ChartGlassTone = "light" | "dark";
@@ -65,7 +93,10 @@ export type ResolvedSegment = {
   angles?: AngleSeries | null;
   sportAnalysisKind?: string | null;
   sportAnalysis?: unknown | null;
-  chart: SegmentChartConfig;
+  /** HUD chart slots (0+). Prefer this over legacy `chart`. */
+  charts: JointAngleChart[];
+  /** @deprecated Use `charts`. Kept for older props / Studio demos. */
+  chart?: SegmentChartConfig;
   overlays: "on" | "off";
 };
 
@@ -74,6 +105,8 @@ export type RecipeKnobs = {
   fps: number;
   activityIds?: string[];
   uiSrc: string;
+  /** When false, skip UI device frame + entry animation. */
+  showUiDevice?: boolean;
   uiStartFrame: number;
   uiAnimDurationFrames: number;
   entry: EntryPreset;
@@ -127,10 +160,53 @@ export const CHART_Y_MIN = 0.06;
 export const CHART_Y_MAX = 0.7;
 export const CHART_W_MIN = 0.28;
 export const CHART_W_MAX = 0.7;
-export const CHART_H_MIN = 0.12;
+export const CHART_H_MIN = 0.06;
 export const CHART_H_MAX = 0.32;
 
 export const DEFAULT_CHART_X = 0.08;
 export const DEFAULT_CHART_Y = 0.15;
 export const DEFAULT_CHART_W = 0.42;
 export const DEFAULT_CHART_H = 0.18;
+/** Vertical gap between stacked HUD charts (normalized). */
+export const CHART_STACK_GAP = 0.02;
+
+export type ChartLayoutDefaults = {
+  x: number;
+  y: number;
+  height: number;
+  fadeStartFrame: number;
+  fadeDurationFrames: number;
+  entry: EntryPreset;
+};
+
+/** Resolve per-chart position + fade with recipe fallbacks / stack offset. */
+export function resolveChartLayout(
+  chart: JointAngleChart,
+  index: number,
+  defaults: ChartLayoutDefaults
+): {
+  x: number;
+  y: number;
+  fadeStartFrame: number;
+  fadeDurationFrames: number;
+  entry: EntryPreset;
+} {
+  return {
+    x: typeof chart.x === "number" ? chart.x : defaults.x,
+    y:
+      typeof chart.y === "number"
+        ? chart.y
+        : defaults.y + index * (defaults.height + CHART_STACK_GAP),
+    fadeStartFrame:
+      typeof chart.fadeStartFrame === "number"
+        ? chart.fadeStartFrame
+        : defaults.fadeStartFrame,
+    fadeDurationFrames: Math.max(
+      1,
+      typeof chart.fadeDurationFrames === "number"
+        ? chart.fadeDurationFrames
+        : defaults.fadeDurationFrames
+    ),
+    entry: chart.entry ?? defaults.entry,
+  };
+}

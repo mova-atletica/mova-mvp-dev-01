@@ -487,6 +487,14 @@ export function availableSportTrendKeys(items: AccountActivityItem[]): AccountSp
   return SPORT_TREND_ORDER.filter((key) => found.has(key));
 }
 
+/** Sports with ≥1 session inside the selected chart range. */
+export function availableSportTrendKeysForRange(
+  items: AccountActivityItem[],
+  range: ChartTimeRange
+): AccountSportTrendKey[] {
+  return availableSportTrendKeys(sportItemsForRange(items, range));
+}
+
 export function preferredSportTrendKey(items: AccountActivityItem[]): AccountSportTrendKey | null {
   const available = availableSportTrendKeys(items);
   if (available.length === 0) return null;
@@ -498,6 +506,203 @@ export function preferredSportTrendKey(items: AccountActivityItem[]): AccountSpo
     if (key && available.includes(key)) return key;
   }
   return available[0];
+}
+
+export function preferredSportTrendKeyForRange(
+  items: AccountActivityItem[],
+  range: ChartTimeRange
+): AccountSportTrendKey | null {
+  return preferredSportTrendKey(sportItemsForRange(items, range));
+}
+
+export type SportVolumeCompareKind = "up" | "down" | "flat" | "first";
+
+export interface SportVolumeComparison {
+  kind: SportVolumeCompareKind;
+  /** Absolute percent points; null when kind is "first" or "flat". */
+  percent: number | null;
+}
+
+export interface SportRangeSummary {
+  sessions: number;
+  /** Approximate sessions per week inside the active range. */
+  sessionsPerWeek: number | null;
+  /** ISO timestamp of the newest session in range, if any. */
+  mostRecentAt: string | null;
+  primaryTotal: number | null;
+  primaryAvgPerSession: number | null;
+  /** Max primary metric across sessions in range (best / longest session). */
+  bestSessionPrimary: number | null;
+  metricKind: SportPrimaryMetricKind;
+  jointRomAverages: Partial<Record<MovementJoint, number>>;
+  symmetryScore: number | null;
+  /** True when volume exists but no ROM/symmetry signals for the range. */
+  movementDetailMissing: boolean;
+  volumeComparison: SportVolumeComparison | null;
+}
+
+/** Nominal day span for cadence copy (matches chart window lengths). */
+export function sportRangeSpanDays(range: ChartTimeRange, anchor = new Date()): number {
+  if (range === "week") return 7;
+  if (range === "month") return 30;
+  if (range === "ytd") {
+    const start = new Date(anchor.getFullYear(), 0, 1);
+    return Math.max(1, Math.round((anchor.getTime() - start.getTime()) / 86_400_000) + 1);
+  }
+  return 365;
+}
+
+function primaryTotalForItems(items: AccountActivityItem[]): number | null {
+  const values = items
+    .map((item) => primaryMetricValue(item))
+    .filter((value): value is number => value != null);
+  return values.length > 0 ? sumDefined(values) : null;
+}
+
+/** Equal-length window immediately before the active chart range. */
+function sportItemsForPriorRange(
+  items: AccountActivityItem[],
+  range: ChartTimeRange
+): AccountActivityItem[] {
+  if (items.length === 0) return [];
+  const anchor = activityAnchorDate(items);
+
+  if (range === "week") {
+    const currentStart = startOfWeek(anchor);
+    const start = new Date(currentStart);
+    start.setDate(start.getDate() - 7);
+    return items.filter((item) => {
+      const t = new Date(item.occurredAt).getTime();
+      return t >= start.getTime() && t < currentStart.getTime();
+    });
+  }
+
+  if (range === "month") {
+    const currentStart = startOfDay(anchor);
+    currentStart.setDate(currentStart.getDate() - 29);
+    const start = new Date(currentStart);
+    start.setDate(start.getDate() - 30);
+    return items.filter((item) => {
+      const t = new Date(item.occurredAt).getTime();
+      return t >= start.getTime() && t < currentStart.getTime();
+    });
+  }
+
+  if (range === "ytd") {
+    const year = anchor.getFullYear() - 1;
+    const start = new Date(year, 0, 1);
+    const end = new Date(year, anchor.getMonth(), anchor.getDate() + 1);
+    return items.filter((item) => {
+      const t = new Date(item.occurredAt).getTime();
+      return t >= start.getTime() && t < end.getTime();
+    });
+  }
+
+  // Previous 12 calendar months before the trailing-12 window used by "all".
+  const currentStart = startOfMonth(anchor);
+  currentStart.setMonth(currentStart.getMonth() - 11);
+  const start = new Date(currentStart);
+  start.setMonth(start.getMonth() - 12);
+  return items.filter((item) => {
+    const t = new Date(item.occurredAt).getTime();
+    return t >= start.getTime() && t < currentStart.getTime();
+  });
+}
+
+function compareVolumeToPrior(
+  currentTotal: number | null,
+  priorItems: AccountActivityItem[]
+): SportVolumeComparison | null {
+  if (currentTotal == null) return null;
+  if (priorItems.length === 0) {
+    return { kind: "first", percent: null };
+  }
+  const priorTotal = primaryTotalForItems(priorItems);
+  if (priorTotal == null || priorTotal <= 0) {
+    return { kind: "first", percent: null };
+  }
+  const rawPercent = ((currentTotal - priorTotal) / priorTotal) * 100;
+  if (Math.abs(rawPercent) < 1) {
+    return { kind: "flat", percent: null };
+  }
+  const percent = Math.round(Math.abs(rawPercent));
+  return {
+    kind: rawPercent > 0 ? "up" : "down",
+    percent,
+  };
+}
+
+export function summarizeSportRange(
+  items: AccountActivityItem[],
+  sportKey: AccountSportTrendKey,
+  range: ChartTimeRange
+): SportRangeSummary {
+  const metricKind = sportPrimaryMetricKind(sportKey);
+  const sportItems = items.filter((item) => sportTrendKeyForItem(item) === sportKey);
+  const rangedItems = sportItemsForRange(sportItems, range);
+  const sessions = rangedItems.length;
+
+  const primaryValues = rangedItems
+    .map((item) => primaryMetricValue(item))
+    .filter((value): value is number => value != null);
+  const primaryTotal = primaryValues.length > 0 ? sumDefined(primaryValues) : null;
+  const primaryAvgPerSession =
+    primaryTotal != null && sessions > 0 ? primaryTotal / sessions : null;
+  const bestSessionPrimary =
+    primaryValues.length > 0 ? Math.max(...primaryValues) : null;
+
+  const jointRomAverages: Partial<Record<MovementJoint, number>> = {};
+  for (const joint of RELEVANT_ROM_JOINTS[sportKey]) {
+    const values = rangedItems
+      .map((item) => item.metrics?.jointRom?.[joint])
+      .filter((value): value is number => typeof value === "number");
+    const avg = averageDefined(values);
+    if (avg != null) jointRomAverages[joint] = avg;
+  }
+
+  const symmetryValues = rangedItems
+    .map((item) => symmetryForSportItem(item, sportKey))
+    .filter((value): value is number => value != null);
+  const symmetryScore = averageDefined(symmetryValues);
+
+  const sessionsWithMovementDetail = rangedItems.filter((item) => {
+    const hasRom = RELEVANT_ROM_JOINTS[sportKey].some(
+      (joint) => typeof item.metrics?.jointRom?.[joint] === "number"
+    );
+    return hasRom || symmetryForSportItem(item, sportKey) != null;
+  }).length;
+
+  const priorItems = sportItemsForPriorRange(sportItems, range);
+  const volumeComparison =
+    sessions > 0 ? compareVolumeToPrior(primaryTotal, priorItems) : null;
+
+  const spanDays = sportRangeSpanDays(
+    range,
+    sportItems.length > 0 ? activityAnchorDate(sportItems) : new Date()
+  );
+  const sessionsPerWeek =
+    sessions > 0 ? Math.round((sessions / spanDays) * 7 * 10) / 10 : null;
+
+  let mostRecentAt: string | null = null;
+  if (rangedItems.length > 0) {
+    mostRecentAt = [...rangedItems].sort(
+      (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+    )[0]!.occurredAt;
+  }
+
+  return {
+    sessions,
+    sessionsPerWeek,
+    mostRecentAt,
+    primaryTotal,
+    primaryAvgPerSession,
+    bestSessionPrimary,
+    metricKind,
+    jointRomAverages,
+    symmetryScore,
+    movementDetailMissing: sessions > 0 && sessionsWithMovementDetail < sessions,
+    volumeComparison,
+  };
 }
 
 export function sportPrimaryMetricKind(key: AccountSportTrendKey): SportPrimaryMetricKind {

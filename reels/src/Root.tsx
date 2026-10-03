@@ -55,6 +55,7 @@ export const RemotionRoot: React.FC = () => {
         {
           plateUrl: "",
           durationInFrames: 270,
+          charts: [{ kind: "jointAngle", joint: "leftKneeAngles" }],
           chart: { kind: "jointAngle", joint: "leftKneeAngles" },
           overlays: "off",
           angles: DEMO_ANGLES,
@@ -70,6 +71,7 @@ export const RemotionRoot: React.FC = () => {
         {
           plateUrl: "",
           durationInFrames: 150,
+          charts: [{ kind: "jointAngle", joint: "leftKneeAngles" }],
           chart: { kind: "jointAngle", joint: "leftKneeAngles" },
           overlays: "off",
           angles: DEMO_ANGLES,
@@ -77,6 +79,7 @@ export const RemotionRoot: React.FC = () => {
         {
           plateUrl: "",
           durationInFrames: 150,
+          charts: [{ kind: "jointAngle", joint: "trunkAngles" }],
           chart: { kind: "jointAngle", joint: "trunkAngles" },
           overlays: "off",
           angles: DEMO_ANGLES,

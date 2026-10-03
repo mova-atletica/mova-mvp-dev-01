@@ -15,9 +15,11 @@ import {
   renderMobilityGeometry,
   type StatsConfig,
 } from "../../../src/lib/effects/stats";
+import { poseIndexAtTime } from "../../../src/lib/poseIndexAtTime";
 import type { PoseFrame, VisualOverlayPreset } from "../types";
 
-const DEFAULT_BONES: [number, number][] = [
+/** COCO-17 bone pairs — same list as useAssetVideoEngine / exportService. */
+const ALL_CONNECTIONS: [number, number][] = [
   [5, 7],
   [7, 9],
   [6, 8],
@@ -32,47 +34,7 @@ const DEFAULT_BONES: [number, number][] = [
   [6, 12],
 ];
 
-function poseIndexForFrame(
-  localFrame: number,
-  durationInFrames: number,
-  poseCount: number,
-  poseTimestamps: number[] | null | undefined,
-  fps: number,
-  frameIntervalSec: number | null | undefined
-): number | null {
-  if (poseCount < 1) return null;
-
-  if (poseTimestamps && poseTimestamps.length === poseCount) {
-    const t = localFrame / fps;
-    if (t < poseTimestamps[0]) return null;
-    let lo = 0;
-    let hi = poseCount - 1;
-    let ans = 0;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (poseTimestamps[mid] <= t) {
-        ans = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    return ans;
-  }
-
-  if (frameIntervalSec && frameIntervalSec > 0) {
-    const idx = Math.floor((localFrame / fps) / frameIntervalSec);
-    return Math.min(poseCount - 1, Math.max(0, idx));
-  }
-
-  return Math.min(
-    poseCount - 1,
-    Math.max(
-      0,
-      Math.floor((localFrame / Math.max(1, durationInFrames - 1)) * (poseCount - 1))
-    )
-  );
-}
+const CONF_MIN = 0.3;
 
 function getEffect(
   visualConfig: VisualOverlayPreset | null | undefined,
@@ -81,18 +43,6 @@ function getEffect(
   const e = visualConfig?.effects?.find((x) => x.id === id);
   if (!e) return null;
   return { enabled: e.enabled, config: e.config ?? {} };
-}
-
-function parseBones(config: Record<string, unknown>): [number, number][] {
-  const raw = config.selectedBones;
-  if (!Array.isArray(raw) || raw.length === 0) return DEFAULT_BONES;
-  const out: [number, number][] = [];
-  for (const key of raw) {
-    if (typeof key !== "string") continue;
-    const [a, b] = key.split("-").map(Number);
-    if (Number.isFinite(a) && Number.isFinite(b)) out.push([a, b]);
-  }
-  return out.length ? out : DEFAULT_BONES;
 }
 
 function inferSourceSize(
@@ -141,8 +91,9 @@ type Props = {
 
 /**
  * Draws activity visualConfig overlays in the same coordinate system as
- * object-fit:cover plate video, using Studio draw helpers for fidelity.
- * Joint-angle chip glass comes from activity visualConfig (not Partner knobs).
+ * object-fit:cover plate video. Pose index + skeleton draw match Open Move
+ * account (useAssetVideoEngine / exportService): raw poses, poseIndexAtTime,
+ * selectedBones.includes, score > 0.3.
  */
 export const PoseOverlayCanvas: React.FC<Props> = ({
   poses,
@@ -175,14 +126,12 @@ export const PoseOverlayCanvas: React.FC<Props> = ({
         return;
       }
 
-      const idx = poseIndexForFrame(
-        localFrame,
-        durationInFrames,
-        poses.length,
-        poseTimestamps,
-        fps,
-        frameIntervalSec
-      );
+      const durationSec = durationInFrames / Math.max(1, fps);
+      const idx = poseIndexAtTime(localFrame / fps, poses.length, {
+        timestamps: poseTimestamps,
+        frameIntervalSec,
+        durationSec,
+      });
       if (idx == null) {
         onPainted?.();
         return;
@@ -222,24 +171,36 @@ export const PoseOverlayCanvas: React.FC<Props> = ({
           typeof cfg.boneWeight === "number" ? cfg.boneWeight : 2;
         const jointSize = typeof cfg.jointSize === "number" ? cfg.jointSize : 4;
         const boneLineStyle = normalizeBoneLineStyle(cfg.boneLineStyle);
-        const bones = parseBones(cfg);
+        const selectedBones = Array.isArray(cfg.selectedBones)
+          ? (cfg.selectedBones as string[])
+          : null;
         const selectedJoints = Array.isArray(cfg.selectedJoints)
           ? (cfg.selectedJoints as number[])
           : null;
-        const confMin = 0.3;
 
         if (showBones) {
           ctx.strokeStyle = boneColor;
           ctx.lineWidth = boneWeight;
-          for (const [a, b] of bones) {
-            const ka = kps[a];
-            const kb = kps[b];
-            if (!ka || !kb) continue;
-            if ((ka.score ?? 1) < confMin || (kb.score ?? 1) < confMin) continue;
+          for (const [start, end] of ALL_CONNECTIONS) {
+            const key = `${start}-${end}`;
+            // Match account: require selectedBones.includes(key). If unset, draw all
+            // connections so recipes without a saved bone list still show a skeleton.
+            if (selectedBones && !selectedBones.includes(key)) continue;
+            const startPoint = kps[start];
+            const endPoint = kps[end];
+            // Same gate as useAssetVideoEngine: score > 0.3 (undefined fails).
+            if (
+              !startPoint ||
+              !endPoint ||
+              !((startPoint.score ?? 0) > CONF_MIN) ||
+              !((endPoint.score ?? 0) > CONF_MIN)
+            ) {
+              continue;
+            }
             applyBoneLineStyle(ctx, boneLineStyle);
             ctx.beginPath();
-            ctx.moveTo(ka.x, ka.y);
-            ctx.lineTo(kb.x, kb.y);
+            ctx.moveTo(startPoint.x, startPoint.y);
+            ctx.lineTo(endPoint.x, endPoint.y);
             ctx.stroke();
             resetBoneLineStyle(ctx);
           }
@@ -248,9 +209,10 @@ export const PoseOverlayCanvas: React.FC<Props> = ({
         if (showJoints) {
           ctx.fillStyle = jointColor;
           for (let i = 0; i < kps.length; i++) {
+            // Match account when selectedJoints is set; otherwise draw all confident joints.
             if (selectedJoints && !selectedJoints.includes(i)) continue;
             const kp = kps[i];
-            if (!kp || (kp.score ?? 1) < confMin) continue;
+            if (!kp || !((kp.score ?? 0) > CONF_MIN)) continue;
             ctx.beginPath();
             ctx.arc(kp.x, kp.y, jointSize, 0, Math.PI * 2);
             ctx.fill();

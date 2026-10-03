@@ -39,8 +39,8 @@ type Props = {
   chartGlassTone?: ChartGlassTone;
   /** Composition-sized plate+overlay composite for frost sampling. */
   glassSourceRef?: React.MutableRefObject<CanvasImageSource | null>;
-  /** Parent calls this after each plate frame so export glass stays in sync. */
-  paintTriggerRef?: React.MutableRefObject<(() => void) | null>;
+  /** Parent registers paint callbacks so multi-chart glass stays in sync. */
+  paintRegisterRef?: React.MutableRefObject<Set<() => void>>;
 };
 
 /**
@@ -60,7 +60,7 @@ export const AngleSeriesChart: React.FC<Props> = ({
   glassBlur = 5,
   chartGlassTone = "dark",
   glassSourceRef,
-  paintTriggerRef,
+  paintRegisterRef,
 }) => {
   const glassCanvasRef = useRef<HTMLCanvasElement>(null);
   const { width: compW, height: compH } = useVideoConfig();
@@ -93,17 +93,19 @@ export const AngleSeriesChart: React.FC<Props> = ({
     }[];
     if (valid.length < 2) return "";
 
-    const vals = valid.map((p) => p.v);
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    const span = Math.max(1, max - min);
+    // Fixed 0–180° domain (matches Studio joint-angle overlay) so small ROM
+    // swings aren't amplified to fill the panel.
+    const min = 0;
+    const max = 180;
+    const span = max - min;
     const n = Math.max(1, series.length - 1);
     const inner = 100 - PAD * 2;
 
     return valid
       .map((p, idx) => {
         const px = PAD + (p.i / n) * inner;
-        const py = PAD + inner - ((p.v - min) / span) * inner;
+        const clamped = Math.max(min, Math.min(max, p.v));
+        const py = PAD + inner - ((clamped - min) / span) * inner;
         return `${idx === 0 ? "M" : "L"} ${px.toFixed(2)} ${py.toFixed(2)}`;
       })
       .join(" ");
@@ -156,12 +158,13 @@ export const AngleSeriesChart: React.FC<Props> = ({
   }, [paintGlass, localFrame]);
 
   useLayoutEffect(() => {
-    if (!paintTriggerRef) return;
-    paintTriggerRef.current = paintGlass;
+    const set = paintRegisterRef?.current;
+    if (!set) return;
+    set.add(paintGlass);
     return () => {
-      paintTriggerRef.current = null;
+      set.delete(paintGlass);
     };
-  }, [paintGlass, paintTriggerRef]);
+  }, [paintGlass, paintRegisterRef]);
 
   const label = JOINT_LABELS[joint] ?? joint.replace("Angles", "");
   const latest = series[Math.min(reveal - 1, series.length - 1)];

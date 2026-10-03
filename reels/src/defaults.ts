@@ -38,10 +38,12 @@ export function demoSegmentsFromRecipe(
   durationInFrames = 240
 ): ResolvedSegment[] {
   const charts = recipe.segmentChartDefaults ?? [];
+  const first = charts[0]?.kind === "jointAngle" ? [charts[0]] : [];
   return [
     {
       plateUrl: "",
       durationInFrames,
+      charts: first,
       chart: charts[0] ?? null,
       overlays: "off",
       angles: DEMO_ANGLES,

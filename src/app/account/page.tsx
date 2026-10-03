@@ -8,6 +8,7 @@ import AccountInsightsTab from "../../components/account/AccountInsightsTab";
 import AccountMyPrograms from "../../components/account/AccountMyPrograms";
 import AccountProAccessBlock from "../../components/account/AccountProAccessBlock";
 import UserAvatar from "../../components/account/UserAvatar";
+import MobileDesktopBrowseBanner from "../../components/MobileDesktopBrowseBanner";
 import LibraryShell from "../../components/LibraryShell";
 import ExportPanelSelect from "../../components/ExportPanelSelect";
 import { getCountryFlag, getCountryName } from "../../data/countries";
@@ -273,6 +274,13 @@ function ProfileTab({
       </div>
 
       {PHASE_B_ENABLED ? <AccountMyPrograms /> : null}
+
+      <MobileDesktopBrowseBanner
+        title={t("account.nowOnIosTitle")}
+        body={t("account.nowOnIosBody")}
+        cta={t("account.nowOnIosCta")}
+        className="mt-2"
+      />
 
       {deleteConfirmOpen ? (
         <div className="fixed inset-0 z-[100]">

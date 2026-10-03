@@ -95,3 +95,57 @@ export function computeEntryAnim(opts: {
     scale: parkScale * scaleMul,
   };
 }
+
+/** Segment-local HUD chart entry (fade / slide / scale into rest pose). */
+export function computeChartEntryAnim(opts: {
+  frame: number;
+  fadeStartFrame: number;
+  fadeDurationFrames: number;
+  entry: EntryPreset;
+}): EntryAnimResult {
+  const { frame, fadeStartFrame, fadeDurationFrames, entry } = opts;
+
+  if (frame < fadeStartFrame) {
+    return { opacity: 0, translateX: 0, translateY: 0, scaleMul: 1 };
+  }
+
+  const t = Math.min(
+    1,
+    Math.max(0, (frame - fadeStartFrame) / Math.max(1, fadeDurationFrames))
+  );
+  const p = ease(t);
+
+  let opacity = 1;
+  let translateX = 0;
+  let translateY = 0;
+  let scaleMul = 1;
+
+  // Smaller travel than the UI device — charts are already near their park.
+  const slideY = COMP_HEIGHT * 0.08;
+  const slideX = COMP_WIDTH * 0.12;
+
+  switch (entry) {
+    case "fade":
+      opacity = interpolate(p, [0, 1], [0, 1]);
+      break;
+    case "bottom":
+      opacity = interpolate(p, [0, 1], [0, 1]);
+      translateY = interpolate(p, [0, 1], [slideY, 0]);
+      break;
+    case "side":
+      opacity = interpolate(p, [0, 1], [0, 1]);
+      translateX = interpolate(p, [0, 1], [slideX, 0]);
+      break;
+    case "sideLeft":
+      opacity = interpolate(p, [0, 1], [0, 1]);
+      translateX = interpolate(p, [0, 1], [-slideX, 0]);
+      break;
+    case "scale":
+      opacity = interpolate(p, [0, 1], [0, 1]);
+      scaleMul = interpolate(p, [0, 1], [0.85, 1]);
+      break;
+  }
+
+  return { opacity, translateX, translateY, scaleMul };
+}
+

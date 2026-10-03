@@ -2,10 +2,12 @@ import type { OpenMoveActivityHydration } from "./loadActivityHydration";
 import { smoothOpenMoveAngleSeries } from "./angleSeriesSmoothing";
 import type {
   AngleSeries,
+  JointAngleChart,
+  PoseFrame,
   ResolvedSegment,
-  SegmentChartConfig,
   VisualOverlayPreset,
 } from "../../reels/src/types";
+import { normalizeJointCharts } from "../../reels/src/types";
 
 const DEFAULT_SEGMENT_FRAMES = 240;
 
@@ -13,7 +15,7 @@ export type SegmentDraft = {
   source: "activity" | "media";
   activityId: string;
   plateSrc: string;
-  chart: SegmentChartConfig;
+  charts: JointAngleChart[];
   overlays: "on" | "off";
   durationInFrames?: number;
 };
@@ -25,6 +27,18 @@ export function hydrationToAngleSeries(
   if (!angles?.leftKneeAngles?.length) return null;
   if (!smooth) return angles as AngleSeries;
   return smoothOpenMoveAngleSeries(angles) as unknown as AngleSeries;
+}
+
+/**
+ * Raw activity poses for reel overlays — same source as Open Move account /
+ * useAssetVideoEngine. Do not Coach-smooth here: that drops keypoints and
+ * shifts COCO indices so index-based bones/joints break.
+ */
+export function hydrationToPoses(
+  poses: OpenMoveActivityHydration["poses"] | null | undefined
+): PoseFrame[] | undefined {
+  if (!Array.isArray(poses) || poses.length === 0) return undefined;
+  return poses as PoseFrame[];
 }
 
 export function resolveSegmentFromHydration(
@@ -60,12 +74,15 @@ export function resolveSegmentFromHydration(
       )
       : DEFAULT_SEGMENT_FRAMES);
 
-  const hasPoses = Array.isArray(hydration?.poses) && hydration!.poses.length > 0;
+  const poses = hydrationToPoses(hydration?.poses);
+  const hasPoses = Boolean(poses?.length);
+
+  const charts = normalizeJointCharts(draft.charts, null);
 
   const segment: ResolvedSegment = {
     plateUrl,
     durationInFrames,
-    poses: hasPoses ? (hydration!.poses as ResolvedSegment["poses"]) : undefined,
+    poses,
     poseTimestamps: hydration?.poseTimestamps ?? null,
     frameIntervalSec: hydration?.frameIntervalSec ?? null,
     playbackPixelSize: hydration?.playbackPixelSize ?? null,
@@ -73,7 +90,8 @@ export function resolveSegmentFromHydration(
     angles: hydrationToAngleSeries(hydration?.angles, true),
     sportAnalysisKind: hydration?.sportAnalysisKind ?? null,
     sportAnalysis: hydration?.sportAnalysis ?? null,
-    chart: draft.chart,
+    charts,
+    chart: charts[0] ?? null,
     overlays: draft.overlays === "on" && hasPoses ? "on" : "off",
   };
 

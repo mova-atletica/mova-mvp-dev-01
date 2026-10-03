@@ -13,13 +13,14 @@ import {
   buildGlassComposite,
   copyFrameToCanvas,
 } from "./helpers/plateFrameCanvas";
-import { computeEntryAnim } from "./helpers/entryAnim";
+import { computeEntryAnim, computeChartEntryAnim } from "./helpers/entryAnim";
 import {
   PoseOverlayCanvas,
   type PoseOverlayPaintApi,
 } from "./overlay/PoseOverlayCanvas";
 import type {
   ChartGlassTone,
+  JointAngleChart,
   ProductInUseProps,
   ResolvedSegment,
 } from "./types";
@@ -28,6 +29,8 @@ import {
   DEFAULT_CHART_W,
   DEFAULT_CHART_X,
   DEFAULT_CHART_Y,
+  normalizeJointCharts,
+  resolveChartLayout,
 } from "./types";
 import { CoverVideo } from "./ui/CoverVideo";
 import { CtaOverlay } from "./ui/CtaOverlay";
@@ -44,7 +47,15 @@ type ChartHudKnobs = {
   chartY: number;
   chartWidth: number;
   chartHeight: number;
+  defaultFadeStartFrame: number;
+  defaultFadeDurationFrames: number;
 };
+
+function activeCharts(segment: ResolvedSegment): JointAngleChart[] {
+  return normalizeJointCharts(segment.charts, segment.chart ?? null).filter(
+    (c) => segment.angles && Array.isArray(segment.angles[c.joint])
+  );
+}
 
 function SegmentLayer({
   segment,
@@ -63,7 +74,7 @@ function SegmentLayer({
   const chipGlassSourceRef = useRef<CanvasImageSource | null>(null);
   const chartGlassSourceRef = useRef<CanvasImageSource | null>(null);
   const overlayApiRef = useRef<PoseOverlayPaintApi | null>(null);
-  const chartPaintRef = useRef<(() => void) | null>(null);
+  const chartPaintRegisterRef = useRef<Set<() => void>>(new Set());
 
   const refreshChartGlass = useCallback(() => {
     const plate = plateCanvasRef.current;
@@ -77,7 +88,9 @@ function SegmentLayer({
     );
     if (composite) {
       chartGlassSourceRef.current = composite;
-      chartPaintRef.current?.();
+      for (const paint of chartPaintRegisterRef.current) {
+        paint();
+      }
     }
   }, [compW, compH]);
 
@@ -86,9 +99,7 @@ function SegmentLayer({
       const plate = copyFrameToCanvas(plateCanvasRef, frame);
       if (!plate) return;
       chipGlassSourceRef.current = plate;
-      // Paint overlays (chips use visualConfig + plate for their own glass).
       overlayApiRef.current?.paint(plate);
-      // If no overlay layer, still rebuild chart composite from plate alone.
       if (!overlayApiRef.current) {
         refreshChartGlass();
       }
@@ -101,12 +112,15 @@ function SegmentLayer({
     Array.isArray(segment.poses) &&
     segment.poses.length > 0;
 
-  const chart =
-    segment.chart?.kind === "jointAngle" &&
-    segment.angles &&
-    Array.isArray(segment.angles[segment.chart.joint])
-      ? segment.chart
-      : null;
+  const charts = activeCharts(segment);
+  const layoutDefaults = {
+    x: glass.chartX,
+    y: glass.chartY,
+    height: glass.chartHeight,
+    fadeStartFrame: glass.defaultFadeStartFrame,
+    fadeDurationFrames: glass.defaultFadeDurationFrames,
+    entry: "fade" as const,
+  };
 
   return (
     <AbsoluteFill>
@@ -126,25 +140,41 @@ function SegmentLayer({
           onPainted={refreshChartGlass}
         />
       ) : null}
-      {chart ? (
-        <AbsoluteFill style={{ opacity: overlayOpacity }}>
-          <AngleSeriesChart
-            angles={segment.angles!}
-            joint={chart.joint}
-            localFrame={localFrame}
-            durationInFrames={segment.durationInFrames}
-            x={glass.chartX}
-            y={glass.chartY}
-            width={glass.chartWidth}
-            height={glass.chartHeight}
-            glassOpacity={glass.glassOpacity}
-            glassBlur={glass.glassBlur}
-            chartGlassTone={glass.chartGlassTone}
-            glassSourceRef={chartGlassSourceRef}
-            paintTriggerRef={chartPaintRef}
-          />
-        </AbsoluteFill>
-      ) : null}
+      {charts.map((chart, i) => {
+        const layout = resolveChartLayout(chart, i, layoutDefaults);
+        const anim = computeChartEntryAnim({
+          frame: localFrame,
+          fadeStartFrame: layout.fadeStartFrame,
+          fadeDurationFrames: layout.fadeDurationFrames,
+          entry: layout.entry,
+        });
+        if (anim.opacity < 0.01) return null;
+        return (
+          <AbsoluteFill
+            key={`${chart.joint}-${i}`}
+            style={{
+              opacity: anim.opacity,
+              transform: `translate(${anim.translateX}px, ${anim.translateY}px) scale(${anim.scaleMul})`,
+            }}
+          >
+            <AngleSeriesChart
+              angles={segment.angles!}
+              joint={chart.joint}
+              localFrame={localFrame}
+              durationInFrames={segment.durationInFrames}
+              x={layout.x}
+              y={layout.y}
+              width={glass.chartWidth}
+              height={glass.chartHeight}
+              glassOpacity={glass.glassOpacity}
+              glassBlur={glass.glassBlur}
+              chartGlassTone={glass.chartGlassTone}
+              glassSourceRef={chartGlassSourceRef}
+              paintRegisterRef={chartPaintRegisterRef}
+            />
+          </AbsoluteFill>
+        );
+      })}
     </AbsoluteFill>
   );
 }
@@ -171,6 +201,7 @@ function SegmentWithFrame({
 
 export const ProductInUse: React.FC<ProductInUseProps> = (props) => {
   const frame = useCurrentFrame();
+  const showUi = props.showUiDevice !== false;
 
   const segments =
     props.segments?.length > 0
@@ -179,7 +210,7 @@ export const ProductInUse: React.FC<ProductInUseProps> = (props) => {
           {
             plateUrl: "",
             durationInFrames: 240,
-            chart: null,
+            charts: [],
             overlays: "off",
           },
         ] satisfies ResolvedSegment[]);
@@ -197,18 +228,20 @@ export const ProductInUse: React.FC<ProductInUseProps> = (props) => {
     }
   );
 
-  const anim = computeEntryAnim({
-    frame,
-    uiStartFrame: props.uiStartFrame,
-    uiAnimDurationFrames: props.uiAnimDurationFrames,
-    entry: props.entry,
-    parkX: props.x,
-    parkY: props.y,
-    parkScale: props.scale,
-  });
+  const anim = showUi
+    ? computeEntryAnim({
+        frame,
+        uiStartFrame: props.uiStartFrame,
+        uiAnimDurationFrames: props.uiAnimDurationFrames,
+        entry: props.entry,
+        parkX: props.x,
+        parkY: props.y,
+        parkScale: props.scale,
+      })
+    : null;
 
-  const deviceW = DEVICE_BASE_W * anim.scale;
-  const deviceH = DEVICE_BASE_H * anim.scale;
+  const deviceW = anim ? DEVICE_BASE_W * anim.scale : 0;
+  const deviceH = anim ? DEVICE_BASE_H * anim.scale : 0;
 
   const glass: ChartHudKnobs = {
     chartGlassTone: props.chartGlassTone ?? "dark",
@@ -218,6 +251,8 @@ export const ProductInUse: React.FC<ProductInUseProps> = (props) => {
     chartY: props.chartY ?? DEFAULT_CHART_Y,
     chartWidth: props.chartWidth ?? DEFAULT_CHART_W,
     chartHeight: props.chartHeight ?? DEFAULT_CHART_H,
+    defaultFadeStartFrame: props.overlayStartFrame ?? 0,
+    defaultFadeDurationFrames: props.overlayAnimDurationFrames ?? 20,
   };
 
   return (
@@ -237,7 +272,7 @@ export const ProductInUse: React.FC<ProductInUseProps> = (props) => {
         ))}
       </Series>
 
-      {anim.opacity > 0.001 ? (
+      {anim && anim.opacity > 0.001 ? (
         <AbsoluteFill style={{ pointerEvents: "none" }}>
           <GlassDeviceFrame
             uiSrc={props.uiSrc}

@@ -2,6 +2,7 @@
   "id": "reel-02",
   "fps": 30,
   "uiSrc": "",
+  "showUiDevice": true,
   "uiStartFrame": 24,
   "uiAnimDurationFrames": 40,
   "entry": "side",
@@ -22,7 +23,21 @@
   "overlayStartFrame": 24,
   "overlayAnimDurationFrames": 35,
   "segmentChartDefaults": [
-    { "kind": "jointAngle", "joint": "leftKneeAngles" },
-    { "kind": "jointAngle", "joint": "trunkAngles" }
+    {
+      "kind": "jointAngle",
+      "joint": "leftKneeAngles",
+      "x": 0.08,
+      "y": 0.15,
+      "fadeStartFrame": 24,
+      "fadeDurationFrames": 35
+    },
+    {
+      "kind": "jointAngle",
+      "joint": "trunkAngles",
+      "x": 0.08,
+      "y": 0.35,
+      "fadeStartFrame": 24,
+      "fadeDurationFrames": 35
+    }
   ]
 }

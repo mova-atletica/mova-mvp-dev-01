@@ -17,15 +17,25 @@ import type {
   AngleJointKey,
   ChartGlassTone,
   EntryPreset,
+  JointAngleChart,
   ProductInUseProps,
   RecipeKnobs,
   ResolvedSegment,
   SegmentChartConfig,
 } from "../../../../reels/src/types";
-import { COMP_HEIGHT, COMP_WIDTH, SAFE_X_MAX, SAFE_X_MIN, SAFE_Y_MAX, SAFE_Y_MIN } from "../../../../reels/src/types";
+import {
+  COMP_HEIGHT,
+  COMP_WIDTH,
+  normalizeJointCharts,
+  SAFE_X_MAX,
+  SAFE_X_MIN,
+  SAFE_Y_MAX,
+  SAFE_Y_MIN,
+} from "../../../../reels/src/types";
 import {
   CHART_H_MAX,
   CHART_H_MIN,
+  CHART_STACK_GAP,
   CHART_W_MAX,
   CHART_W_MIN,
   CHART_X_MAX,
@@ -61,22 +71,32 @@ const ENTRY_OPTIONS: { value: EntryPreset; label: string }[] = [
 const RENDER_CMD =
   "npx remotion render reels/src/index.ts ProductInUse reels/out/reel.mp4 --config=reels/remotion.config.ts --props=props.json";
 
-function chartFromSelect(value: string): SegmentChartConfig {
-  if (!value || value === "none") return null;
-  return { kind: "jointAngle", joint: value as AngleJointKey };
+const MAX_CHARTS_PER_SEGMENT = 4;
+
+function chartsFromDefault(
+  d: SegmentChartConfig | JointAngleChart[] | null | undefined
+): JointAngleChart[] {
+  const list = Array.isArray(d)
+    ? normalizeJointCharts(d, null)
+    : normalizeJointCharts(null, d ?? null);
+  return list.map((c, i) => ({
+    ...c,
+    x: c.x ?? DEFAULT_CHART_X,
+    y: c.y ?? DEFAULT_CHART_Y + i * (DEFAULT_CHART_H + CHART_STACK_GAP),
+    fadeStartFrame: c.fadeStartFrame ?? 24,
+    fadeDurationFrames: c.fadeDurationFrames ?? 35,
+    entry: c.entry ?? "fade",
+  }));
 }
 
-function chartSelectValue(chart: SegmentChartConfig): string {
-  if (!chart || chart.kind !== "jointAngle") return "none";
-  return chart.joint;
-}
-
-function emptyDraft(chart: SegmentChartConfig = null): SegmentDraft {
+function emptyDraft(
+  chartDefault: SegmentChartConfig | JointAngleChart[] | null = null
+): SegmentDraft {
   return {
     source: "activity",
     activityId: "",
     plateSrc: "",
-    chart,
+    charts: chartsFromDefault(chartDefault),
     overlays: "on",
   };
 }
@@ -84,6 +104,7 @@ function emptyDraft(chart: SegmentChartConfig = null): SegmentDraft {
 function knobsFromRecipe(recipe: RecipeKnobs): RecipeKnobs {
   return {
     ...recipe,
+    showUiDevice: recipe.showUiDevice !== false,
     chartGlassTone: recipe.chartGlassTone ?? "dark",
     chartX: recipe.chartX ?? DEFAULT_CHART_X,
     chartY: recipe.chartY ?? DEFAULT_CHART_Y,
@@ -163,7 +184,14 @@ function ReelCompositorInner() {
 
   const updateDraft = (index: number, patch: Partial<SegmentDraft>) => {
     setDrafts((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
-    setInputProps(null);
+    // Chart layout/fade + overlay toggle merge into liveProps — no re-hydrate.
+    // Only wipe preview when the plate/activity source changes.
+    const needsRehydrate =
+      patch.source != null ||
+      patch.activityId != null ||
+      patch.plateSrc != null ||
+      patch.durationInFrames != null;
+    if (needsRehydrate) setInputProps(null);
   };
 
   const onUiFile = (file: File | null) => {
@@ -218,8 +246,8 @@ function ReelCompositorInner() {
           if (draft.overlays === "on" && !data.poses?.length) {
             notes.push(`Segment ${i + 1}: no poses — overlays skipped`);
           }
-          if (draft.chart && !data.angles?.leftKneeAngles?.length) {
-            notes.push(`Segment ${i + 1}: no angles — chart hidden`);
+          if (draft.charts.length > 0 && !data.angles?.leftKneeAngles?.length) {
+            notes.push(`Segment ${i + 1}: no angles — charts hidden`);
           }
         }
 
@@ -243,7 +271,7 @@ function ReelCompositorInner() {
       setStatus(
         notes.length
           ? `Ready · ${notes.join(" · ")}`
-          : `Ready · ${resolved.length} segment(s) · smoothed charts · ${profile?.email ?? "partner"}`
+          : `Ready · ${resolved.length} segment(s) · smoothed overlays + charts · ${profile?.email ?? "partner"}`
       );
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Hydrate failed");
@@ -262,8 +290,25 @@ function ReelCompositorInner() {
 
   const liveProps = useMemo(() => {
     if (!inputProps) return null;
-    return { ...inputProps, ...knobs, uiSrc: uiSrc.trim() || inputProps.uiSrc };
-  }, [inputProps, knobs, uiSrc]);
+    const segments: ResolvedSegment[] = inputProps.segments.map((s, i) => {
+      const draft = drafts[i];
+      if (!draft) return s;
+      const overlays: "on" | "off" =
+        draft.overlays === "on" && (s.poses?.length ?? 0) > 0 ? "on" : "off";
+      return {
+        ...s,
+        charts: draft.charts,
+        chart: draft.charts[0] ?? null,
+        overlays,
+      };
+    });
+    return {
+      ...inputProps,
+      ...knobs,
+      uiSrc: uiSrc.trim() || inputProps.uiSrc,
+      segments,
+    };
+  }, [inputProps, knobs, uiSrc, drafts]);
 
   const propsJson = useMemo(
     () => (liveProps ? JSON.stringify(liveProps, null, 2) : ""),
@@ -364,6 +409,14 @@ function ReelCompositorInner() {
                 activities={replayable}
                 feedLoading={feedLoading}
                 fieldClass={field}
+                chartDefaults={{
+                  x: knobs.chartX ?? DEFAULT_CHART_X,
+                  y: knobs.chartY ?? DEFAULT_CHART_Y,
+                  height: knobs.chartHeight ?? DEFAULT_CHART_H,
+                  fadeStartFrame: knobs.overlayStartFrame ?? 0,
+                  fadeDurationFrames: knobs.overlayAnimDurationFrames ?? 20,
+                  entry: "fade",
+                }}
                 onChange={(patch) => updateDraft(index, patch)}
                 onPlateFile={(file) => onPlateFile(index, file)}
               />
@@ -395,6 +448,18 @@ function ReelCompositorInner() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
                     UI device
                   </p>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={knobs.showUiDevice !== false}
+                      onChange={(e) =>
+                        patchKnobs({ showUiDevice: e.target.checked })
+                      }
+                    />
+                    Show UI device overlay
+                  </label>
+                  {knobs.showUiDevice !== false ? (
+                    <>
                   <label className="block text-sm">
                     <span className="text-[color:var(--muted-foreground)]">
                       Upload UI recording
@@ -488,11 +553,18 @@ function ReelCompositorInner() {
                       patchKnobs({ uiAnimDurationFrames })
                     }
                   />
+                    </>
+                  ) : (
+                    <p className="text-xs text-[color:var(--muted-foreground)]">
+                      UI device hidden — plate, pose overlays, and HUD charts still
+                      render.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-3 border-t border-[color:var(--border-secondary)] pt-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">
-                    HUD chart
+                    HUD chart style
                   </p>
                   <label className="block text-sm">
                     <span className="text-[color:var(--muted-foreground)]">
@@ -512,23 +584,7 @@ function ReelCompositorInner() {
                     </select>
                   </label>
                   <SliderRow
-                    label={`Chart X · ${(knobs.chartX ?? DEFAULT_CHART_X).toFixed(2)}`}
-                    min={CHART_X_MIN}
-                    max={CHART_X_MAX}
-                    step={0.01}
-                    value={knobs.chartX ?? DEFAULT_CHART_X}
-                    onChange={(chartX) => patchKnobs({ chartX })}
-                  />
-                  <SliderRow
-                    label={`Chart Y · ${(knobs.chartY ?? DEFAULT_CHART_Y).toFixed(2)}`}
-                    min={CHART_Y_MIN}
-                    max={CHART_Y_MAX}
-                    step={0.01}
-                    value={knobs.chartY ?? DEFAULT_CHART_Y}
-                    onChange={(chartY) => patchKnobs({ chartY })}
-                  />
-                  <SliderRow
-                    label={`Chart width · ${(knobs.chartWidth ?? DEFAULT_CHART_W).toFixed(2)}`}
+                    label={`Default chart width · ${(knobs.chartWidth ?? DEFAULT_CHART_W).toFixed(2)}`}
                     min={CHART_W_MIN}
                     max={CHART_W_MAX}
                     step={0.01}
@@ -536,7 +592,7 @@ function ReelCompositorInner() {
                     onChange={(chartWidth) => patchKnobs({ chartWidth })}
                   />
                   <SliderRow
-                    label={`Chart height · ${(knobs.chartHeight ?? DEFAULT_CHART_H).toFixed(2)}`}
+                    label={`Default chart height · ${(knobs.chartHeight ?? DEFAULT_CHART_H).toFixed(2)}`}
                     min={CHART_H_MIN}
                     max={CHART_H_MAX}
                     step={0.01}
@@ -560,7 +616,7 @@ function ReelCompositorInner() {
                     onChange={(glassBlur) => patchKnobs({ glassBlur })}
                   />
                   <SliderRow
-                    label={`Pose & chart fade-in · ${knobs.overlayStartFrame ?? 0}f`}
+                    label={`Pose overlay fade-in · ${knobs.overlayStartFrame ?? 0}f`}
                     min={0}
                     max={120}
                     step={1}
@@ -570,7 +626,7 @@ function ReelCompositorInner() {
                     }
                   />
                   <SliderRow
-                    label={`Pose & chart fade duration · ${knobs.overlayAnimDurationFrames ?? 20}f`}
+                    label={`Pose overlay fade duration · ${knobs.overlayAnimDurationFrames ?? 20}f`}
                     min={1}
                     max={90}
                     step={1}
@@ -580,10 +636,8 @@ function ReelCompositorInner() {
                     }
                   />
                   <p className="text-xs text-[color:var(--muted-foreground)]">
-                    Chart position uses soft IG-safe bounds (clear of top chrome /
-                    right rail). Fade applies to pose overlays + chart — not the UI
-                    device (that uses Start frame / Anim duration above). Park Y goes
-                    up to {SAFE_Y_MAX}.
+                    Per-chart X/Y and fade live under each segment&apos;s HUD charts.
+                    Size/glass apply to all charts. Pose fade is skeleton/chips only.
                   </p>
                 </div>
               </div>
@@ -698,6 +752,7 @@ function SegmentEditor({
   activities,
   feedLoading,
   fieldClass,
+  chartDefaults,
   onChange,
   onPlateFile,
 }: {
@@ -706,9 +761,25 @@ function SegmentEditor({
   activities: { id: string; title: string; subtitle: string }[];
   feedLoading: boolean;
   fieldClass: string;
+  chartDefaults: {
+    x: number;
+    y: number;
+    height: number;
+    fadeStartFrame: number;
+    fadeDurationFrames: number;
+    entry: EntryPreset;
+  };
   onChange: (patch: Partial<SegmentDraft>) => void;
   onPlateFile: (file: File | null) => void;
 }) {
+  const patchChart = (ci: number, patch: Partial<JointAngleChart>) => {
+    onChange({
+      charts: draft.charts.map((row, j) =>
+        j === ci ? { ...row, ...patch } : row
+      ),
+    });
+  };
+
   return (
     <fieldset className="rounded-xl border border-[color:var(--border-secondary)] p-4">
       <legend className="px-1 text-sm font-medium">Segment {index + 1}</legend>
@@ -790,24 +861,147 @@ function SegmentEditor({
           </>
         ) : null}
 
-        <label className="block text-sm">
-          <span className="text-[color:var(--muted-foreground)]">Chart</span>
-          <select
-            className={fieldClass}
-            value={chartSelectValue(draft.chart)}
-            onChange={(e) => onChange({ chart: chartFromSelect(e.target.value) })}
-          >
-            <option value="none">None</option>
-            {JOINT_OPTIONS.map((j) => (
-              <option key={j.value} value={j.value}>
-                {j.label}
-              </option>
-            ))}
-          </select>
-          <span className="mt-1 block text-xs text-[color:var(--muted-foreground)]">
-            Joint angles are display-smoothed. Sport-specific charts come next.
+        <div className="space-y-3">
+          <span className="text-sm text-[color:var(--muted-foreground)]">
+            HUD charts
           </span>
-        </label>
+          {draft.charts.map((c, ci) => {
+            const x = c.x ?? chartDefaults.x;
+            const y =
+              c.y ??
+              chartDefaults.y + ci * (chartDefaults.height + CHART_STACK_GAP);
+            const fadeStart = c.fadeStartFrame ?? chartDefaults.fadeStartFrame;
+            const fadeDur =
+              c.fadeDurationFrames ?? chartDefaults.fadeDurationFrames;
+            const entry = c.entry ?? chartDefaults.entry;
+            return (
+              <div
+                key={`${c.joint}-${ci}`}
+                className="space-y-2 rounded-lg border border-[color:var(--border-secondary)] p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <select
+                    className={fieldClass}
+                    value={c.joint}
+                    onChange={(e) =>
+                      patchChart(ci, {
+                        joint: e.target.value as AngleJointKey,
+                      })
+                    }
+                  >
+                    {JOINT_OPTIONS.map((j) => (
+                      <option key={j.value} value={j.value}>
+                        {j.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs underline text-[color:var(--muted-foreground)]"
+                    onClick={() =>
+                      onChange({
+                        charts: draft.charts.filter((_, j) => j !== ci),
+                      })
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+                <label className="block text-sm">
+                  <span className="text-[color:var(--muted-foreground)]">
+                    Entry direction
+                  </span>
+                  <select
+                    className={fieldClass}
+                    value={entry}
+                    onChange={(e) =>
+                      patchChart(ci, {
+                        entry: e.target.value as EntryPreset,
+                      })
+                    }
+                  >
+                    {ENTRY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <SliderRow
+                  label={`X · ${x.toFixed(2)}`}
+                  min={CHART_X_MIN}
+                  max={CHART_X_MAX}
+                  step={0.01}
+                  value={x}
+                  onChange={(nx) => patchChart(ci, { x: nx })}
+                />
+                <SliderRow
+                  label={`Y · ${y.toFixed(2)}`}
+                  min={CHART_Y_MIN}
+                  max={CHART_Y_MAX}
+                  step={0.01}
+                  value={y}
+                  onChange={(ny) => patchChart(ci, { y: ny })}
+                />
+                <SliderRow
+                  label={`Fade-in · ${fadeStart}f`}
+                  min={0}
+                  max={180}
+                  step={1}
+                  value={fadeStart}
+                  onChange={(fadeStartFrame) =>
+                    patchChart(ci, { fadeStartFrame })
+                  }
+                />
+                <SliderRow
+                  label={`Fade duration · ${fadeDur}f`}
+                  min={1}
+                  max={90}
+                  step={1}
+                  value={fadeDur}
+                  onChange={(fadeDurationFrames) =>
+                    patchChart(ci, { fadeDurationFrames })
+                  }
+                />
+              </div>
+            );
+          })}
+          {draft.charts.length < MAX_CHARTS_PER_SEGMENT ? (
+            <button
+              type="button"
+              className="text-sm underline text-[color:var(--primary)]"
+              onClick={() => {
+                const used = new Set(draft.charts.map((row) => row.joint));
+                const nextJoint =
+                  JOINT_OPTIONS.find((j) => !used.has(j.value))?.value ??
+                  "leftKneeAngles";
+                const i = draft.charts.length;
+                onChange({
+                  charts: [
+                    ...draft.charts,
+                    {
+                      kind: "jointAngle",
+                      joint: nextJoint,
+                      x: chartDefaults.x,
+                      y:
+                        chartDefaults.y +
+                        i * (chartDefaults.height + CHART_STACK_GAP),
+                      fadeStartFrame: chartDefaults.fadeStartFrame,
+                      fadeDurationFrames: chartDefaults.fadeDurationFrames,
+                      entry: chartDefaults.entry,
+                    },
+                  ],
+                });
+              }}
+            >
+              Add chart
+            </button>
+          ) : null}
+          <span className="block text-xs text-[color:var(--muted-foreground)]">
+            Each chart has its own X/Y, entry direction, and segment-local fade.
+            Shared size/glass are under HUD chart style.
+          </span>
+        </div>
 
         <label className="flex items-center gap-2 text-sm">
           <input

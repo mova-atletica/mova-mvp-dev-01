@@ -475,11 +475,14 @@ export function SportTrendChart({
                       cy?: number;
                       index?: number;
                     };
-                    if (cx == null || cy == null || index == null) return <g />;
+                    const key = `sport-primary-dot-${index ?? "x"}`;
+                    if (cx == null || cy == null || index == null) {
+                      return <g key={key} />;
+                    }
                     const isActive = activeIndex === index;
                     return (
                       <circle
-                        key={index}
+                        key={key}
                         cx={cx}
                         cy={cy}
                         r={isActive ? 5 : 3.5}
@@ -619,13 +622,14 @@ export function SportJointRomTrendChart({
                           index?: number;
                           value?: number | null;
                         };
+                        const key = `sport-rom-dot-${joint}-${index ?? "x"}`;
                         if (cx == null || cy == null || index == null || value == null) {
-                          return <g />;
+                          return <g key={key} />;
                         }
                         const isActive = activeIndex === index;
                         return (
                           <circle
-                            key={`${joint}-${index}`}
+                            key={key}
                             cx={cx}
                             cy={cy}
                             r={isActive ? 4.5 : 3}

@@ -27,7 +27,7 @@ Putting a file only under `reels/ui.mp4` (package root) does **not** get served.
 Edit knobs in `recipes/reel-01.json` and `recipes/reel-02.json`:
 
 - UI entry: `entry`, `uiStartFrame`, `uiAnimDurationFrames`, `x`, `y`, `scale`
-- Chart HUD: `chartGlassTone`, `chartX`/`chartY`/`chartWidth`/`chartHeight`, `glassOpacity`, `glassBlur` — samples plate + overlays. Joint chips use activity visualConfig. Device frame: `borderRadius`, `glassBorderOpacity`, `glassShadow`, …
+- Chart HUD: `chartGlassTone`, `chartX`/`chartY`/`chartWidth`/`chartHeight`, `glassOpacity`, `glassBlur` — multiple per-segment `charts` stack with `CHART_STACK_GAP`. `showUiDevice` toggles the UI phone overlay. Joint chips use activity visualConfig.
 - CTA: `ctaText`, `ctaStartFrame`
 
 Changing recipes clearly changes Studio defaults and the Partner page recipe picker.
@@ -39,7 +39,7 @@ Changing recipes clearly changes Studio defaults and the Partner page recipe pic
 3. Open `/partner/reel-compositor` (not linked from main nav).  
    Allowed even when Phase B partner surfaces are hidden — still requires PartnerGate.
 4. Upload plate / UI clips **or** pick activities; tune entry + park X/Y (focal point) with sliders.
-5. **Hydrate & preview** — angles are display-smoothed; chart stays clipped inside the glass card.
+5. **Hydrate & preview** — angles are display-smoothed; overlay poses are raw (same as account); chart Y is fixed 0–180°.
 6. **Export MP4** — one-click browser render (`@remotion/web-renderer`). Keep the tab open until download finishes.
 
 ## Render one reel (CLI)
