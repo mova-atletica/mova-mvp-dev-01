@@ -27,6 +27,33 @@ iOS uses **Vision** (2D) and **ARKit** (3D) on device; web uses browser pose det
 
 ---
 
+## User flow
+
+```mermaid
+flowchart TD
+  START([Land · web or iOS]) --> CHOOSE{Choose path}
+
+  CHOOSE -->|Sport tool| SPORT[Open sport · e.g. plank / pull-ups]
+  CHOOSE -->|Studio| STUDIO[Motion Studio · record or upload]
+  CHOOSE -->|Account| ACCT[Sign in · Account]
+
+  SPORT --> CAP[Capture session]
+  STUDIO --> CAP
+
+  CAP --> PIPE[Pose → angles → smooth → metrics]
+  PIPE --> RES[Results · overlays · charts · primary metric]
+  RES --> SAVE[Save session · activity_sessions]
+  SAVE --> ACT[Activity · history]
+  ACT --> INS[Insights · sport + range · takeaways]
+  INS --> RET([Return · try again / another sport])
+
+  ACCT --> ACT
+  ACCT --> PRO[Pro · Stripe / App Store]
+  PRO --> STUDIO
+```
+
+---
+
 ## System architecture
 
 ```mermaid
@@ -84,6 +111,16 @@ flowchart TB
 
 ## Data pipeline (descriptive motion analytics)
 
+```mermaid
+flowchart TB
+  S1["1 · Capture<br/>Web keypoints · Vision · ARKit"] --> S2["2 · Angle series<br/>knee · hip · elbow · shoulder · spine"]
+  S2 --> S3["3 · Smoothing<br/>display preset · gap fill"]
+  S3 --> S4["4 · Quality gates<br/>min samples · min ROM · L/R coverage"]
+  S4 --> S5["5 · Session metrics<br/>peak ROM · symmetry · volume"]
+  S5 --> S6["6 · Sport analysis<br/>reps · hold · duration · phases"]
+  S6 --> S7["7 · Account aggregation<br/>Activity · Insights · takeaways"]
+```
+
 End-to-end flow aligned with production Account surfaces:
 
 1. **Capture** — Video or live camera → per-frame keypoints (web) or Vision/ARKit streams (iOS).
@@ -106,93 +143,69 @@ Key types: `src/types/accountActivity.ts` · persistence: `src/lib/activitySessi
 
 ## Design system & component patterns
 
-Built for fast iteration across web (and parity with native iOS UX):
+Built for fast iteration across web (and parity with native iOS UX). Tokens live in CSS; components compose them with Tailwind + Radix.
 
-| Concern | Where |
-|---------|--------|
-| **Design tokens** | `src/app/globals.css` — background, foreground, accent, card, buttons, light/dark |
-| **Typography** | Roboto Mono via `src/app/layout.tsx` — scoreboard-style numerics (Insights, stats) |
-| **Account UX** | `src/components/account/` — Activity, Insights (`SportSummaryCard`, charts), Pro block, i18n strings |
-| **Shell / navigation** | `LibraryShell`, archive rail themes, homepage canvas |
-| **Motion Studio** | `src/app/open-move-v2/` |
-| **Shared controls** | `ChartTimeRangeToggle`, export panel selects, Radix-based dialogs |
-
-Figma exploration, static prototypes, and visual system notes live on the **[portfolio case study](https://www.treybradley.xyz/mova-atletica)**.
-
----
-
-## Repository map
-
-```
-src/
-├── app/                    # Next.js App Router (home, account, open-move, coach, partner, API routes)
-├── components/             # UI (account/, archive/, legal/, …)
-├── lib/
-│   ├── sessionMovementMetrics.ts   # ROM / symmetry derivation
-│   ├── accountActivityInsights.ts  # Insights + sport range summaries
-│   ├── activitySessions.ts         # Supabase session CRUD
-│   ├── sportAnalysis/              # Per-sport logic
-│   └── openMoveAngleSeries.ts      # Angle series model
-├── i18n/messages/          # en.json, es.json, pt-BR.json
-supabase/migrations/        # Schema, RLS, storage policies (see supabase/README.md)
-reels/                      # Remotion product-in-use compositions
-backend/                    # Optional Python analysis server (legacy/advanced)
+```mermaid
+flowchart TB
+  TOK["Design tokens<br/>globals.css"] --> COMP["Components"]
+  TYPE["Roboto + Roboto Mono<br/>layout.tsx"] --> COMP
+  COMP --> SCORE["SportSummaryCard"]
+  COMP --> CHART["AccountMovementCharts"]
+  COMP --> SHELL["LibraryShell · AppShell"]
+  COMP --> STUDIO["Open Move / Motion Studio"]
+  SCORE --> SURF["Account Insights"]
+  CHART --> SURF
 ```
 
----
+### Color tokens
 
-## Local development
+| Token | Example hex | Role |
+|-------|-------------|------|
+| `--background` | `#181a1a` | Page / onyx surface |
+| `--foreground` | `#F3F3F4` / `#c0c9cc` | Primary text (theme-dependent) |
+| `--card-bg` | `#f6f1e3` / `#353839` | Cards — parchment (light) / onyx (dark) |
+| `--accent` | `#3b82f6` | Primary actions, Insights hairline |
+| `--muted` / muted labels | `#7d765f` / theme muted | Secondary copy, section labels |
+| `--success` | `#64FF58` | Positive / chart accents |
+| `--warning` / `--error` | `#ff8044` / `#FC7C7C` | Status |
 
-### Prerequisites
+Source: `src/app/globals.css` (core + `prefers-color-scheme: dark` overrides).
 
-- Node.js 18+
-- Supabase project (URL + anon key)
-- Stripe test keys (optional, for Pro checkout locally)
+### Typography
 
-### Install & run
+| Family | CSS variable | Use |
+|--------|--------------|-----|
+| **Roboto** | `--font-roboto` | UI body / chrome |
+| **Roboto Mono** | `--font-roboto-mono` | Scoreboards, Insights heroes, tabular metrics |
 
-```bash
-git clone <repository-url>
-cd mova-mvp-dev-01
-npm install
-npm run dev
+Loaded in `src/app/layout.tsx`. Scale patterns in product UI: large mono heroes (`text-5xl`), uppercase tracking labels (`text-[10px]`), takeaway body (`text-sm`).
+
+### Component anatomy — Account Insights
+
+```
+SportSummaryCard
+├── Header — Sport · range label
+├── Left column (md+)
+│   ├── VolumeSubCard — hero metric + best-session subline
+│   └── SessionsSubCard — count + cadence / most recent
+└── TakeawaysSubCard — bulleted descriptive insights
+
+Supporting charts (side-by-side from lg)
+├── SportTrendChart — primary volume over time
+└── SportJointRomTrendChart — joint ROM over time
+
+Shared controls: ChartTimeRangeToggle · sport tabs · scrub detail panels
+Primitives: Radix (dialog, select, …) + tokenized Tailwind (`var(--card-bg)`, borders)
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+| Area | Location |
+|------|----------|
+| Account UX | `src/components/account/` |
+| Shell / navigation | `LibraryShell`, archive rail, homepage canvas |
+| Motion Studio | `src/app/open-move-v2/` |
+| i18n | `src/i18n/messages/{en,es,pt-BR}.json` |
 
-### Environment
-
-Create `.env.local` (do not commit secrets):
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PRICE_PRO_MONTHLY=price_...
-STRIPE_PRICE_PRO_YEARLY=price_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
-
-**Stripe local:** `stripe listen --forward-to localhost:3000/api/stripe/webhook` and use the CLI signing secret for `STRIPE_WEBHOOK_SECRET`.
-
-**Supabase:** Apply migrations in order — see [`supabase/README.md`](supabase/README.md). Run entitlement lock migration `20260731_profiles_entitlement_lock.sql` so client cannot self-grant Pro.
-
-### Optional Python backend
-
-For legacy/advanced analysis endpoints:
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python main.py
-```
-
-Set `NEXT_PUBLIC_PYTHON_BACKEND_URL=http://localhost:8000` if the frontend still calls those routes.
+Figma exploration, static prototypes, and visual system notes: **[portfolio case study](https://www.treybradley.xyz/mova-atletica)**.
 
 ---
 
