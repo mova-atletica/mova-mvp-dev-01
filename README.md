@@ -63,49 +63,43 @@ flowchart TB
     IOS["iOS · Vision + ARKit<br/>2D / 3D pose"]
   end
 
-  subgraph Pipeline["Motion analytics (client-side)"]
+  subgraph Primary["Primary path · production"]
     POSE["Pose timeline · keypoints"]
     ANG["Joint angle series"]
     SM["Smoothing + quality gates"]
     SPORT["Sport / studio analyzers"]
-    MET["Session metrics JSON<br/>ROM · symmetry · volume"]
+    MET["Session metrics JSON"]
+    SB["Supabase<br/>Auth · RLS · activity_sessions · storage"]
+    UX["Results · Activity · Insights"]
   end
 
-  subgraph Supabase["Supabase"]
-    AUTH["Auth + RLS"]
-    DB["activity_sessions<br/>angles · sport_analysis · metrics"]
-    STOR["Private storage<br/>video · poses · poses3d"]
-  end
-
-  subgraph UX["Product surfaces"]
-    RES["Results / replay"]
-    ACT["Activity"]
-    INS["Insights"]
+  subgraph Legacy["Optional / early stack"]
+    PY["Python FastAPI<br/>DTW · similarity · advanced analysis"]
+    PR["Prisma + SQLite<br/>exercise library prototyping"]
   end
 
   WEB --> POSE
   IOS --> POSE
   POSE --> ANG --> SM --> SPORT --> MET
-  MET --> DB
-  POSE --> STOR
-  AUTH --> DB
-  AUTH --> STOR
-  DB --> RES & ACT & INS
-  STOR --> RES
+  MET --> SB --> UX
+  WEB -.->|"optional /analyze"| PY
+  WEB -.->|"library MVP"| PR
 ```
 
 **Stack (high level)**
 
-| Layer | Technology |
-|-------|------------|
-| Web app | Next.js 15, React, TypeScript, Tailwind CSS |
-| UI primitives | Radix UI, Recharts (account charts) |
-| Pose (web) | TensorFlow.js / pose-detection (legacy paths + studio flows) |
-| Data & auth | Supabase (Postgres, Auth, Storage, RLS) |
-| Billing | Stripe (web Pro), Apple App Store Server Library (iOS) |
-| i18n | en, es, pt-BR message catalogs |
-| Content / GTM | Remotion reels (`reels/`) |
-| Optional legacy | Python FastAPI backend (`backend/`) for advanced offline analysis; Prisma/SQLite exercise library paths remain in repo for older tooling |
+| Layer | Technology | Role |
+|-------|------------|------|
+| Web app | Next.js 15, React, TypeScript, Tailwind CSS | Consumer UI + Motion Studio |
+| UI primitives | Radix UI, Recharts | Account charts, accessible controls |
+| Pose (web) | TensorFlow.js / pose-detection | Browser keypoints |
+| Pose (iOS) | Vision (2D), ARKit (3D) | On-device capture |
+| **Data & auth (production)** | **Supabase** (Postgres, Auth, Storage, RLS) | Sessions, private media, entitlements |
+| Billing | Stripe (web Pro), App Store Server API (iOS) | Pro unlock |
+| i18n | en, es, pt-BR | Localized account / Insights copy |
+| Content / GTM | Remotion (`reels/`) | Product-in-use content |
+| **Optional · Python FastAPI** (`backend/`) | NumPy / SciPy / scikit-learn | Early advanced analysis — DTW, cosine similarity, rep tempo |
+| **Optional · Prisma + SQLite** | Local exercise library | Initial library concept & local testing — not the live account store |
 
 ---
 
@@ -153,8 +147,11 @@ flowchart TB
   COMP --> CHART["AccountMovementCharts"]
   COMP --> SHELL["LibraryShell · AppShell"]
   COMP --> STUDIO["Open Move / Motion Studio"]
+  COMP --> MODAL["OpenMoveStudioModal"]
   SCORE --> SURF["Account Insights"]
   CHART --> SURF
+  STUDIO --> MODAL
+  MODAL --> ACT["Activity · hydrate replay"]
 ```
 
 ### Color tokens
@@ -202,10 +199,14 @@ Primitives: Radix (dialog, select, …) + tokenized Tailwind (`var(--card-bg)`, 
 |------|----------|
 | Account UX | `src/components/account/` |
 | Shell / navigation | `LibraryShell`, archive rail, homepage canvas |
-| Motion Studio | `src/app/open-move-v2/` |
+| Motion Studio | `src/app/open-move-v2/` · modal: `src/components/open-move/OpenMoveStudioModal.tsx` |
 | i18n | `src/i18n/messages/{en,es,pt-BR}.json` |
 
-Figma exploration, static prototypes, and visual system notes: **[portfolio case study](https://www.treybradley.xyz/mova-atletica)**.
+**Figma (MA Beta Design System)** — reverse-designed from live Atlética code:
+- **[As-built · Atlética section](https://www.figma.com/design/If7L5q9fnsivf9mkaiFH4n/MA-Beta-Design-System?node-id=6260-12328)** — tokens, SportTabChip, ChartTimeRangeToggle, SportSummaryCard, PrimaryButton
+- **[Full screens · from live app](https://www.figma.com/design/If7L5q9fnsivf9mkaiFH4n/MA-Beta-Design-System?node-id=6266-66)** — html-to-design captures (Account, Insights, Studio modal, marketing/auth)
+
+Portfolio narrative: **[treybradley.xyz/mova-atletica](https://www.treybradley.xyz/mova-atletica)**.
 
 ---
 

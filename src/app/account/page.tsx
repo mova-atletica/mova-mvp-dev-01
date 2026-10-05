@@ -33,6 +33,14 @@ export default function AccountPage() {
   const [tab, setTab] = useState<AccountTab>("profile");
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get("tab");
+    if (next === "profile" || next === "activity" || next === "insights") {
+      setTab(next);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       openSignIn();
       router.replace("/");
