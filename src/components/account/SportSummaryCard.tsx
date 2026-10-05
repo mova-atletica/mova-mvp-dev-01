@@ -75,6 +75,102 @@ function SummarySubCard({
   );
 }
 
+/** Shared divider height so Volume + Sessions rules match. */
+const METRIC_SPLIT_DIVIDER_HEIGHT = 48;
+
+/** Primary metric left · vertical rule · subline right. */
+function MetricSplitChip({
+  hero,
+  heroKey,
+  label,
+  sub,
+}: {
+  hero: ReactNode;
+  heroKey: string;
+  label: string;
+  sub?: ReactNode;
+}) {
+  const hasSub = Boolean(sub);
+
+  if (!hasSub) {
+    return (
+      <SummarySubCard className="flex flex-1 flex-col justify-center">
+        <p
+          key={heroKey}
+          className="sport-summary-fade-in font-mono text-3xl font-medium tabular-nums leading-none tracking-tight text-[color:var(--foreground)]"
+        >
+          {hero}
+        </p>
+        <p className="mt-2 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
+          {label}
+        </p>
+      </SummarySubCard>
+    );
+  }
+
+  return (
+    <SummarySubCard className="flex flex-1">
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "stretch",
+          width: "100%",
+          minHeight: METRIC_SPLIT_DIVIDER_HEIGHT,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flex: "1 1 0",
+            minWidth: 0,
+            flexDirection: "column",
+            justifyContent: "center",
+            paddingRight: 16,
+          }}
+        >
+          <p
+            key={heroKey}
+            className="sport-summary-fade-in font-mono text-3xl font-medium tabular-nums leading-none tracking-tight text-[color:var(--foreground)]"
+          >
+            {hero}
+          </p>
+          <p className="mt-2 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
+            {label}
+          </p>
+        </div>
+
+        <div
+          aria-hidden
+          style={{
+            width: 1,
+            height: METRIC_SPLIT_DIVIDER_HEIGHT,
+            flexShrink: 0,
+            alignSelf: "center",
+            backgroundColor: "color-mix(in srgb, var(--foreground) 35%, transparent)",
+          }}
+        />
+
+        <div
+          style={{
+            display: "flex",
+            flex: "1 1 0",
+            minWidth: 0,
+            flexDirection: "column",
+            justifyContent: "center",
+            gap: 4,
+            paddingLeft: 16,
+            fontSize: 14,
+            color: "var(--muted-foreground)",
+          }}
+        >
+          {sub}
+        </div>
+      </div>
+    </SummarySubCard>
+  );
+}
+
 function formatMinutesWhole(seconds: number): string {
   return String(Math.max(0, Math.round(seconds / 60)));
 }
@@ -236,12 +332,6 @@ export default function SportSummaryCard({
       className="relative overflow-hidden rounded-xl px-4 py-5 sm:px-5 sm:py-6"
       style={{ ...borderAllTheme, backgroundColor: "var(--background)" }}
     >
-      <div
-        className="absolute inset-x-0 top-0 h-[2px]"
-        style={{ backgroundColor: "var(--accent, #3b82f6)" }}
-        aria-hidden
-      />
-
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
         {t(SPORT_LABEL_KEYS[sportKey])}
         <span className="mx-1.5 opacity-50">·</span>
@@ -256,38 +346,26 @@ export default function SportSummaryCard({
         }
       >
         <div className="flex min-h-0 flex-col gap-3 md:h-full">
-          <SummarySubCard className="flex flex-1 flex-col justify-center">
-            <p
-              key={`${sportKey}-${range}-${hero}`}
-              className="sport-summary-fade-in font-mono text-5xl font-semibold tabular-nums leading-none tracking-tight text-[color:var(--foreground)]"
-            >
-              {hero}
-            </p>
-            <p className="mt-2 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              {t(VOLUME_LABEL_KEYS[sportKey])}
-            </p>
-            {volumeInsight ? (
-              <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">{volumeInsight}</p>
-            ) : null}
-          </SummarySubCard>
+          <MetricSplitChip
+            hero={hero}
+            heroKey={`${sportKey}-${range}-${hero}`}
+            label={t(VOLUME_LABEL_KEYS[sportKey])}
+            sub={volumeInsight ? <p>{volumeInsight}</p> : undefined}
+          />
 
-          <SummarySubCard className="flex flex-1 flex-col justify-center">
-            <p
-              key={`${sportKey}-${range}-sessions`}
-              className="sport-summary-fade-in font-mono text-5xl font-semibold tabular-nums leading-none tracking-tight text-[color:var(--foreground)]"
-            >
-              {summary.sessions}
-            </p>
-            <p className="mt-2 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              {t("account.sportTrendSessions")}
-            </p>
-            {sessionsCadence ? (
-              <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">{sessionsCadence}</p>
-            ) : null}
-            {sessionsRecent ? (
-              <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">{sessionsRecent}</p>
-            ) : null}
-          </SummarySubCard>
+          <MetricSplitChip
+            hero={summary.sessions}
+            heroKey={`${sportKey}-${range}-sessions`}
+            label={t("account.sportTrendSessions")}
+            sub={
+              sessionsCadence || sessionsRecent ? (
+                <>
+                  {sessionsCadence ? <p>{sessionsCadence}</p> : null}
+                  {sessionsRecent ? <p>{sessionsRecent}</p> : null}
+                </>
+              ) : undefined
+            }
+          />
         </div>
 
         {takeaways.length > 0 ? (

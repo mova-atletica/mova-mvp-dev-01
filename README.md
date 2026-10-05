@@ -161,7 +161,7 @@ flowchart TB
 | `--background` | `#181a1a` | Page / onyx surface |
 | `--foreground` | `#F3F3F4` / `#c0c9cc` | Primary text (theme-dependent) |
 | `--card-bg` | `#f6f1e3` / `#353839` | Cards — parchment (light) / onyx (dark) |
-| `--accent` | `#3b82f6` | Primary actions, Insights hairline |
+| `--accent` | `#3b82f6` | Primary actions |
 | `--muted` / muted labels | `#7d765f` / theme muted | Secondary copy, section labels |
 | `--success` | `#64FF58` | Positive / chart accents |
 | `--warning` / `--error` | `#ff8044` / `#FC7C7C` | Status |
@@ -202,7 +202,7 @@ Primitives: Radix (dialog, select, …) + tokenized Tailwind (`var(--card-bg)`, 
 | Motion Studio | `src/app/open-move-v2/` · modal: `src/components/open-move/OpenMoveStudioModal.tsx` |
 | i18n | `src/i18n/messages/{en,es,pt-BR}.json` |
 
-**Figma (MA Beta Design System)** — reverse-designed from live Atlética code:
+**Figma (MA Beta Design System)**:
 - **[As-built · Atlética section](https://www.figma.com/design/If7L5q9fnsivf9mkaiFH4n/MA-Beta-Design-System?node-id=6260-12328)** — tokens, SportTabChip, ChartTimeRangeToggle, SportSummaryCard, PrimaryButton
 - **[Full screens · from live app](https://www.figma.com/design/If7L5q9fnsivf9mkaiFH4n/MA-Beta-Design-System?node-id=6266-66)** — html-to-design captures (Account, Insights, Studio modal, marketing/auth)
 
