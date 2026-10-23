@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from "recharts";
 import InfoTooltip from '../InfoTooltip';
+import { chartGlassTooltipStyle } from './chartTooltipStyles';
 
 // Chart series color palette using CSS variables
 const seriesColors = [
@@ -63,9 +64,9 @@ export default function BaseRadarChart({
     const { metric, score } = payload[0].payload;
     const info = finalMetricDescriptions[metric] || { label: metric, desc: '' };
     return (
-      <div style={{ background: 'var(--results-chart-tooltip-bg)', color: 'var(--results-chart-tooltip-text)', borderRadius: 8, padding: 10, fontSize: 13, fontWeight: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}>
+      <div style={{ ...chartGlassTooltipStyle, padding: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 13 }}>{info.label}</div>
-        <div style={{ fontSize: 12, color: 'var(--results-chart-tooltip-text)', marginBottom: 4 }}>{info.desc}</div>
+        <div style={{ fontSize: 12, marginBottom: 4, opacity: 0.85 }}>{info.desc}</div>
         <div style={{ fontWeight: 700, fontSize: 12 }}>Score: {typeof score === 'number' ? score.toFixed(2) : score}</div>
       </div>
     );
@@ -139,11 +140,8 @@ export default function BaseRadarChart({
             fill={seriesColors[0]}
             fillOpacity={0.6}
           />
-          <Tooltip 
+          <Tooltip
             content={<RadarTooltipContent />}
-            contentStyle={{ background: 'var(--results-chart-tooltip-bg)', color: 'var(--results-chart-tooltip-text)', border: 'none', borderRadius: 8, fontSize: '13px', fontWeight: 400 }}
-            itemStyle={{ fontSize: '12px', fontWeight: 400 }}
-            labelStyle={{ color: 'var(--results-chart-tooltip-text)', fontSize: '11px', fontWeight: 700 }}
             cursor={{ stroke: 'var(--results-chart-cursor)', strokeWidth: 2 }}
           />
         </RadarChart>

@@ -12,6 +12,11 @@ import {
   ReferenceArea,
 } from "recharts";
 import InfoTooltip from '../InfoTooltip';
+import {
+  chartGlassTooltipContentStyle,
+  chartGlassTooltipItemStyle,
+  chartGlassTooltipLabelStyle,
+} from './chartTooltipStyles';
 
 // Chart series color palette using CSS variables
 const seriesColors = [
@@ -137,10 +142,10 @@ export default function BaseAngleComparisonChart({
             tick={{ fill: 'var(--results-chart-axis)', fontSize: '13px', fontWeight: 400 }}
             tickFormatter={(value) => Math.round(value).toString()}
           />
-          <Tooltip 
-            contentStyle={{ background: 'var(--results-chart-tooltip-bg)', color: 'var(--results-chart-tooltip-text)', border: 'none', borderRadius: 8, fontSize: '13px', fontWeight: 400 }}
-            labelStyle={{ color: 'var(--results-chart-tooltip-text)', fontSize: '11px', fontWeight: 700 }}
-            itemStyle={{ color: 'var(--results-chart-tooltip-text)', fontSize: '13px', fontWeight: 400 }}
+          <Tooltip
+            contentStyle={chartGlassTooltipContentStyle}
+            labelStyle={chartGlassTooltipLabelStyle}
+            itemStyle={chartGlassTooltipItemStyle}
             formatter={(value: any, name: string) => [Math.round(Number(value)).toString(), name]}
           />
           <Legend wrapperStyle={{ color: 'var(--results-chart-legend)' }} content={props => <CustomLegendContent {...props} data={data} holdPeriods={holdPeriods} />} />

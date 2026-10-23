@@ -192,7 +192,10 @@ export function ConfigColorHexRow({
   );
 }
 
-/** Muybridge-style: small square opens native color picker; hex text alongside. */
+/**
+ * Same chrome as ConfigColorHexRow (24×20 native color + hex).
+ * Kept for Muybridge / older call sites that pass backgroundColor + onHexChange.
+ */
 export function ConfigSwatchHexRow({
   label = "Color",
   labelWidth = "50px",
@@ -206,40 +209,15 @@ export function ConfigSwatchHexRow({
   textValue: string;
   onHexChange: (hex: string) => void;
 }) {
-  const labelStyle =
-    labelWidth === "50px" ? configFieldStyles.labelWide : configFieldStyles.labelNarrow;
-
-  const openPicker = () => {
-    const colorInput = document.createElement("input");
-    colorInput.type = "color";
-    colorInput.value = backgroundColor || "#666666";
-    colorInput.onchange = (e) => {
-      onHexChange((e.target as HTMLInputElement).value);
-    };
-    colorInput.click();
-  };
-
   return (
-    <div style={configFieldStyles.row}>
-      <span style={labelStyle}>{label}</span>
-      <div
-        style={{
-          width: "20px",
-          height: "20px",
-          backgroundColor,
-          border: borderSubtle,
-          borderRadius: "4px",
-          cursor: "pointer",
-        }}
-        onClick={openPicker}
-      />
-      <input
-        type="text"
-        value={textValue}
-        onChange={(e) => onHexChange(e.target.value)}
-        style={configFieldStyles.textMono}
-      />
-    </div>
+    <ConfigColorHexRow
+      label={label}
+      labelWidth={labelWidth}
+      colorInputValue={backgroundColor || "#666666"}
+      textInputValue={textValue}
+      onColorChange={onHexChange}
+      onTextChange={onHexChange}
+    />
   );
 }
 

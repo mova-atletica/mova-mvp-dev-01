@@ -45,6 +45,10 @@ import type {
   SportTrendPoint,
   WeeklyActivityBucket,
 } from "../../lib/accountActivityInsights";
+import {
+  chartGlassCursor,
+  chartGlassTooltipStyle,
+} from "../charts/chartTooltipStyles";
 
 const borderAllTheme = { border: "1px solid var(--border-secondary)" } as const;
 
@@ -69,23 +73,6 @@ interface ChartTooltipProps {
   payload?: { name?: string; value?: number; color?: string }[];
   label?: string;
 }
-
-/** Frosted glass panel — shared by account chart hover tooltips. */
-const chartGlassTooltipStyle = {
-  background: "var(--mega-menu-bg, color-mix(in srgb, var(--surface) 55%, transparent))",
-  border: "1px solid var(--mega-menu-border, var(--border-secondary))",
-  color: "var(--mega-menu-text, var(--foreground))",
-  backdropFilter: "blur(16px) saturate(1.35)",
-  WebkitBackdropFilter: "blur(16px) saturate(1.35)",
-  boxShadow: "0 8px 28px rgba(0, 0, 0, 0.18)",
-} as const;
-
-/** Bar hover band — translucent glass wash instead of Recharts’ light gray. */
-const chartGlassCursor = {
-  fill: "color-mix(in srgb, var(--foreground) 10%, transparent)",
-  stroke: "color-mix(in srgb, var(--foreground) 18%, transparent)",
-  strokeWidth: 1,
-} as const;
 
 function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;

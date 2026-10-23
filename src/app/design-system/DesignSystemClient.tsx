@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import * as Accordion from "@radix-ui/react-accordion";
+import * as Dialog from "@radix-ui/react-dialog";
 import { ChevronDown } from "lucide-react";
+import InfoTooltip from "../../components/InfoTooltip";
 import {
   Bar,
   BarChart,
@@ -20,6 +22,10 @@ import ChartTimeRangeToggle from "../../components/account/ChartTimeRangeToggle"
 import ExportPanelSelect from "../../components/ExportPanelSelect";
 import BaseRadarChart from "../../components/charts/BaseRadarChart";
 import BaseAngleComparisonChart from "../../components/charts/BaseAngleComparisonChart";
+import {
+  chartGlassCursor,
+  chartGlassTooltipContentStyle,
+} from "../../components/charts/chartTooltipStyles";
 import type { ChartTimeRange } from "../../lib/accountActivityInsights";
 import {
   ConfigCheckboxInline,
@@ -27,7 +33,6 @@ import {
   ConfigRoot,
   ConfigSection,
   ConfigSliderRow,
-  ConfigSwatchHexRow,
 } from "../motion-explore/effect-config/fields";
 import {
   BRAND_COLOR_RATIONALE,
@@ -879,7 +884,7 @@ function ColorPickerDemo() {
 
   return (
     <ConfigRoot>
-      <ConfigSection title="Native color + hex (ConfigColorHexRow)">
+      <ConfigSection title="ConfigColorHexRow · bone / joint / trail">
         <ConfigColorHexRow
           label="Bone"
           colorInputValue={bone}
@@ -894,17 +899,114 @@ function ColorPickerDemo() {
           textInputValue={joint}
           onColorChange={setJoint}
           onTextChange={setJoint}
+          marginBottom="6px"
         />
-      </ConfigSection>
-      <ConfigSection title="Swatch opens picker (ConfigSwatchHexRow)">
-        <ConfigSwatchHexRow
+        <ConfigColorHexRow
           label="Trail"
-          backgroundColor={trail}
-          textValue={trail}
-          onHexChange={setTrail}
+          colorInputValue={trail}
+          textInputValue={trail}
+          onColorChange={setTrail}
+          onTextChange={setTrail}
         />
       </ConfigSection>
+      <p className="mt-2 text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+        One control: 24×20 native <code className="font-mono">type=&quot;color&quot;</code> + hex field.
+        <code className="font-mono"> ConfigSwatchHexRow</code> is an alias of the same chrome (Muybridge).
+      </p>
     </ConfigRoot>
+  );
+}
+
+function DialogDemo() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Trigger asChild>
+          <button
+            type="button"
+            className="rounded-lg px-3 py-2 text-[12px] font-medium"
+            style={{ background: "var(--primary-button-bg)", color: "var(--primary-button-text)" }}
+          >
+            Open dialog
+          </button>
+        </Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[400] bg-black/65" />
+          <Dialog.Content
+            className="fixed left-1/2 top-1/2 z-[410] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl p-5 outline-none"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border-secondary)",
+              boxShadow: "0 16px 48px rgba(0,0,0,0.28)",
+              color: "var(--foreground)",
+            }}
+          >
+            <Dialog.Title className="text-base font-medium tracking-tight">Save to leaderboard?</Dialog.Title>
+            <Dialog.Description className="mt-2 text-[12px] font-light leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+              Compact confirm — overlay + centered panel. Full-bleed Studio uses the same Radix Dialog with a
+              different size shell (<code className="font-mono">OpenMoveStudioModal</code>).
+            </Dialog.Description>
+            <div className="mt-5 flex justify-end gap-2">
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  className="rounded-lg px-3 py-1.5 text-[11px] font-medium"
+                  style={{ border: "1px solid var(--border-secondary)" }}
+                >
+                  Cancel
+                </button>
+              </Dialog.Close>
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  className="rounded-lg px-3 py-1.5 text-[11px] font-medium"
+                  style={{ background: "var(--primary-button-bg)", color: "var(--primary-button-text)" }}
+                >
+                  Save
+                </button>
+              </Dialog.Close>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <span className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+        Confirm pattern · not the full Studio stage modal
+      </span>
+    </div>
+  );
+}
+
+function TooltipAndBadgeDemo() {
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <div className="flex items-center gap-1">
+        <span className="text-[13px] font-light">Performance score</span>
+        <InfoTooltip content="Aggregates ROM, pattern match, and tempo for this session." />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            { label: "Beginner", tone: "#085900" },
+            { label: "Intermediate", tone: "#F87518" },
+            { label: "Advanced", tone: "#1D4ED8" },
+          ] as const
+        ).map((b) => (
+          <span
+            key={b.label}
+            className="rounded px-1.5 py-0.5 text-[10px] font-medium leading-none shadow-sm"
+            style={{
+              background: "rgba(192, 201, 204, 0.85)",
+              color: b.tone,
+              border: "1px solid #f3f3f4",
+            }}
+          >
+            {b.label}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -971,7 +1073,7 @@ function ComponentsPanel() {
     <>
       <SectionHeader
         title="Components"
-        subtitle="Studio primitives we ship repeatedly — buttons, fields, accordions, selects, and effect config controls. Insights chips & range toggles live under Data viz."
+        subtitle="Studio primitives — buttons, fields, accordion, select, color, effect controls, dialog, tooltip & badges. Insights chips & range toggles live under Data viz."
       />
       <div className="space-y-4">
         <Panel
@@ -1052,7 +1154,7 @@ function ComponentsPanel() {
 
         <Panel
           title="Color picker"
-          description="Effect-config fields: native color input + hex, or swatch that opens the system picker."
+          description="ConfigColorHexRow — one chrome for bone, joint, trail, and Muybridge (ConfigSwatchHexRow is the same control)."
         >
           <ColorPickerDemo />
         </Panel>
@@ -1062,6 +1164,20 @@ function ComponentsPanel() {
           description="ConfigSliderRow, checkboxes, and color row composed like SkeletonOverlayEffectConfig — opacity, stroke, toggles."
         >
           <EffectControlsDemo />
+        </Panel>
+
+        <Panel
+          title="Dialog / modal"
+          description="Radix Dialog — compact confirm (leaderboard / onboarding). Full Studio stage is a separate size shell on the same primitive."
+        >
+          <DialogDemo />
+        </Panel>
+
+        <Panel
+          title="Tooltip + level badge"
+          description="InfoTooltip (ⓘ) on charts & forms; compact level chips as on ExerciseCard."
+        >
+          <TooltipAndBadgeDemo />
         </Panel>
 
         <Panel title="Theme toggle" description="Light / dark as a user mode — same brand ramps, different semantic mapping.">
@@ -1396,8 +1512,8 @@ function ArchiveBrowseWireframe() {
 
   return (
     <Panel
-      title="Archive browse · rail filters + hero + cards"
-      description="LibraryShell with the left rail open as a filters drawer, FeaturedHeroCarousel, and ExerciseCard rows. Same chrome scales to programs and creator catalogs."
+      title="Archive browse · rail filters + hero + cards → detail"
+      description="LibraryShell browse → program detail → trainer/creator. Same filter rail + hero + card grammar; destinations change."
     >
       <div
         className="mb-3 rounded-lg px-3 py-2.5 text-[12px] font-light leading-relaxed"
@@ -1410,9 +1526,15 @@ function ArchiveBrowseWireframe() {
         <span className="font-medium" style={{ color: "var(--foreground)" }}>
           Why this pattern —{" "}
         </span>
-        One browse shell: rail filters stay out of the content column, the hero sells the next session or program, and media cards are the unit of discovery. As Archive grows into programs and trainers, we keep the same filter rail + hero + card grammar — only the card payload and destinations change (exercise studio, program detail, creator page).
+        One discovery → detail journey. Rail filters stay out of the content column, the hero sells the next session or program, and media cards are the unit of discovery. Program and creator pages reuse Archive hero + card grammar with access / purchase and catalog carousels — not a separate visual system.
       </div>
 
+      <p
+        className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em]"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        1 · Archive page · browse
+      </p>
       <div
         className="flex overflow-hidden rounded-lg"
         style={{
@@ -1621,21 +1743,12 @@ function ArchiveBrowseWireframe() {
         </div>
       </div>
 
-      <p className="mt-2 text-[11px]" style={{ color: "var(--muted-foreground)" }}>
-        Production: <code className="font-mono">LibraryShell</code> (rail filters) ·{" "}
-        <code className="font-mono">FeaturedHeroCarousel</code> · <code className="font-mono">ExerciseCard</code> /{" "}
-        <code className="font-mono">ProgramCard</code> · mega menu in rail header.
+      <p
+        className="mb-2 mt-6 text-[10px] font-semibold uppercase tracking-[0.14em]"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        2 · Program detail · access + weeks → studio
       </p>
-    </Panel>
-  );
-}
-
-function ProgramDetailPageWireframe() {
-  return (
-    <Panel
-      title="Program detail page"
-      description="Archive hero, access / purchase, week tabs, session blocks → opens exercise studio modal. Production: programs/[slug]."
-    >
       <div className="overflow-hidden rounded-lg" style={{ border: "1px solid var(--border-secondary)" }}>
         <div
           className="relative px-4 py-8 sm:px-6"
@@ -1733,16 +1846,13 @@ function ProgramDetailPageWireframe() {
           </div>
         </div>
       </div>
-    </Panel>
-  );
-}
 
-function TrainerDetailPageWireframe() {
-  return (
-    <Panel
-      title="Trainer / creator detail page"
-      description="Creator hero, bio, specialties, program carousels, exercise catalog. Production: creators/[slug]."
-    >
+      <p
+        className="mb-2 mt-6 text-[10px] font-semibold uppercase tracking-[0.14em]"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        3 · Trainer / creator detail · catalog
+      </p>
       <div className="overflow-hidden rounded-lg" style={{ border: "1px solid var(--border-secondary)" }}>
         <div
           className="relative px-4 py-8 sm:px-6"
@@ -1828,6 +1938,81 @@ function TrainerDetailPageWireframe() {
           </div>
         </div>
       </div>
+
+      <p className="mt-2 text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+        Production: <code className="font-mono">LibraryShell</code> ·{" "}
+        <code className="font-mono">FeaturedHeroCarousel</code> · <code className="font-mono">ExerciseCard</code> /{" "}
+        <code className="font-mono">ProgramCard</code> · <code className="font-mono">programs/[slug]</code> ·{" "}
+        <code className="font-mono">creators/[slug]</code>.
+      </p>
+    </Panel>
+  );
+}
+
+function EmptyAndGatedWireframe() {
+  return (
+    <Panel
+      title="Empty + gated states"
+      description="Honest zero data and clear upgrade / access locks — same shell, different next action."
+    >
+      <div
+        className="mb-3 rounded-lg px-3 py-2.5 text-[12px] font-light leading-relaxed"
+        style={{
+          border: "1px solid var(--border-secondary)",
+          background: "color-mix(in srgb, var(--foreground) 5%, transparent)",
+          color: "var(--muted-foreground)",
+        }}
+      >
+        <span className="font-medium" style={{ color: "var(--foreground)" }}>
+          Why this pattern —{" "}
+        </span>
+        Prefer missing over fake precision. Empty points to the first session; gated states name the unlock without
+        inventing charts.
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div
+          className="flex flex-col items-start justify-center rounded-lg px-4 py-8"
+          style={{ border: "1px solid var(--border-secondary)", background: "var(--surface)", minHeight: "10rem" }}
+        >
+          <p className="text-[13px] font-medium">No sessions yet</p>
+          <p className="mt-1 text-[11px] font-light" style={{ color: "var(--muted-foreground)" }}>
+            Capture a movement in Studio to populate Insights.
+          </p>
+          <button
+            type="button"
+            className="mt-4 rounded-lg px-3 py-1.5 text-[11px] font-medium"
+            style={{ background: "var(--primary-button-bg)", color: "var(--primary-button-text)" }}
+          >
+            Open Studio
+          </button>
+        </div>
+        <div
+          className="relative flex flex-col items-start justify-center overflow-hidden rounded-lg px-4 py-8"
+          style={{ border: "1px solid var(--border-secondary)", background: "var(--surface)", minHeight: "10rem" }}
+        >
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(to bottom, transparent 20%, color-mix(in srgb, var(--surface) 88%, transparent))",
+            }}
+          />
+          <p className="relative text-[13px] font-medium">Program analytics</p>
+          <p className="relative mt-1 text-[11px] font-light" style={{ color: "var(--muted-foreground)" }}>
+            Unlock full week trends after purchase.
+          </p>
+          <button
+            type="button"
+            className="relative mt-4 rounded-lg px-3 py-1.5 text-[11px] font-medium"
+            style={{
+              border: "1px solid var(--border-secondary)",
+              background: "color-mix(in srgb, var(--foreground) 8%, transparent)",
+            }}
+          >
+            Unlock · $49
+          </button>
+        </div>
+      </div>
     </Panel>
   );
 }
@@ -1837,13 +2022,12 @@ function PatternsPanel() {
     <>
       <SectionHeader
         title="Patterns"
-        subtitle="Composed product UI — studio stage+rails, Archive browse (filters · hero · cards), program & trainer pages. Insights charts live under Data viz."
+        subtitle="Composed product UI — studio stage+rails, Archive family (browse → program → creator), empty + gated. Session charts live under Data viz."
       />
       <div className="space-y-6">
         <StudioStageMockup />
         <ArchiveBrowseWireframe />
-        <ProgramDetailPageWireframe />
-        <TrainerDetailPageWireframe />
+        <EmptyAndGatedWireframe />
         <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
           Production: <code className="font-mono">OpenMoveStudio</code> /{" "}
           <code className="font-mono">ExerciseStudioPage</code>, <code className="font-mono">LibraryShell</code> +{" "}
@@ -1872,7 +2056,7 @@ function DataVizPanel({
     <>
       <SectionHeader
         title="Data visualization"
-        subtitle="Insights controls, summary card, and motion charts — rationale sits with each example."
+        subtitle="Insights controls, summary card, session readout (radar + angles), and chart types — rationale sits with each example."
       />
 
       <div className="mb-4 grid gap-4 sm:grid-cols-2">
@@ -1979,20 +2163,8 @@ function DataVizPanel({
                       width={28}
                     />
                     <Tooltip
-                      cursor={{
-                        fill: "color-mix(in srgb, var(--foreground) 10%, transparent)",
-                        stroke: "color-mix(in srgb, var(--foreground) 18%, transparent)",
-                      }}
-                      contentStyle={{
-                        background:
-                          "var(--mega-menu-bg, color-mix(in srgb, var(--surface) 55%, transparent))",
-                        border: "1px solid var(--mega-menu-border, var(--border-secondary))",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        color: "var(--mega-menu-text, var(--foreground))",
-                        backdropFilter: "blur(16px) saturate(1.35)",
-                        boxShadow: "0 8px 28px rgba(0, 0, 0, 0.18)",
-                      }}
+                      cursor={chartGlassCursor}
+                      contentStyle={{ ...chartGlassTooltipContentStyle, fontSize: 12 }}
                     />
                     <Bar dataKey="mini" stackId="v" fill="var(--results-chart-series-2)" radius={[0, 0, 0, 0]} />
                     <Bar dataKey="studio" stackId="v" fill="var(--results-chart-series-1)" radius={[2, 2, 0, 0]} />
@@ -2008,35 +2180,74 @@ function DataVizPanel({
                 className="text-[10px] font-semibold uppercase tracking-[0.14em]"
                 style={{ color: "var(--muted-foreground)" }}
               >
-                {CHART_TYPE_RATIONALE.radar.label} · performance
+                Session readout · score + radar + angles
               </p>
               <p className="max-w-xl text-[11px] font-light sm:text-right" style={{ color: "var(--muted-foreground)" }}>
-                {CHART_TYPE_RATIONALE.radar.when}{" "}
-                <span className="opacity-80">· {CHART_TYPE_RATIONALE.radar.where}</span>
+                Post-capture outcome compose — same charts as results/[id].{" "}
+                <span className="opacity-80">
+                  {CHART_TYPE_RATIONALE.radar.when} · {CHART_TYPE_RATIONALE.angle.when}
+                </span>
               </p>
             </div>
-            <BaseRadarChart data={MOCK_RADAR_DATA} title="Performance radar (mock)" />
-          </div>
-
-          <div>
-            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-              <p
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                {CHART_TYPE_RATIONALE.angle.label}
-              </p>
-              <p className="max-w-xl text-[11px] font-light sm:text-right" style={{ color: "var(--muted-foreground)" }}>
-                {CHART_TYPE_RATIONALE.angle.when}{" "}
-                <span className="opacity-80">· {CHART_TYPE_RATIONALE.angle.where}</span>
-              </p>
+            <div
+              className="mb-3 flex flex-wrap items-end justify-between gap-3 rounded-lg px-4 py-3"
+              style={{
+                border: "1px solid var(--border-secondary)",
+                background: "var(--results-summary-bg, var(--surface))",
+              }}
+            >
+              <div>
+                <p
+                  className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Session · Strict pull-up
+                </p>
+                <p className="mt-1 text-lg font-light tracking-tight">Score 78 · 6 reps</p>
+              </div>
+              <div className="flex gap-4">
+                {[
+                  { l: "ROM", v: "82" },
+                  { l: "Pattern", v: "74" },
+                  { l: "Tempo", v: "71" },
+                ].map((m) => (
+                  <div key={m.l} className="text-center">
+                    <p className="text-base font-medium tabular-nums">{m.v}</p>
+                    <p
+                      className="text-[9px] uppercase tracking-wider"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      {m.l}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <BaseAngleComparisonChart
-              data={angle.data}
-              jointsOfInterest={angle.jointsOfInterest}
-              title="Joint angles over time (mock)"
-              showReference
-            />
+            <div className="space-y-4">
+              <div>
+                <p
+                  className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {CHART_TYPE_RATIONALE.radar.label}
+                </p>
+                <BaseRadarChart data={MOCK_RADAR_DATA} title="Performance radar (mock)" />
+              </div>
+              <div>
+                <p
+                  className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {CHART_TYPE_RATIONALE.angle.label}
+                </p>
+                <BaseAngleComparisonChart
+                  data={angle.data}
+                  jointsOfInterest={angle.jointsOfInterest}
+                  title="Joint angles over time (mock)"
+                  showReference
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
