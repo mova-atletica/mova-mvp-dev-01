@@ -29,6 +29,11 @@ export interface AssetVideoPlayerProps {
    * Studio / Pro leave this false.
    */
   restrictMiniAppOverlays?: boolean;
+  /**
+   * Partner (Coach) tier: unlock partner-only effects (e.g. Muybridge).
+   * Free / Pro leave this false.
+   */
+  partnerEffectsEnabled?: boolean;
   /** Replay poses + overlays without a video (neutral stage). */
   metricsOnlyReplay?: boolean;
   /** Pixel dimensions for pose coordinate space when metricsOnlyReplay. */
@@ -66,6 +71,19 @@ export interface ActiveEffect {
 }
 
 export const availableEffects: Effect[] = [
+  {
+    id: "muybridge",
+    name: "Muybridge Sequence",
+    description: "Grid of staggered key frames with pose overlays",
+    preview: "Frame grid",
+    category: "Motion",
+    videoConfig: {
+      shouldRenderVideo: false,
+      videoOpacity: 1,
+      blendMode: "normal",
+      renderOrder: "replace",
+    },
+  },
   {
     id: "mobility-geometry",
     name: "Mobility Geometry",

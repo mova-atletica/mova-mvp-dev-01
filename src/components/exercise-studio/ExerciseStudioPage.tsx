@@ -44,6 +44,7 @@ import {
   useAssetVideoEngineContext,
   useOptionalAssetVideoEngine,
 } from "../../app/motion-explore/assetVideoEngineContext";
+import { useAccount } from "../../contexts/MockAuthContext";
 import { useExerciseStudioData } from "../../hooks/useExerciseStudioData";
 import { getProgramsContainingExercise } from "../../lib/programsContainingExercise";
 import ExerciseDetailsTabContent from "./ExerciseDetailsTabContent";
@@ -120,6 +121,7 @@ function AssetVideoSessionBridge({
   session: ReadyClipSession;
   children: ReactNode;
 }) {
+  const { hasCoachAccess } = useAccount();
   const engine = useAssetVideoEngine({
     videoUrl: session.videoUrl,
     poses: session.poses,
@@ -127,6 +129,7 @@ function AssetVideoSessionBridge({
     sportAnalysisKind: "pullups",
     sportMetricsSnapshot: null,
     frameIntervalSec: session.frameIntervalSec,
+    partnerEffectsEnabled: hasCoachAccess,
   });
   return <AssetVideoEngineProvider engine={engine}>{children}</AssetVideoEngineProvider>;
 }

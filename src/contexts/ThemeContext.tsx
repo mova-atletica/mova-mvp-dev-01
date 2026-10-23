@@ -30,10 +30,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
     if (theme === 'dark') {
       // Core colors
-      root.style.setProperty('--background', '#181a1a'); // onyx-100
+      root.style.setProperty('--background', '#181a1a'); // onyx-100 — page canvas
       root.style.setProperty('--foreground', '#eef0f1'); // onyx-40
-      root.style.setProperty('--surface', '#353839'); // onyx-90
-      root.style.setProperty('--surface-hover', '#555950'); // onyx-80
+      root.style.setProperty('--surface', '#353839'); // onyx-90 — elevated chrome / rails
+      root.style.setProperty('--surface-hover', '#55595B'); // onyx-80
       root.style.setProperty('--muted', '#9ba2a5'); // onyx-60
       root.style.setProperty('--muted-foreground', '#c0c9cc'); // secondary body / chart ticks
       
@@ -42,8 +42,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--accent-hover', '#60a5fa'); // blue-40
       root.style.setProperty('--info', '#3b82f6'); // blue-50
       
-      // Borders
-      root.style.setProperty('--border', '#353839'); // onyx-90
+      // Borders — must contrast with surface/card (not equal to --surface)
+      root.style.setProperty('--border', '#55595B'); // onyx-80
       root.style.setProperty('--border-secondary', '#777d7f'); // onyx-70
       
       // Header & Navigation
@@ -97,26 +97,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Buttons & Interactive
       root.style.setProperty('--button-bg', '#353839'); // onyx-90
       root.style.setProperty('--button-text', '#eef0f1'); // onyx-40
-      root.style.setProperty('--button-hover-bg', '#555950'); // onyx-80
+      root.style.setProperty('--button-hover-bg', '#55595B'); // onyx-80 (Figma)
       root.style.setProperty('--button-hover-text', '#eef0f1');
       root.style.setProperty('--button-border', '#777d7f'); // onyx-70
 
       // Primary & Secondary Button Colors (Dark Mode)
       root.style.setProperty('--primary-button-bg', '#c0c9cc'); // onyx-50
       root.style.setProperty('--primary-button-text', '#181a1a');
-      root.style.setProperty('--primary-button-hover-bg', '#eef0f1'); // blue-40
+      root.style.setProperty('--primary-button-hover-bg', '#eef0f1'); // onyx-40
       root.style.setProperty('--primary-button-hover-text', '#353839');
-      root.style.setProperty('--secondary-button-bg', 'transparent'); // onyx-80
-      root.style.setProperty('--secondary-button-text', '#F3F4F5'); // onyx-40
-      root.style.setProperty('--secondary-button-hover-bg', 'transparent'); // onyx-70
-      root.style.setProperty('--secondary-button-hover-text', '#c0c9cc');
-      root.style.setProperty('--primary-button-border', 'transparent'); // blue-50
-      root.style.setProperty('--primary-button-hover-border', 'transparent'); // blue-40
+      root.style.setProperty('--secondary-button-bg', 'transparent');
+      root.style.setProperty('--secondary-button-text', '#F3F4F5'); // onyx-30
+      root.style.setProperty('--secondary-button-hover-bg', 'rgba(238, 240, 241, 0.08)'); // subtle onyx wash
+      root.style.setProperty('--secondary-button-hover-text', '#eef0f1');
+      root.style.setProperty('--primary-button-border', 'transparent');
+      root.style.setProperty('--primary-button-hover-border', 'transparent');
       root.style.setProperty('--secondary-button-border', '#777d7f'); // onyx-70
       root.style.setProperty('--secondary-button-hover-border', '#9ba2a5'); // onyx-60
       
       // Status Colors
-      root.style.setProperty('--success', '#64FF58'); // green-40
+      root.style.setProperty('--success', '#64FF5B'); // Live Green/40
       root.style.setProperty('--warning', '#ff8044'); // warning color
       root.style.setProperty('--error', '#FC7C7C'); // red-60
       
@@ -136,7 +136,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--featured-secondary-button-hover-bg', 'rgba(255, 255, 255, 0.3)');
       
       // Exercise Cards
-      root.style.setProperty('--card-bg', '#353839'); // onyx-90
+      root.style.setProperty('--card-bg', '#404446'); // step above surface — chips / metric cards
       root.style.setProperty('--card-overlay', 'rgba(0, 0, 0, 0.8)');
       root.style.setProperty('--card-title', '#ffffff');
       root.style.setProperty('--card-description', '#ffffff');
@@ -153,7 +153,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--section-title', '#F3F4F5'); // onyx-40
       root.style.setProperty('--section-subtitle', '#c0c9cc'); // onyx-50
       root.style.setProperty('--section-accent', '#c0c9cc'); // onyx-50
-      
+
       // Exercise Detail Tags (Dark Mode)
       root.style.setProperty('--tag-bg', '#c0c9cc'); // light gray background
       root.style.setProperty('--tag-text', '#181a1a'); // dark text
@@ -239,7 +239,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Results Page Chart Internals (Dark)
       root.style.setProperty('--results-chart-bg', 'transparent');
       root.style.setProperty('--results-chart-axis', '#c0c9cc');
-      root.style.setProperty('--results-chart-grid', '#353839');
+      // onyx-70 — must sit above surface (#353839); old grid matched surface and disappeared
+      root.style.setProperty('--results-chart-grid', '#777D7F');
       root.style.setProperty('--results-chart-tooltip-bg', '#353839');
       root.style.setProperty('--results-chart-tooltip-text', '#eef0f1');
       root.style.setProperty('--results-chart-legend', '#c0c9cc');
@@ -258,27 +259,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--results-chart-selection', '#22D3EE');
     } else {
       // Light mode - reset to original values
-      root.style.setProperty('--background', '#c0c9cc'); // onyx-50
+      root.style.setProperty('--background', '#c0c9cc'); // onyx-50 — page canvas
       root.style.setProperty('--foreground', '#353839'); // onyx-90
-      root.style.setProperty('--surface', '#eef0f1'); // onyx-40
-      root.style.setProperty('--surface-hover', '#f4eedd'); // ap-30
-      root.style.setProperty('--muted', '#9ba2a5'); // ap-70
-      root.style.setProperty('--muted-foreground', '#55595b'); // secondary body / chart ticks
+      root.style.setProperty('--surface', '#eef0f1'); // onyx-40 — elevated chrome
+      root.style.setProperty('--surface-hover', '#F5F6F7'); // onyx-10/20
+      root.style.setProperty('--muted', '#9ba2a5'); // onyx-60
+      root.style.setProperty('--muted-foreground', '#55595b'); // onyx-80
       
       // Accent colors
       root.style.setProperty('--accent', '#3b82f6'); // blue-50
       root.style.setProperty('--accent-hover', '#2563eb'); // blue-60
       root.style.setProperty('--info', '#3b82f6'); // blue-50
       
-      // Borders
-      root.style.setProperty('--border', '#D6DFE2'); // onyx-50
-      root.style.setProperty('--border-secondary', '#eef0f1'); // onyx-40
+      // Borders — cooler onyx edges, not the same as card/surface fills
+      root.style.setProperty('--border', '#9BA2A5'); // onyx-60
+      root.style.setProperty('--border-secondary', '#777D7F'); // onyx-70
       
       // Header & Navigation
-      root.style.setProperty('--header-bg', 'rgba(238, 240, 241, 0.9)'); // ap-10 with opacity
-      root.style.setProperty('--header-text', '#17150f'); // ap-100
-      root.style.setProperty('--header-border', 'rgba(238, 240, 241, 0.17)'); // ap-50
-      root.style.setProperty('--logo-color', 'invert(0) brightness(1)'); // ap-100
+      root.style.setProperty('--header-bg', 'rgba(238, 240, 241, 0.9)'); // onyx-40
+      root.style.setProperty('--header-text', '#181a1a'); // onyx-100
+      root.style.setProperty('--header-border', 'rgba(238, 240, 241, 0.17)');
+      root.style.setProperty('--logo-color', 'invert(0) brightness(1)');
 
       // Mega menu popover (Light) — frosted glass, white tint keeps text readable
       root.style.setProperty('--mega-menu-bg', 'rgba(255, 255, 255, 0.57)');
@@ -323,20 +324,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--homepage-radial-glow', 'rgba(255, 255, 255, 0.55)');
       
       // Buttons & Interactive
-      root.style.setProperty('--button-bg', '#eef0f1'); // ap-10
-      root.style.setProperty('--button-text', '#17150f'); // ap-100
-      root.style.setProperty('--button-hover-bg', '#f4eedd'); // ap-30
-      root.style.setProperty('--button-hover-text', '#17150f'); // ap-100
-      root.style.setProperty('--button-border', '#777d7f'); // ap-50
+      root.style.setProperty('--button-bg', '#eef0f1'); // onyx-40
+      root.style.setProperty('--button-text', '#181a1a'); // onyx-100
+      root.style.setProperty('--button-hover-bg', '#F5F6F7'); // onyx-10
+      root.style.setProperty('--button-hover-text', '#181a1a');
+      root.style.setProperty('--button-border', '#777d7f'); // onyx-70
 
       // Primary & Secondary Button Colors (Light Mode)
       root.style.setProperty('--primary-button-bg', '#181a1a'); // onyx-100
       root.style.setProperty('--primary-button-text', '#c0c9cc');
       root.style.setProperty('--primary-button-hover-bg', '#353839'); // onyx-90
       root.style.setProperty('--primary-button-hover-text', '#D7D8D9');
-      root.style.setProperty('--secondary-button-bg', '#c0c9cc'); // onyx-90
-      root.style.setProperty('--secondary-button-text', '#181a1a'); // ap-100
-      root.style.setProperty('--secondary-button-hover-bg', '#c0c9cc'); // onyx-50
+      root.style.setProperty('--secondary-button-bg', '#c0c9cc'); // onyx-50
+      root.style.setProperty('--secondary-button-text', '#181a1a');
+      root.style.setProperty('--secondary-button-hover-bg', '#eef0f1'); // onyx-40 — visible lift on hover
       root.style.setProperty('--secondary-button-hover-text', '#353839');
       root.style.setProperty('--primary-button-border', 'transparent'); // onyx-90
       root.style.setProperty('--primary-button-hover-border', 'transparent'); // ap-100
@@ -344,7 +345,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--secondary-button-hover-border', '#777d7f'); // onyx-70
       
       // Status Colors
-      root.style.setProperty('--success', '#64FF58'); // green-40
+      root.style.setProperty('--success', '#64FF5B'); // Live Green/40
       root.style.setProperty('--warning', '#ff8044'); // warning color
       root.style.setProperty('--error', '#FC7C7C'); // red-60
       
@@ -364,7 +365,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--featured-secondary-button-hover-bg', 'rgba(255, 255, 255, 0.3)');
       
       // Exercise Cards
-      root.style.setProperty('--card-bg', '#eef0f1'); // ap-10
+      root.style.setProperty('--card-bg', '#F5F6F7'); // onyx-10 — cool elevate above surface (no parchment)
       root.style.setProperty('--card-overlay', 'rgba(0, 0, 0, 0.8)');
       root.style.setProperty('--card-title', '#ffffff');
       root.style.setProperty('--card-description', '#ffffff');
@@ -383,14 +384,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--section-accent', '#353839'); // onyx-90
       
       // Exercise Detail Tags (Light Mode)
-      root.style.setProperty('--tag-bg', '#f3f3f4'); // onxy-20
+      root.style.setProperty('--tag-bg', '#f3f3f4'); // onyx-20
       root.style.setProperty('--tag-text', '#353839'); // dark text
       root.style.setProperty('--complete-badge-bg', '#166534'); // dark green
       root.style.setProperty('--complete-badge-text', '#ffffff');
 
       // Video Player Controls (Light)
       root.style.setProperty('--vp-bg', '#011500');
-      root.style.setProperty('--vp-border', '#ccc19e');
+      root.style.setProperty('--vp-border', '#9BA2A5'); // onyx-60
       root.style.setProperty('--vp-dropdown-bg', '#c0c9cc');
       root.style.setProperty('--vp-dropdown-border', '#353839');
       root.style.setProperty('--vp-dropdown-label', '#181a1a');
@@ -402,12 +403,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty('--vp-button-text', '#181a1a');
       root.style.setProperty('--vp-button-border', '#181a1a');
       root.style.setProperty('--vp-slider-bg', '#353839');
-      root.style.setProperty('--vp-slider-thumb', '#F6F1E3');
+      root.style.setProperty('--vp-slider-thumb', '#F5F6F7'); // onyx-10
       root.style.setProperty('--vp-slider-active', '#60a5fa');
       root.style.setProperty('--vp-dropdown-item-hover-bg', '#f3f4f6');
       root.style.setProperty('--vp-dropdown-chevron', '#353839');
       root.style.setProperty('--vp-label', '#181a1a');
-      root.style.setProperty('--vp-focus-bg', '#f6f1e3');
+      root.style.setProperty('--vp-focus-bg', '#F5F6F7'); // onyx-10
       root.style.setProperty('--vp-focus-text', '#353839');
       // Video Player Tabs (Light)
       root.style.setProperty('--vp-tab-active', '#353839');
@@ -468,7 +469,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Results Page Chart Internals (Light)
       root.style.setProperty('--results-chart-bg', '#c0c9cc');
       root.style.setProperty('--results-chart-axis', '#353839');
-      root.style.setProperty('--results-chart-grid', '#777d7f');
+      // onyx-80 — readable on chart canvas (#c0c9cc) and elevated surface panels
+      root.style.setProperty('--results-chart-grid', '#55595B');
       root.style.setProperty('--results-chart-tooltip-bg', '#c0c9cc');
       root.style.setProperty('--results-chart-tooltip-text', '#353839');
       root.style.setProperty('--results-chart-legend', '#55595b');

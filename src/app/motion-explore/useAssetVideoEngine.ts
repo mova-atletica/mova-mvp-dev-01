@@ -20,7 +20,12 @@ import {
 import type { AssetVideoPlayerProps, Effect, ActiveEffect, EffectType } from "./assetVideoTypes";
 import { availableEffects } from "./assetVideoTypes";
 import { getDefaultConfigForEffect } from "./effectDefaultConfig";
-import { isEffectLocked, isFreeMiniAppEffect } from "../../lib/proAccess";
+import {
+  isEffectLocked,
+  isEffectVisible,
+  isFreeMiniAppEffect,
+  isPartnerOnlyEffect,
+} from "../../lib/proAccess";
 import { poseIndexAtTime, type PoseTimeline } from "../../lib/poseIndexAtTime";
 import {
   applyFreeMiniAppDefaults,
@@ -39,6 +44,7 @@ export function useAssetVideoEngine({
   sportAnalysisKind = "cycling",
   sportMetricsSnapshot = null,
   restrictMiniAppOverlays = false,
+  partnerEffectsEnabled = false,
   watermarkExports = false,
   poseTimestamps = null,
   frameIntervalSec = null,
@@ -186,6 +192,7 @@ export function useAssetVideoEngine({
 
   const addEffect = (effect: Effect) => {
     if (isEffectLocked(effect.id, restrictMiniAppOverlays)) return;
+    if (!isEffectVisible(effect.id, { partnerEffectsEnabled })) return;
     setActiveEffects((prev) => {
       const existing = prev.find((e) => e.effect.id === effect.id);
       if (existing) {
@@ -218,10 +225,11 @@ export function useAssetVideoEngine({
       return resolveActiveOverlayEffects({
         rawVisualConfig: null,
         restrictMiniAppOverlays,
+        partnerEffectsEnabled,
         session: overlaySession,
       });
     });
-  }, [restrictMiniAppOverlays, overlaySession]);
+  }, [restrictMiniAppOverlays, partnerEffectsEnabled, overlaySession]);
 
   const removeEffect = (effectId: string) => {
     if (restrictMiniAppOverlays && isFreeMiniAppEffect(effectId)) return;
@@ -234,6 +242,7 @@ export function useAssetVideoEngine({
   /** Ensure an effect entry exists (disabled) so config can be edited while off. */
   const ensureEffect = (effect: Effect) => {
     if (isEffectLocked(effect.id, restrictMiniAppOverlays)) return;
+    if (!isEffectVisible(effect.id, { partnerEffectsEnabled })) return;
     setActiveEffects((prev) => {
       if (prev.some((e) => e.effect.id === effect.id)) return prev;
       return [
@@ -252,6 +261,7 @@ export function useAssetVideoEngine({
   /** Toggle overlay visibility without dropping saved config. */
   const setEffectEnabled = (effect: Effect, enabled: boolean) => {
     if (isEffectLocked(effect.id, restrictMiniAppOverlays)) return;
+    if (!isEffectVisible(effect.id, { partnerEffectsEnabled })) return;
     if (restrictMiniAppOverlays && isFreeMiniAppEffect(effect.id) && !enabled) return;
     if (!enabled && effect.id === "muybridge") {
       clearFrameCache();
@@ -315,7 +325,11 @@ export function useAssetVideoEngine({
   };
 
   const getEffectsForCategory = (category: EffectType) => {
-    return availableEffects.filter(effect => effect.category === category);
+    return availableEffects.filter(
+      (effect) =>
+        effect.category === category &&
+        isEffectVisible(effect.id, { partnerEffectsEnabled })
+    );
   };
 
   const hasProblematicCombination = () => false;
@@ -805,12 +819,21 @@ export function useAssetVideoEngine({
     activeEffects,
     setActiveEffects: (update: SetStateAction<ActiveEffect[]>) => {
       setActiveEffects((prev) => {
-        const next = typeof update === "function" ? update(prev) : update;
+        let next = typeof update === "function" ? update(prev) : update;
+        if (!partnerEffectsEnabled) {
+          const stripped = next.filter((e) => !isPartnerOnlyEffect(e.effect.id));
+          if (stripped.length !== next.length) clearFrameCache();
+          next = stripped;
+        }
         if (!restrictMiniAppOverlays) return next;
         const merged = [
           ...next,
           ...availableEffects
-            .filter((effect) => !next.some((row) => row.effect.id === effect.id))
+            .filter(
+              (effect) =>
+                isEffectVisible(effect.id, { partnerEffectsEnabled }) &&
+                !next.some((row) => row.effect.id === effect.id)
+            )
             .map((effect, index) => ({
               id: effect.id,
               effect,
@@ -842,6 +865,7 @@ export function useAssetVideoEngine({
     sportMetricsSnapshot,
     availableEffects,
     restrictMiniAppOverlays,
+    partnerEffectsEnabled,
     watermarkExports,
     metricsOnlyReplay,
     overlaySession,

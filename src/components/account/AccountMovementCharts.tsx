@@ -4,6 +4,7 @@ import { useCallback, useRef } from "react";
 import {
   Bar,
   BarChart,
+  CartesianGrid,
   Cell,
   Label,
   Line,
@@ -16,6 +17,24 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+/** Horizontal rules — stroke color forced via globals.css (.recharts-cartesian-grid line). */
+function ChartGrid({
+  vertical = false,
+  horizontal = true,
+}: {
+  vertical?: boolean;
+  horizontal?: boolean;
+}) {
+  return (
+    <CartesianGrid
+      stroke="var(--results-chart-grid)"
+      strokeDasharray="3 3"
+      vertical={vertical}
+      horizontal={horizontal}
+    />
+  );
+}
 import type { AccountActivityKind, MovementJoint } from "../../types/accountActivity";
 import type {
   ActivityMixSlice,
@@ -51,17 +70,27 @@ interface ChartTooltipProps {
   label?: string;
 }
 
+/** Frosted glass panel — shared by account chart hover tooltips. */
+const chartGlassTooltipStyle = {
+  background: "var(--mega-menu-bg, color-mix(in srgb, var(--surface) 55%, transparent))",
+  border: "1px solid var(--mega-menu-border, var(--border-secondary))",
+  color: "var(--mega-menu-text, var(--foreground))",
+  backdropFilter: "blur(16px) saturate(1.35)",
+  WebkitBackdropFilter: "blur(16px) saturate(1.35)",
+  boxShadow: "0 8px 28px rgba(0, 0, 0, 0.18)",
+} as const;
+
+/** Bar hover band — translucent glass wash instead of Recharts’ light gray. */
+const chartGlassCursor = {
+  fill: "color-mix(in srgb, var(--foreground) 10%, transparent)",
+  stroke: "color-mix(in srgb, var(--foreground) 18%, transparent)",
+  strokeWidth: 1,
+} as const;
+
 function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      className="rounded-lg px-3 py-2 text-xs shadow-lg"
-      style={{
-        backgroundColor: "var(--card-bg)",
-        border: "1px solid var(--border-secondary)",
-        color: "var(--foreground)",
-      }}
-    >
+    <div className="rounded-lg px-3 py-2 text-xs" style={chartGlassTooltipStyle}>
       {label ? <p className="mb-1 font-medium">{label}</p> : null}
       {payload.map((entry) => (
         <p key={entry.name} style={{ color: entry.color ?? "var(--foreground)" }}>
@@ -113,6 +142,7 @@ export function WeeklyVolumeChart({
     <div className="h-52 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 8, left: 4, bottom: 18 }}>
+          <ChartGrid />
           <XAxis
             dataKey="week"
             tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
@@ -135,7 +165,7 @@ export function WeeklyVolumeChart({
               style={{ ...AXIS_LABEL_STYLE, textAnchor: "middle" }}
             />
           </YAxis>
-          <Tooltip content={<ChartTooltip />} />
+          <Tooltip content={<ChartTooltip />} cursor={chartGlassCursor} />
           {series.map(({ key, color }) => (
             <Bar key={key} dataKey={key} stackId="sessions" fill={color} radius={[2, 2, 0, 0]} />
           ))}
@@ -236,6 +266,7 @@ export function MovementFocusChart({
           layout="vertical"
           margin={{ top: 4, right: 12, left: 4, bottom: 18 }}
         >
+          <ChartGrid vertical horizontal={false} />
           <XAxis
             type="number"
             allowDecimals={false}
@@ -253,7 +284,7 @@ export function MovementFocusChart({
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip content={<ChartTooltip />} />
+          <Tooltip content={<ChartTooltip />} cursor={chartGlassCursor} />
           <Bar dataKey="sessions" name={xAxisLabel} radius={[0, 4, 4, 0]}>
             {chartData.map((_, index) => (
               <Cell key={index} fill={TAG_COLORS[index % TAG_COLORS.length]} />
@@ -309,6 +340,7 @@ export function MovementTrendChart({
         <div className="min-w-0 flex-1" style={{ height: 224 }}>
           <ResponsiveContainer width="100%" height={224}>
             <LineChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}>
+              <ChartGrid />
               <XAxis
                 dataKey="weekLabel"
                 tick={{ fill: tickFill, fontSize: 10 }}
@@ -447,6 +479,7 @@ export function SportTrendChart({
           <div className="min-w-0 flex-1" style={{ height: 224 }}>
             <ResponsiveContainer width="100%" height={224}>
               <LineChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}>
+                <ChartGrid />
                 <XAxis
                   dataKey="periodLabel"
                   tick={{ fill: "#94a3b8", fontSize: 10 }}
@@ -587,6 +620,7 @@ export function SportJointRomTrendChart({
           <div className="min-w-0 flex-1" style={{ height: 200 }}>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: 4 }}>
+                <ChartGrid />
                 <XAxis
                   dataKey="periodLabel"
                   tick={{ fill: "#94a3b8", fontSize: 10 }}
@@ -685,6 +719,7 @@ export function JointRomChart({
     <div className="h-52 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 8, left: 4, bottom: 18 }}>
+          <ChartGrid />
           <XAxis
             dataKey="name"
             tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
@@ -708,16 +743,10 @@ export function JointRomChart({
             />
           </YAxis>
           <Tooltip
+            cursor={chartGlassCursor}
             content={({ active, payload, label }) =>
               active && payload?.length ? (
-                <div
-                  className="rounded-lg px-3 py-2 text-xs shadow-lg"
-                  style={{
-                    backgroundColor: "var(--card-bg)",
-                    border: "1px solid var(--border-secondary)",
-                    color: "var(--foreground)",
-                  }}
-                >
+                <div className="rounded-lg px-3 py-2 text-xs" style={chartGlassTooltipStyle}>
                   <p className="font-medium">{label}</p>
                   <p>{payload[0].value}° ROM</p>
                 </div>

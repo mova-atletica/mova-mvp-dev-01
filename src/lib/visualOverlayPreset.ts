@@ -5,7 +5,7 @@
 import type { ActiveEffect, Effect } from "../app/motion-explore/assetVideoTypes";
 import { availableEffects } from "../app/motion-explore/assetVideoTypes";
 import { getDefaultConfigForEffect } from "../app/motion-explore/effectDefaultConfig";
-import { isEffectLocked } from "./proAccess";
+import { isEffectLocked, isPartnerOnlyEffect } from "./proAccess";
 import {
   sportCaptureDefaults,
   type SportCaptureContext,
@@ -165,17 +165,23 @@ export function applyFreeMiniAppDefaults(
   return next.map((e, index) => ({ ...e, order: index }));
 }
 
-/** Full hydrate pipeline: saved preset → sport fallback → free-tier enforcement. */
+/** Full hydrate pipeline: saved preset → sport fallback → free-tier / partner enforcement. */
 export function resolveActiveOverlayEffects(opts: {
   rawVisualConfig?: unknown | null;
   restrictMiniAppOverlays: boolean;
   session: SportCaptureContext;
+  /** When false, strip partner-only effects (e.g. Muybridge) from hydrate. */
+  partnerEffectsEnabled?: boolean;
 }): ActiveEffect[] {
   const preset =
     parseVisualOverlayPreset(opts.rawVisualConfig ?? null) ??
     sportCaptureDefaults(opts.session);
 
   let active = hydrateVisualOverlayPreset(preset);
+
+  if (!opts.partnerEffectsEnabled) {
+    active = active.filter((e) => !isPartnerOnlyEffect(e.effect.id));
+  }
 
   if (opts.restrictMiniAppOverlays) {
     active = applyFreeMiniAppDefaults(active, opts.session);

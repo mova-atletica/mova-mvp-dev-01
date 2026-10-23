@@ -165,7 +165,7 @@ function drawPoseSkeleton(
     [12, 14], [14, 16], // Right leg
   ];
   
-  ctx.strokeStyle = '#64FF58';
+  ctx.strokeStyle = '#64FF5B';
   ctx.lineWidth = 2;
   
   connections.forEach(([start, end]) => {

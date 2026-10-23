@@ -167,13 +167,13 @@ export default function ExerciseCard({
       
       {/* Play Icon - Shows when hovering over image if video exists */}
       
-      {/* Level Badge - Clean styling */}
+      {/* Level Badge — compact upper-left chip */}
       {exercise.level && (
         <div 
-          className="absolute px-3 py-1 rounded text-xs font-medium z-30 shadow-lg"
+          className="absolute z-30 rounded px-1.5 py-0.5 text-[10px] font-medium leading-none shadow-md"
           style={{ 
-            top: '12px', 
-            left: '12px',
+            top: 10, 
+            left: 10,
             backgroundColor: getLevelBadgeStyle(exercise.level).bg,
             color: getLevelBadgeStyle(exercise.level).text,
             border: '1px solid #f3f3f4'

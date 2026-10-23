@@ -19,6 +19,10 @@ function isLegalShellPath(pathname: string): boolean {
   return pathname === "/terms" || pathname === "/privacy";
 }
 
+function isDesignSystemShellPath(pathname: string): boolean {
+  return pathname === "/design-system" || pathname.startsWith("/design-system/");
+}
+
 function isArchiveShellPath(pathname: string): boolean {
   if (pathname === STUDIO_PATH || pathname.startsWith(`${STUDIO_PATH}/`)) return true;
   if (pathname === COACH_STUDIO_PATH || pathname.startsWith(`${COACH_STUDIO_PATH}/`)) {
@@ -43,7 +47,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith(`${COACH_STUDIO_PATH}/`);
   const isLibrary = isArchiveShellPath(pathname);
 
-  if (isStudio || isLibrary || isAuthShellPath(pathname) || isLegalShellPath(pathname)) {
+  if (
+    isStudio ||
+    isLibrary ||
+    isAuthShellPath(pathname) ||
+    isLegalShellPath(pathname) ||
+    isDesignSystemShellPath(pathname)
+  ) {
     return <>{children}</>;
   }
 

@@ -38,7 +38,7 @@ module.exports = {
             20: '#F6F1E2',
             10: '#F6F1E3',
           },
-          // Bioluminescent Green
+          // Live Green (MA Beta green paint styles)
           green: {
             100: '#011500',
             90: '#033400',
@@ -46,12 +46,12 @@ module.exports = {
             70: '#118000',
             60: '#1AAA00',
             50: '#23D600',
-            40: '#64FF58',
-            30: '#99FF82',
+            40: '#64FF5B',
+            30: '#89FF82',
             20: '#99FF93',
-            10: '#D9FF97',
+            10: '#9DFF97',
           },
-          // Endurance Red
+          // Endurance Red (MA Beta paint styles)
           red: {
             100: '#3F0202',
             90: '#780606',
@@ -59,12 +59,12 @@ module.exports = {
             70: '#F81818',
             60: '#FC7C7C',
             50: '#FDB9B9',
-            40: '#FEEEDD',
+            40: '#FEEDED',
             30: '#FEF1F1',
-            20: '#FFF3F3',
-            10: '#FFFFF9',
+            20: '#FEF3F3',
+            10: '#FFF9F9',
           },
-          // Live Blue
+          // Bioluminescent Blue
           blue: {
             100: '#172554',
             90: '#1E3A8A',

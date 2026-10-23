@@ -163,7 +163,7 @@ flowchart TB
 | `--card-bg` | `#f6f1e3` / `#353839` | Cards — parchment (light) / onyx (dark) |
 | `--accent` | `#3b82f6` | Primary actions |
 | `--muted` / muted labels | `#7d765f` / theme muted | Secondary copy, section labels |
-| `--success` | `#64FF58` | Positive / chart accents |
+| `--success` | `#64FF5B` | Positive / chart accents |
 | `--warning` / `--error` | `#ff8044` / `#FC7C7C` | Status |
 
 Source: `src/app/globals.css` (core + `prefers-color-scheme: dark` overrides).

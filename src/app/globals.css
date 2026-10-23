@@ -20,7 +20,7 @@
   --background: #181a1a; /* Main page background */
   --foreground: #F3F3F4; /* Primary text color */
   --surface: #181a1a; /* Card/section backgrounds */
-  --surface-hover: #f4eedd; /* Hover states for surfaces */
+  --surface-hover: #F5F6F7; /* onyx light hover */
   --muted: #7d765f; /* Secondary/subtle text */
   
   /* ===== ACCENT COLORS ===== */
@@ -38,14 +38,14 @@
   --logo-color: #17150f; /* Logo color */
   
   /* ===== BUTTONS & INTERACTIVE ===== */
-  --button-bg: #f6f1e3; /* Button background */
-  --button-text: #17150f; /* Button text */
-  --button-hover-bg: #f4eedd; /* Button hover background */
-  --button-hover-text: #17150f; /* Button hover text */
-  --button-border: #ccc19e; /* Button border */
+  --button-bg: #eef0f1; /* onyx-40 */
+  --button-text: #181a1a; /* onyx-100 */
+  --button-hover-bg: #F5F6F7; /* onyx-10 */
+  --button-hover-text: #181a1a;
+  --button-border: #777d7f; /* onyx-70 */
   
   /* ===== STATUS COLORS ===== */
-  --success: #64FF58; /* Success states */
+  --success: #64FF5B; /* Live Green/40 */
   --warning: #ff8044; /* Warning states */
   --error: #FC7C7C; /* Error states */
   
@@ -65,7 +65,7 @@
   --featured-secondary-button-hover-bg: rgba(255, 255, 255, 0.3); /* Secondary button hover */
   
   /* ===== EXERCISE CARDS ===== */
-  --card-bg: #f6f1e3; /* Card background */
+  --card-bg: #F5F6F7; /* onyx-10 */
   --card-overlay: rgba(0, 0, 0, 0.8); /* Card text overlay */
   --card-title: #ffffff; /* Card title (white) */
   --card-description: #ffffff; /* Card description (white) */
@@ -82,6 +82,9 @@
   --section-title: #17150f; /* Section titles */
   --section-subtitle: #7d765f; /* Section subtitles */
   --section-accent: #3b82f6; /* Section accent line */
+
+  /* Charts — ThemeContext overrides per mode */
+  --results-chart-grid: #777D7F;
 }
 
 /* CSS Custom Properties for theme integration */
@@ -98,11 +101,11 @@
     --background: #181a1a; /* onyx-100 */
     --foreground: #c0c9cc; /* onyx-40 */
     --surface: #353839; /* onyx-90 */
-    --surface-hover: #555950; /* onyx-80 */
+    --surface-hover: #55595B; /* onyx-80 */
     --accent: #3b82f6; /* blue-50 */
     --accent-hover: #60a5fa; /* blue-40 */
-    --border: #777d7f; /* onyx-70 */
-    --muted: #9b9a5a; /* onyx-60 */
+    --border: #55595B; /* onyx-80 — contrast vs surface */
+    --muted: #9ba2a5; /* onyx-60 */
     
     /* Header & Navigation */
     --header-bg: rgba(0, 0, 0, 0.9); /* onyx-100 with opacity */
@@ -113,20 +116,20 @@
     /* Buttons & Interactive */
     --button-bg: #353839; /* onyx-90 */
     --button-text: #eef0f1; /* onyx-40 */
-    --button-hover-bg: #555950; /* onyx-80 */
+    --button-hover-bg: #55595B; /* onyx-80 */
     --button-hover-text: #eef0f1; /* onyx-40 */
     --button-disabled-bg: #777d7f; /* onyx-70 */
     --button-disabled-text: #9b9a5a; /* onyx-60 */
     --button-border: #777d7f; /* onyx-70 */
     
     /* Status Colors */
-    --success: #64FF58; /* green-40 */
+    --success: #64FF5B; /* Live Green/40 */
     --warning: #ff8044; /* intermediate badge color */
     --error: #FC7C7C; /* red-60 */
     --info: #60a5fa; /* blue-40 */
     
     /* Cards & Components */
-    --card-bg: #353839; /* onyx-90 */
+    --card-bg: #404446; /* step above surface */
     --card-border: #777d7f; /* onyx-70 */
     --card-shadow: rgba(0, 0, 0, 0.3);
     --input-bg: #181a1a; /* onyx-100 */
@@ -136,10 +139,12 @@
     /* Progress & Scores */
     --progress-bg: #777d7f; /* onyx-70 */
     --progress-fill: #3b82f6; /* blue-50 */
-    --score-excellent: #64FF58; /* green-40 */
+    --score-excellent: #64FF5B; /* Live Green/40 */
     --score-good: #3b82f6; /* blue-50 */
     --score-fair: #ff8044; /* warning color */
     --score-poor: #FC7C7C; /* red-60 */
+
+    --results-chart-grid: #777D7F; /* onyx-70 — readable on surface */
   }
 }
 
@@ -254,6 +259,23 @@ html {
 
 .effect-pills-container::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
+}
+
+/*
+ * Recharts often sets stroke as an SVG attribute; CSS vars on that attr
+ * can fail to paint. Force theme grid color onto rendered lines.
+ */
+.recharts-cartesian-grid line,
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--results-chart-grid, #777d7f);
+}
+
+.recharts-polar-grid .recharts-polar-grid-angle,
+.recharts-polar-grid .recharts-polar-grid-concentric path,
+.recharts-polar-grid line,
+.recharts-polar-grid path {
+  stroke: var(--results-chart-grid, #777d7f);
 }
 
 /* Open Move rail accordion animations */

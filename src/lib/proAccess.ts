@@ -22,6 +22,24 @@ export function isFreeMiniAppEffect(effectId: string): boolean {
   return (FREE_MINI_APP_EFFECT_IDS as readonly string[]).includes(effectId);
 }
 
+/** Partner (Coach) content-creation effects — hidden for free/Pro. */
+export const PARTNER_ONLY_EFFECT_IDS = ["muybridge"] as const;
+
+export type PartnerOnlyEffectId = (typeof PARTNER_ONLY_EFFECT_IDS)[number];
+
+export function isPartnerOnlyEffect(effectId: string): boolean {
+  return (PARTNER_ONLY_EFFECT_IDS as readonly string[]).includes(effectId);
+}
+
+/** True when this effect should appear in the rail / be enableable. */
+export function isEffectVisible(
+  effectId: string,
+  opts: { partnerEffectsEnabled: boolean }
+): boolean {
+  if (isPartnerOnlyEffect(effectId) && !opts.partnerEffectsEnabled) return false;
+  return true;
+}
+
 export function isEffectLocked(
   effectId: string,
   restrictMiniAppOverlays: boolean

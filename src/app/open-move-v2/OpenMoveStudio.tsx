@@ -249,6 +249,7 @@ function AssetVideoSessionBridge({
   sportMetricsSnapshot,
   initialVisualConfig = null,
   restrictMiniAppOverlays = false,
+  partnerEffectsEnabled = false,
   watermarkExports = false,
   metricsOnlyReplay = false,
   playbackPixelSize = null,
@@ -261,6 +262,7 @@ function AssetVideoSessionBridge({
   sportMetricsSnapshot: SportMetricsSnapshot | null;
   initialVisualConfig?: VisualOverlayPreset | null;
   restrictMiniAppOverlays?: boolean;
+  partnerEffectsEnabled?: boolean;
   watermarkExports?: boolean;
   metricsOnlyReplay?: boolean;
   playbackPixelSize?: { width: number; height: number } | null;
@@ -275,6 +277,7 @@ function AssetVideoSessionBridge({
     sportAnalysisKind,
     sportMetricsSnapshot,
     restrictMiniAppOverlays,
+    partnerEffectsEnabled,
     watermarkExports,
     poseTimestamps: session.poseTimestamps,
     frameIntervalSec: session.frameIntervalSec,
@@ -295,6 +298,7 @@ function AssetVideoSessionBridge({
     const effects = resolveActiveOverlayEffects({
       rawVisualConfig: initialVisualConfig,
       restrictMiniAppOverlays,
+      partnerEffectsEnabled,
       session: overlaySession,
     });
     if (effects.length === 0) return;
@@ -304,6 +308,7 @@ function AssetVideoSessionBridge({
     engine,
     initialVisualConfig,
     restrictMiniAppOverlays,
+    partnerEffectsEnabled,
     overlaySession,
   ]);
 
@@ -318,6 +323,7 @@ function ConditionalEngineBridge({
   showVideoEngine,
   initialVisualConfig = null,
   restrictMiniAppOverlays = false,
+  partnerEffectsEnabled = false,
   watermarkExports = false,
   sportAnalysis = null,
   sessionKind = "studio",
@@ -329,6 +335,7 @@ function ConditionalEngineBridge({
   showVideoEngine: boolean;
   initialVisualConfig?: VisualOverlayPreset | null;
   restrictMiniAppOverlays?: boolean;
+  partnerEffectsEnabled?: boolean;
   watermarkExports?: boolean;
   sportAnalysis?: unknown | null;
   sessionKind?: "mini-app" | "studio";
@@ -351,6 +358,7 @@ function ConditionalEngineBridge({
         sportMetricsSnapshot={sportMetricsSnapshot}
         initialVisualConfig={initialVisualConfig}
         restrictMiniAppOverlays={restrictMiniAppOverlays}
+        partnerEffectsEnabled={partnerEffectsEnabled}
         watermarkExports={watermarkExports}
         metricsOnlyReplay={metricsOnlyReplay}
         playbackPixelSize={session.playbackPixelSize}
@@ -666,6 +674,7 @@ export default function OpenMoveStudio({
   } = useAccount();
   /** Live capture stays a partner tool during beta; everyone else uploads a clip. */
   const canRecordLive = hasCoachAccess;
+  const partnerEffectsEnabled = hasCoachAccess;
   const restrictMiniAppOverlays = isQuickAnalysis && !hasProAccess;
   const watermarkExports = isQuickAnalysis && !hasProAccess;
   /** Post only after Activity save finishes (and Pro video upload succeeds when required). */
@@ -2529,6 +2538,7 @@ export default function OpenMoveStudio({
       showVideoEngine={showVideoEngine}
       initialVisualConfig={initialHydration?.visualConfig ?? null}
       restrictMiniAppOverlays={restrictMiniAppOverlays}
+      partnerEffectsEnabled={partnerEffectsEnabled}
       watermarkExports={watermarkExports}
       sportAnalysis={currentSportAnalysis}
       sessionKind={isQuickAnalysis ? "mini-app" : "studio"}

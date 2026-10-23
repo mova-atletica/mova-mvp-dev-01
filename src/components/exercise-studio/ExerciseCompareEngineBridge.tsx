@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { useAssetVideoEngine, type AssetVideoEngine } from "../../app/motion-explore/useAssetVideoEngine";
 import { AssetVideoEngineProvider } from "../../app/motion-explore/assetVideoEngineContext";
+import { useAccount } from "../../contexts/MockAuthContext";
 import type { ReadyClipSession } from "./exerciseStudioTypes";
 
 /** Re-export engine type for compare stage consumers. */
@@ -22,6 +23,7 @@ export default function ExerciseCompareEngineBridge({
   referenceSession,
   children,
 }: ExerciseCompareEngineBridgeProps) {
+  const { hasCoachAccess } = useAccount();
   const userEngine = useAssetVideoEngine({
     videoUrl: userSession.videoUrl,
     poses: userSession.poses,
@@ -29,6 +31,7 @@ export default function ExerciseCompareEngineBridge({
     sportAnalysisKind: "pullups",
     sportMetricsSnapshot: null,
     frameIntervalSec: userSession.frameIntervalSec,
+    partnerEffectsEnabled: hasCoachAccess,
   });
 
   const referenceEngine = useAssetVideoEngine({
@@ -38,6 +41,7 @@ export default function ExerciseCompareEngineBridge({
     sportAnalysisKind: "pullups",
     sportMetricsSnapshot: null,
     frameIntervalSec: referenceSession.frameIntervalSec,
+    partnerEffectsEnabled: hasCoachAccess,
   });
 
   const userEffectsKey = JSON.stringify(
