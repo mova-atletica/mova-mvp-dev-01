@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import ArchiveNavShell from "../../components/archive/ArchiveNavShell";
 import ThemeToggle from "../../components/ThemeToggle";
+import { useTheme } from "../../contexts/ThemeContext";
 import SportSummaryCard from "../../components/account/SportSummaryCard";
 import ChartTimeRangeToggle from "../../components/account/ChartTimeRangeToggle";
 import ExportPanelSelect from "../../components/ExportPanelSelect";
@@ -2043,11 +2044,22 @@ function DataVizPanel({
   );
 }
 
-function DesignSystemBody() {
-  const [section, setSection] = useState<SectionId>("overview");
+function DesignSystemBody({
+  initialSection = "overview",
+  initialTheme,
+}: {
+  initialSection?: SectionId;
+  initialTheme?: "light" | "dark";
+}) {
+  const { setTheme } = useTheme();
+  const [section, setSection] = useState<SectionId>(initialSection);
   const [range, setRange] = useState<ChartTimeRange>("week");
   const [vizState, setVizState] = useState<VizState>("populated");
   const contentScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialTheme) setTheme(initialTheme);
+  }, [initialTheme, setTheme]);
 
   useEffect(() => {
     const el = contentScrollRef.current;
@@ -2120,8 +2132,18 @@ function DesignSystemBody() {
   );
 }
 
-export default function DesignSystemClient({ embed = false }: { embed?: boolean }) {
-  const body = <DesignSystemBody />;
+export default function DesignSystemClient({
+  embed = false,
+  initialSection,
+  initialTheme,
+}: {
+  embed?: boolean;
+  initialSection?: SectionId;
+  initialTheme?: "light" | "dark";
+}) {
+  const body = (
+    <DesignSystemBody initialSection={initialSection} initialTheme={initialTheme} />
+  );
 
   if (embed) {
     return (

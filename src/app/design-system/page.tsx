@@ -8,7 +8,37 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-type SearchParams = { embed?: string | string[] };
+type SectionId = "overview" | "foundations" | "components" | "patterns" | "dataviz";
+
+type SearchParams = {
+  embed?: string | string[];
+  theme?: string | string[];
+  tab?: string | string[];
+  section?: string | string[];
+};
+
+function firstParam(raw: string | string[] | undefined): string | undefined {
+  if (Array.isArray(raw)) return raw[0];
+  return raw;
+}
+
+function parseSection(raw: string | undefined): SectionId | undefined {
+  if (
+    raw === "overview" ||
+    raw === "foundations" ||
+    raw === "components" ||
+    raw === "patterns" ||
+    raw === "dataviz"
+  ) {
+    return raw;
+  }
+  return undefined;
+}
+
+function parseTheme(raw: string | undefined): "light" | "dark" | undefined {
+  if (raw === "light" || raw === "dark") return raw;
+  return undefined;
+}
 
 export default async function DesignSystemPage({
   searchParams,
@@ -16,9 +46,17 @@ export default async function DesignSystemPage({
   searchParams: Promise<SearchParams> | SearchParams;
 }) {
   const params = await Promise.resolve(searchParams);
-  const raw = params.embed;
-  const embedValue = Array.isArray(raw) ? raw[0] : raw;
+  const embedValue = firstParam(params.embed);
   const embed = embedValue === "1" || embedValue === "true";
+  const initialTheme = parseTheme(firstParam(params.theme));
+  const initialSection =
+    parseSection(firstParam(params.tab)) ?? parseSection(firstParam(params.section));
 
-  return <DesignSystemClient embed={embed} />;
+  return (
+    <DesignSystemClient
+      embed={embed}
+      initialSection={initialSection}
+      initialTheme={initialTheme}
+    />
+  );
 }
